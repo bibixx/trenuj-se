@@ -1,0 +1,9 @@
+name = "workout-planner"
+compatibility_date = "2026-04-01"
+pages_build_output_dir = "dist"
+
+[vars]
+# Set these in the Cloudflare Pages dashboard or override locally via `.dev.vars`.
+VITE_SUPABASE_URL = ""
+VITE_SUPABASE_ANON_KEY = ""
+PUBLIC_APP_URL = "http://localhost:8788"

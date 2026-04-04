@@ -1,0 +1,48 @@
+{
+  "name": "workout-planner",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm run cf:dev",
+    "build": "tsc -p tsconfig.node.json && mkdir -p dist",
+    "lint": "oxlint",
+    "format": "oxfmt .",
+    "format:check": "oxfmt --check .",
+    "cf:dev": "pnpm run build && wrangler pages dev dist",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "type-check": "tsc -p tsconfig.node.json"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@supabase/supabase-js": "^2.57.4",
+    "drizzle-orm": "^0.44.7",
+    "hono": "^4.10.0",
+    "postgres": "^3.4.7",
+    "zod": "^4.1.12"
+  },
+  "devDependencies": {
+    "@types/node": "^24.12.0",
+    "@vitest/coverage-v8": "^4.1.2",
+    "dotenv": "^17.4.0",
+    "drizzle-kit": "^0.31.7",
+    "lefthook": "^2.1.4",
+    "oxfmt": "^0.43.0",
+    "oxlint": "^1.58.0",
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.2",
+    "wrangler": "^4.42.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "lefthook",
+      "sharp",
+      "workerd"
+    ]
+  }
+}

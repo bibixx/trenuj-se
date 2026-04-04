@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript"],
+  "ignorePatterns": ["dist", ".wrangler"],
+  "rules": {
+    "typescript/no-explicit-any": "error"
+  },
+  "overrides": [
+    {
+      "files": ["server/**/*.ts", "functions/**/*.ts"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "process",
+            "message": "process is not available in Cloudflare Workers. Use c.env bindings instead."
+          }
+        ]
+      }
+    }
+  ]
+}

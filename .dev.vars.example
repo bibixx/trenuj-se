@@ -1,0 +1,12 @@
+# Public client configuration (safe to expose in the browser)
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+
+# Server-only secrets
+SUPABASE_SECRET_KEY=
+DATABASE_URL=
+STRAVA_CLIENT_ID=
+STRAVA_CLIENT_SECRET=
+STRAVA_VERIFY_TOKEN=
+STRAVA_WEBHOOK_PATH_SECRET=   # Random string, used as webhook URL path segment
+PUBLIC_APP_URL=
