@@ -1,9 +1,9 @@
-name = "workout-planner"
+name = "trenuj-se"
 compatibility_date = "2026-04-01"
 pages_build_output_dir = "dist"
 
 [vars]
-# Set these in the Cloudflare Pages dashboard or override locally via `.dev.vars`.
-VITE_SUPABASE_URL = ""
-VITE_SUPABASE_ANON_KEY = ""
-PUBLIC_APP_URL = "http://localhost:8788"
+# Override locally via `.dev.vars`.
+VITE_SUPABASE_URL = "https://bjyrrqtzzywauescjmhr.supabase.co"
+VITE_SUPABASE_ANON_KEY = "sb_publishable_xDr64w3C_jsGn-AAXltRow_9AhtydeC"
+PUBLIC_APP_URL = "https://www.trenuj.se"

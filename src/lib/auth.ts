@@ -25,12 +25,12 @@ export function useAuth(): AuthState {
     // Listen for auth changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       const user = session?.user ?? null;
       setState((prev) => ({ ...prev, user, session }));
 
       // On logout, clear all cached data
-      if (!user) {
+      if (event === "SIGNED_OUT") {
         queryClient.clear();
       }
     });
