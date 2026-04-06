@@ -464,7 +464,7 @@ describe("GET /api/strava/auth", () => {
     const url = new URL(res.headers.get("location")!);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
-    expect(decodeURIComponent(encodedCallback)).toBe("/dashboard/settings?strava=connected");
+    expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
   });
 
   test("sanitizes /api/ callback paths", async () => {
@@ -476,7 +476,7 @@ describe("GET /api/strava/auth", () => {
     const url = new URL(res.headers.get("location")!);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
-    expect(decodeURIComponent(encodedCallback)).toBe("/dashboard/settings?strava=connected");
+    expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
   });
 
   test("sanitizes /mcp callback path", async () => {
@@ -488,7 +488,7 @@ describe("GET /api/strava/auth", () => {
     const url = new URL(res.headers.get("location")!);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
-    expect(decodeURIComponent(encodedCallback)).toBe("/dashboard/settings?strava=connected");
+    expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
   });
 
   test("sanitizes non-path callback", async () => {
@@ -500,7 +500,7 @@ describe("GET /api/strava/auth", () => {
     const url = new URL(res.headers.get("location")!);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
-    expect(decodeURIComponent(encodedCallback)).toBe("/dashboard/settings?strava=connected");
+    expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
   });
 });
 

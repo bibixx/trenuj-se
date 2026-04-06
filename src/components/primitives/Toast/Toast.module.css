@@ -1,0 +1,101 @@
+.viewport {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+  width: min(calc(100vw - 48px), 356px);
+  pointer-events: none;
+}
+
+.root {
+  --toast-accent-shadow: transparent 0 0 0 0 inset;
+
+  background: color-mix(in srgb, var(--toast-accent, var(--bg-elevated)) 15%, var(--bg-elevated));
+  border-radius: var(--radius);
+  box-shadow: var(--border-shine), var(--shadow-toast);
+  padding: 12px 40px 12px 16px;
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  will-change: transform, opacity;
+  transform: translateY(calc(-1 * var(--toast-offset-y) - var(--toast-index) * 10px));
+  transition:
+    transform var(--motion-timing-medium) var(--motion-function),
+    opacity var(--motion-timing-medium) var(--motion-function);
+  pointer-events: auto;
+
+  /* Entry: start from below + slightly scaled down */
+  &[data-starting-style] {
+    opacity: 0;
+    transform: translateY(calc(100%)) scale(0.96);
+  }
+
+  /* Exit: slide out to the right, preserving vertical position */
+  &[data-ending-style] {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--toast-offset-y) - var(--toast-index) * 10px)) translateX(calc(100% + 24px));
+    transition:
+      transform var(--motion-timing-fast) var(--motion-function),
+      opacity var(--motion-timing-fast) var(--motion-function);
+  }
+
+  &[data-limited] {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  &[data-swiping] {
+    transition: none;
+  }
+
+  &[data-type="success"] {
+    --toast-accent: var(--success);
+  }
+
+  &[data-type="error"] {
+    --toast-accent: var(--destructive);
+  }
+
+  &[data-type="success"],
+  &[data-type="error"] {
+    box-shadow:
+      var(--border-shine),
+      color-mix(in oklab, var(--toast-accent) 9%, transparent) 0 0 0 1px inset,
+      color-mix(in oklab, var(--toast-accent) 13%, transparent) 0 1px 0.5px 0,
+      var(--shadow-toast);
+  }
+}
+
+.title {
+  composes: typography-sm from global;
+  color: var(--text-primary);
+}
+
+.description {
+  composes: typography-xs from global;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color var(--motion-timing-fast) var(--motion-function),
+    background var(--motion-timing-fast) var(--motion-function);
+
+  &:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+}

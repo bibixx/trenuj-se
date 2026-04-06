@@ -1,0 +1,42 @@
+.scroll {
+  height: 100dvh;
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0 auto;
+  max-width: 672px;
+  padding: 32px 16px;
+}
+
+.header {
+  margin-bottom: 8px;
+}
+
+.errorRoot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100dvh;
+  padding: 0 var(--space-4);
+}
+
+.errorCard {
+  max-width: 400px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.errorTitle {
+  composes: typography-heading-s from global;
+}
+
+.errorDescription {
+  composes: typography-body-s from global;
+  color: var(--color-text-secondary);
+}

@@ -1,5 +1,6 @@
-import { AppError } from "../mcp/context";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { isSportType, type SportType } from "../../shared/activity";
+import { AppError } from "../mcp/context";
 
 const STRAVA_BASE_URL = "https://www.strava.com/api/v3";
 const STRAVA_OAUTH_URL = "https://www.strava.com/oauth/token";
@@ -97,38 +98,33 @@ export async function getValidStravaAccessToken(supabase: SupabaseClient, bindin
   return payload.access_token;
 }
 
-export function collapseStravaSportType(sportType: string | null | undefined) {
-  if (!sportType) return "unknown";
+const sportTypeAliases = new Map<string, SportType>([
+  ["CrossFit", "Crossfit"],
+  ["OpenWaterSwim", "Swim"],
+  ["Treadmill", "Run"],
+  ["VirtualRowing", "VirtualRow"],
+]);
 
-  const mapped = new Map<string, string>([
-    ["Run", "run"],
-    ["TrailRun", "run"],
-    ["VirtualRun", "run"],
-    ["Treadmill", "run"],
-    ["Ride", "bike"],
-    ["GravelRide", "bike"],
-    ["MountainBikeRide", "bike"],
-    ["EBikeRide", "bike"],
-    ["VirtualRide", "bike"],
-    ["EMountainBikeRide", "bike"],
-    ["Swim", "swim"],
-    ["OpenWaterSwim", "swim"],
-    ["WeightTraining", "strength"],
-    ["Yoga", "yoga"],
-    ["Hike", "hike"],
-    ["Walk", "walk"],
-    ["Rowing", "rowing"],
-    ["VirtualRowing", "rowing"],
-  ]);
-
-  if (mapped.has(sportType)) {
-    return mapped.get(sportType)!;
+export function collapseStravaSportType(sportType: string | null | undefined): SportType {
+  if (!sportType) {
+    return "Workout";
   }
 
-  return sportType
-    .replace(/([a-z0-9])([A-Z])/g, "$1-$2")
-    .replace(/_/g, "-")
-    .toLowerCase();
+  if (isSportType(sportType)) {
+    return sportType;
+  }
+
+  const alias = sportTypeAliases.get(sportType);
+  if (alias) {
+    return alias;
+  }
+
+  const canonical = sportType.replace(/[^A-Za-z]/g, "");
+  if (isSportType(canonical)) {
+    return canonical;
+  }
+
+  return "Workout";
 }
 
 export function parseStravaTimezoneToIana(value: string | null | undefined) {
@@ -177,7 +173,7 @@ export async function upsertStravaActivity(supabase: SupabaseClient, userId: str
     return v != null ? Math.round(v) : null;
   };
 
-  const sport = collapseStravaSportType(str("sport_type"));
+  const sport = collapseStravaSportType(str("sport_type") ?? str("type"));
   const row = {
     user_id: userId,
     strava_id: activity["id"],
@@ -204,28 +200,45 @@ export async function upsertStravaActivity(supabase: SupabaseClient, userId: str
   return data;
 }
 
-export async function autoMatchActivityToWorkout(supabase: SupabaseClient, userId: string, activity: { id: string; sport: string; date: string; timezone: string | null }) {
+export async function autoMatchActivityToWorkout(supabase: SupabaseClient, userId: string, activity: { id: string; sport: SportType; date: string; timezone: string | null }) {
   const localDate = activityLocalDate({ start_date: activity.date, timezone: activity.timezone });
   if (!localDate) {
     return null;
   }
 
-  const { data, error } = await supabase
+  const { data: workouts, error: workoutsError } = await supabase
     .from("workouts")
-    .select("id, sort_order")
+    .select("id, label_id, sort_order")
     .eq("user_id", userId)
     .eq("date", localDate)
-    .eq("sport", activity.sport)
     .eq("status", "planned")
     .is("activity_id", null)
     .order("sort_order", { ascending: true })
-    .limit(1);
+    .limit(50);
 
-  if (error) {
-    throw new AppError("INTERNAL_ERROR", error.message);
+  if (workoutsError) {
+    throw new AppError("INTERNAL_ERROR", workoutsError.message);
   }
 
-  const match = data?.[0];
+  const workoutCandidates = (workouts ?? []).filter((workout) => workout.label_id != null);
+  if (workoutCandidates.length === 0) {
+    return null;
+  }
+
+  const labelIds = [...new Set(workoutCandidates.map((workout) => workout.label_id).filter((labelId): labelId is string => Boolean(labelId)))];
+  const { data: labelActivitySports, error: labelActivitySportsError } = await supabase
+    .from("label_activity_sports")
+    .select("label_id, activity_sport")
+    .eq("user_id", userId)
+    .in("label_id", labelIds)
+    .eq("activity_sport", activity.sport);
+
+  if (labelActivitySportsError) {
+    throw new AppError("INTERNAL_ERROR", labelActivitySportsError.message);
+  }
+
+  const matchingLabelIds = new Set((labelActivitySports ?? []).map((row) => row.label_id));
+  const match = workoutCandidates.find((workout) => workout.label_id && matchingLabelIds.has(workout.label_id));
   if (!match) {
     return null;
   }

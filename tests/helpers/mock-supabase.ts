@@ -2,13 +2,14 @@ import { vi } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type SupabaseResponse = { data: unknown; error: unknown; count?: number };
+type SupabaseResponseConfig = SupabaseResponse | SupabaseResponse[];
 
 type TableConfig = {
-  select?: SupabaseResponse;
-  insert?: SupabaseResponse;
-  update?: SupabaseResponse;
-  upsert?: SupabaseResponse;
-  delete?: SupabaseResponse;
+  select?: SupabaseResponseConfig;
+  insert?: SupabaseResponseConfig;
+  update?: SupabaseResponseConfig;
+  upsert?: SupabaseResponseConfig;
+  delete?: SupabaseResponseConfig;
 };
 
 type AuthConfig = {
@@ -59,6 +60,17 @@ function createChain(resolve: () => SupabaseResponse): ThenableChain {
   return makeThenableChain(chain, resolve);
 }
 
+function createOperationResolver(tableConfig: TableConfig, operation: keyof TableConfig, defaultResponse: SupabaseResponse) {
+  const configured = tableConfig[operation];
+
+  if (Array.isArray(configured)) {
+    const responses = [...configured];
+    return () => responses.shift() ?? configured.at(-1) ?? defaultResponse;
+  }
+
+  return () => configured ?? defaultResponse;
+}
+
 export function createMockSupabase(
   config: {
     tables?: Record<string, TableConfig>;
@@ -72,27 +84,32 @@ export function createMockSupabase(
   const from = vi.fn((table: string) => {
     const tableConfig = tables[table] ?? {};
     const defaultResponse: SupabaseResponse = { data: [], error: null };
+    const resolveSelect = createOperationResolver(tableConfig, "select", defaultResponse);
+    const resolveInsert = createOperationResolver(tableConfig, "insert", defaultResponse);
+    const resolveUpdate = createOperationResolver(tableConfig, "update", defaultResponse);
+    const resolveUpsert = createOperationResolver(tableConfig, "upsert", defaultResponse);
+    const resolveDelete = createOperationResolver(tableConfig, "delete", { data: null, error: null });
 
-    const chain = createChain(() => tableConfig.select ?? defaultResponse);
+    const chain = createChain(resolveSelect);
 
     chain.insert = vi.fn((...args: unknown[]) => {
       calls.push({ table, operation: "insert", args });
-      return createChain(() => tableConfig.insert ?? defaultResponse);
+      return createChain(resolveInsert);
     });
 
     chain.update = vi.fn((...args: unknown[]) => {
       calls.push({ table, operation: "update", args });
-      return createChain(() => tableConfig.update ?? defaultResponse);
+      return createChain(resolveUpdate);
     });
 
     chain.upsert = vi.fn((...args: unknown[]) => {
       calls.push({ table, operation: "upsert", args });
-      return createChain(() => tableConfig.upsert ?? defaultResponse);
+      return createChain(resolveUpsert);
     });
 
     chain.delete = vi.fn(() => {
       calls.push({ table, operation: "delete", args: [] });
-      const deleteResp = tableConfig.delete ?? { data: null, error: null };
+      const deleteResp = resolveDelete();
       const deleteChain = createChain(() => deleteResp);
       deleteChain.then = (fn: (v: SupabaseResponse) => unknown) => Promise.resolve(deleteResp).then(fn);
       deleteChain.catch = (fn: (e: unknown) => unknown) => Promise.resolve(deleteResp).catch(fn);
@@ -101,7 +118,7 @@ export function createMockSupabase(
 
     chain.select = vi.fn((...args: unknown[]) => {
       calls.push({ table, operation: "select", args });
-      return createChain(() => tableConfig.select ?? defaultResponse);
+      return createChain(resolveSelect);
     });
 
     return chain;

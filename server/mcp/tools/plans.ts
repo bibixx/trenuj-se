@@ -1,74 +1,97 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { AppError, resolvePlanId, toolError, toolSuccess, type McpContext } from "../context";
+import { AppError, activitySportSchema, collectMissingActivitySportWarnings, resolvePlanId, toolError, toolSuccess, type McpContext, validateLabelMetadata } from "../context";
 
 const planStatusSchema = z.enum(["active", "inactive"]);
-const colorBySchema = z.enum(["sport", "category"]);
+const labelKeySchema = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Label key must use lowercase letters, numbers, and hyphens only (e.g. 'easy-run')");
 
-const createPlanSchema = z.object({
-  name: z.string().trim().min(1),
-  goal: z.string().trim().min(1).optional(),
-  startDate: z.string().date(),
-  endDate: z.string().date().optional(),
-  colorBy: colorBySchema,
-  metadata: z.record(z.string(), z.unknown()).optional(),
-});
+const createPlanSchema = z
+  .object({
+    name: z.string().trim().min(1).describe("Plan name."),
+    goal: z.string().trim().min(1).optional().describe("High-level training goal."),
+    startDate: z.string().date().describe("Plan start date (YYYY-MM-DD)."),
+    endDate: z.string().date().optional().describe("Plan end date (YYYY-MM-DD)."),
+    metadata: z.record(z.string(), z.unknown()).optional().describe("Arbitrary key-value data."),
+  })
+  .strict();
 
-const updatePlanSchema = z.object({
-  planId: z.string().uuid().optional(),
-  name: z.string().trim().min(1).optional(),
-  goal: z.string().trim().min(1).nullable().optional(),
-  startDate: z.string().date().optional(),
-  endDate: z.string().date().nullable().optional(),
-  status: planStatusSchema.optional(),
-  colorBy: colorBySchema.optional(),
-  metadata: z.record(z.string(), z.unknown()).nullable().optional(),
-});
+const updatePlanSchema = z
+  .object({
+    planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+    name: z.string().trim().min(1).optional().describe("Plan name."),
+    goal: z.string().trim().min(1).nullable().optional().describe("High-level training goal. Set to null to clear."),
+    startDate: z.string().date().optional().describe("Plan start date (YYYY-MM-DD)."),
+    endDate: z.string().date().nullable().optional().describe("Plan end date (YYYY-MM-DD). Set to null to clear."),
+    status: planStatusSchema.optional().describe("Plan status: 'active' or 'inactive'."),
+    metadata: z.record(z.string(), z.unknown()).nullable().optional().describe("Arbitrary key-value data. Set to null to clear."),
+  })
+  .strict();
 
 const listPlansSchema = z.object({
-  status: planStatusSchema.optional(),
+  status: planStatusSchema.optional().describe("Filter by plan status: 'active' or 'inactive'."),
 });
 
-const workoutTypeSchema = z.object({
-  key: z.string().trim().min(1),
-  label: z.string().trim().min(1),
-  hue: z.number().int().min(0).max(359),
-  icon: z.string().trim().min(1).optional(),
-  sortOrder: z.number().int().default(0),
+const labelSchema = z.object({
+  key: labelKeySchema.describe("Unique label identifier using lowercase letters, numbers, and hyphens only (e.g. 'easy-run')."),
+  label: z.string().trim().min(1).describe("Human-readable display name."),
+  hue: z.number().int().min(0).max(359).describe("HSL hue (0–359) for the label color."),
+  icon: z
+    .string()
+    .trim()
+    .min(1)
+    .optional()
+    .describe(
+      "Icon identifier. Prefer a Tabler icon name (e.g. 'run') — use search_icons to discover names. Alternatively an emoji (e.g. '🏃') or a raw SVG string (starting with '<svg').",
+    ),
+  metadata: z.unknown().optional().describe("Arbitrary label metadata."),
+  activitySports: z.array(activitySportSchema).default([]).describe("Strava sport types for auto-matching imported activities (e.g. ['Run', 'TrailRun'])."),
 });
 
-const setWorkoutTypesSchema = z.object({
-  planId: z.string().uuid().optional(),
-  types: z.array(workoutTypeSchema),
+const setLabelsSchema = z.object({
+  planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+  labels: z.array(labelSchema).describe("Full set of labels. Replaces all existing labels for the plan."),
 });
 
-const updateWorkoutTypeSchema = z.object({
-  planId: z.string().uuid().optional(),
-  key: z.string().trim().min(1),
-  label: z.string().trim().min(1).optional(),
-  hue: z.number().int().min(0).max(359).optional(),
-  icon: z.string().trim().min(1).nullable().optional(),
-  sortOrder: z.number().int().optional(),
+const updateLabelSchema = z.object({
+  planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+  key: labelKeySchema.describe("Label key to update, using lowercase letters, numbers, and hyphens only (e.g. 'easy-run')."),
+  label: z.string().trim().min(1).optional().describe("Human-readable display name."),
+  hue: z.number().int().min(0).max(359).optional().describe("HSL hue (0–359) for the label color."),
+  icon: z
+    .string()
+    .trim()
+    .min(1)
+    .nullable()
+    .optional()
+    .describe(
+      "Icon identifier. Prefer a Tabler icon name (e.g. 'run') — use search_icons to discover names. Alternatively an emoji (e.g. '🏃') or a raw SVG string (starting with '<svg'). Set to null to clear.",
+    ),
+  metadata: z.unknown().nullable().optional().describe("Arbitrary label metadata. Set to null to clear."),
+  activitySports: z.array(activitySportSchema).optional().describe("Strava sport types for auto-matching imported activities."),
 });
 
 const phaseSchema = z.object({
-  planId: z.string().uuid().optional(),
-  name: z.string().trim().min(1),
-  description: z.string().trim().min(1).optional(),
-  startDate: z.string().date(),
-  endDate: z.string().date(),
-  sortOrder: z.number().int().default(0),
-  metadata: z.record(z.string(), z.unknown()).optional(),
+  planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+  name: z.string().trim().min(1).describe("Phase name (e.g. 'Base', 'Build', 'Peak', 'Taper')."),
+  description: z.string().trim().min(1).optional().describe("Phase description."),
+  startDate: z.string().date().describe("Phase start date (YYYY-MM-DD). Must be within the plan date range."),
+  endDate: z.string().date().describe("Phase end date (YYYY-MM-DD). Must be within the plan date range."),
+  sortOrder: z.number().int().default(0).describe("Display order (lower values appear first)."),
+  metadata: z.record(z.string(), z.unknown()).optional().describe("Arbitrary key-value data."),
 });
 
 const updatePhaseSchema = z.object({
-  phaseId: z.string().uuid(),
-  name: z.string().trim().min(1).optional(),
-  description: z.string().trim().min(1).nullable().optional(),
-  startDate: z.string().date().optional(),
-  endDate: z.string().date().optional(),
-  sortOrder: z.number().int().optional(),
-  metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+  phaseId: z.string().uuid().describe("Phase UUID."),
+  name: z.string().trim().min(1).optional().describe("Phase name (e.g. 'Base', 'Build', 'Peak', 'Taper')."),
+  description: z.string().trim().min(1).nullable().optional().describe("Phase description. Set to null to clear."),
+  startDate: z.string().date().optional().describe("Phase start date (YYYY-MM-DD)."),
+  endDate: z.string().date().optional().describe("Phase end date (YYYY-MM-DD)."),
+  sortOrder: z.number().int().optional().describe("Display order (lower values appear first)."),
+  metadata: z.record(z.string(), z.unknown()).nullable().optional().describe("Arbitrary key-value data. Set to null to clear."),
 });
 
 async function getPlanSummary(ctx: McpContext, planId: string) {
@@ -118,19 +141,63 @@ async function getCurrentPhase(ctx: McpContext, planId: string) {
   return data;
 }
 
-async function collectWorkoutTypeWarnings(ctx: McpContext, plan: Awaited<ReturnType<typeof resolvePlanId>>, types: Array<z.infer<typeof workoutTypeSchema>>) {
-  const field = plan.color_by === "sport" ? "sport" : "category";
-  const { data, error } = await ctx.supabase.from("workouts").select(field).eq("plan_id", plan.id).eq("user_id", ctx.userId);
+async function getLabelsForPlan(ctx: McpContext, planId: string) {
+  const [{ data: labels, error: labelsError }, { data: activitySports, error: activitySportsError }] = await Promise.all([
+    ctx.supabase
+      .from("labels")
+      .select("id, key, label, hue, icon, metadata, created_at, updated_at")
+      .eq("plan_id", planId)
+      .eq("user_id", ctx.userId)
+      .order("label", { ascending: true }),
+    ctx.supabase.from("label_activity_sports").select("label_id, activity_sport").eq("user_id", ctx.userId),
+  ]);
 
-  if (error) {
-    throw new AppError("INTERNAL_ERROR", error.message);
+  if (labelsError) throw new AppError("INTERNAL_ERROR", labelsError.message);
+  if (activitySportsError) throw new AppError("INTERNAL_ERROR", activitySportsError.message);
+
+  const allowedLabelIds = new Set((labels ?? []).map((label) => label.id));
+  const sportsByLabelId = new Map<string, string[]>();
+  for (const row of activitySports ?? []) {
+    if (!allowedLabelIds.has(row.label_id)) {
+      continue;
+    }
+    const current = sportsByLabelId.get(row.label_id) ?? [];
+    current.push(row.activity_sport);
+    sportsByLabelId.set(row.label_id, current);
   }
 
-  const values = new Set((data ?? []).map((row) => String(row[field as keyof typeof row] ?? "")).filter(Boolean));
+  return (labels ?? []).map((label) => ({
+    ...label,
+    activitySports: sportsByLabelId.get(label.id) ?? [],
+  }));
+}
 
-  return types
-    .filter((type) => !values.has(type.key))
-    .map((type) => `Workout type key '${type.key}' does not match any workout's ${field} field (plan uses colorBy=${plan.color_by})`);
+async function findLabelByKey(ctx: McpContext, planId: string, key: string) {
+  const { data, error } = await ctx.supabase
+    .from("labels")
+    .select("id, key, label, hue, icon, metadata, created_at, updated_at")
+    .eq("plan_id", planId)
+    .eq("user_id", ctx.userId)
+    .eq("key", key)
+    .maybeSingle();
+
+  if (error) throw new AppError("INTERNAL_ERROR", error.message);
+  if (!data) throw new AppError("NOT_FOUND", "Label not found");
+  return data;
+}
+
+async function replaceLabelActivitySports(ctx: McpContext, labelId: string, activitySports: string[]) {
+  const { error: deleteError } = await ctx.supabase.from("label_activity_sports").delete().eq("label_id", labelId).eq("user_id", ctx.userId);
+  if (deleteError) throw new AppError("INTERNAL_ERROR", deleteError.message);
+
+  if (activitySports.length === 0) {
+    return;
+  }
+
+  const { error: insertError } = await ctx.supabase
+    .from("label_activity_sports")
+    .insert(activitySports.map((activitySport) => ({ label_id: labelId, user_id: ctx.userId, activity_sport: activitySport })));
+  if (insertError) throw new AppError("INTERNAL_ERROR", insertError.message);
 }
 
 export function registerPlanTools(server: McpServer, ctx: McpContext) {
@@ -147,7 +214,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
         const params = listPlansSchema.parse(input ?? {});
         let query = ctx.supabase
           .from("plans")
-          .select("id, name, goal, status, start_date, end_date, color_by, created_at, updated_at")
+          .select("id, name, goal, status, start_date, end_date, metadata, created_at, updated_at")
           .eq("user_id", ctx.userId)
           .order("start_date", { ascending: false });
 
@@ -168,8 +235,8 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
     "get_plan",
     {
       title: "Get Plan",
-      description: "Get plan metadata, phases, workout types, and summary stats for a specific or active plan.",
-      inputSchema: z.object({ planId: z.string().uuid().optional() }),
+      description: "Get plan metadata, phases, labels, and summary stats for a specific or active plan.",
+      inputSchema: z.object({ planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted.") }),
       annotations: { readOnlyHint: true },
     },
     async (input) => {
@@ -177,23 +244,17 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
         const params = z.object({ planId: z.string().uuid().optional() }).parse(input ?? {});
         const plan = await resolvePlanId(ctx, params.planId);
 
-        const [{ data: phases, error: phasesError }, { data: workoutTypes, error: workoutTypesError }] = await Promise.all([
+        const [{ data: phases, error: phasesError }, labels] = await Promise.all([
           ctx.supabase
             .from("phases")
             .select("id, name, description, start_date, end_date, sort_order, metadata, created_at")
             .eq("plan_id", plan.id)
             .eq("user_id", ctx.userId)
             .order("sort_order", { ascending: true }),
-          ctx.supabase
-            .from("workout_types")
-            .select("id, key, label, hue, icon, sort_order")
-            .eq("plan_id", plan.id)
-            .eq("user_id", ctx.userId)
-            .order("sort_order", { ascending: true }),
+          getLabelsForPlan(ctx, plan.id),
         ]);
 
         if (phasesError) throw new AppError("INTERNAL_ERROR", phasesError.message);
-        if (workoutTypesError) throw new AppError("INTERNAL_ERROR", workoutTypesError.message);
 
         const summary = await getPlanSummary(ctx, plan.id);
         const currentPhase = await getCurrentPhase(ctx, plan.id);
@@ -201,7 +262,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
         return toolSuccess({
           ...plan,
           phases: phases ?? [],
-          workoutTypes: workoutTypes ?? [],
+          labels,
           summary: {
             ...summary,
             currentPhase,
@@ -217,7 +278,8 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
     "create_plan",
     {
       title: "Create Plan",
-      description: "Create a new training plan and deactivate the current active plan first.",
+      description:
+        "Create a new training plan and deactivate the current active plan. ⚠️ NOT idempotent — use list_plans first to check if the plan already exists before creating.",
       inputSchema: createPlanSchema,
       annotations: { idempotentHint: false },
     },
@@ -229,7 +291,6 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
         }
 
         const { error: deactivateError } = await ctx.supabase.from("plans").update({ status: "inactive" }).eq("user_id", ctx.userId).eq("status", "active");
-
         if (deactivateError) throw new AppError("INTERNAL_ERROR", deactivateError.message);
 
         const { data, error } = await ctx.supabase
@@ -241,10 +302,9 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
             start_date: params.startDate,
             end_date: params.endDate ?? null,
             status: "active",
-            color_by: params.colorBy,
             metadata: params.metadata ?? null,
           })
-          .select("id, name, goal, status, start_date, end_date, color_by, metadata, created_at, updated_at")
+          .select("id, name, goal, status, start_date, end_date, metadata, created_at, updated_at")
           .single();
 
         if (error || !data) throw new AppError("INTERNAL_ERROR", error?.message ?? "Failed to create plan");
@@ -279,7 +339,6 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
           start_date: params.startDate,
           end_date: params.endDate,
           status: params.status,
-          color_by: params.colorBy,
           metadata: params.metadata,
         };
 
@@ -289,7 +348,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
           .update(cleanedPatch)
           .eq("id", plan.id)
           .eq("user_id", ctx.userId)
-          .select("id, name, goal, status, start_date, end_date, color_by, metadata, created_at, updated_at")
+          .select("id, name, goal, status, start_date, end_date, metadata, created_at, updated_at")
           .single();
 
         if (error || !data) throw new AppError("INTERNAL_ERROR", error?.message ?? "Failed to update plan");
@@ -305,7 +364,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
     {
       title: "Deactivate Plan",
       description: "Deactivate a plan by id or the active plan when omitted.",
-      inputSchema: z.object({ planId: z.string().uuid().optional() }),
+      inputSchema: z.object({ planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted.") }),
       annotations: { destructiveHint: true },
     },
     async (input) => {
@@ -323,41 +382,64 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
   );
 
   server.registerTool(
-    "set_workout_types",
+    "set_labels",
     {
-      title: "Set Workout Types",
-      description: "Replace all workout types for a plan.",
-      inputSchema: setWorkoutTypesSchema,
+      title: "Set Labels",
+      description: "Replace all labels for the active plan, or for a specific plan when planId is provided.",
+      inputSchema: setLabelsSchema,
       annotations: { idempotentHint: false },
     },
     async (input) => {
       try {
-        const params = setWorkoutTypesSchema.parse(input);
+        const params = setLabelsSchema.parse(input);
         const plan = await resolvePlanId(ctx, params.planId);
-        const warnings = await collectWorkoutTypeWarnings(ctx, plan, params.types);
+        const parsedLabels = params.labels.map((label) => ({ ...label, metadata: validateLabelMetadata(label.metadata) }));
+        const warnings = collectMissingActivitySportWarnings(parsedLabels.map((label) => ({ key: label.key, activitySports: label.activitySports })));
 
-        const { error: deleteError } = await ctx.supabase.from("workout_types").delete().eq("plan_id", plan.id).eq("user_id", ctx.userId);
-
+        const { error: deleteError } = await ctx.supabase.from("labels").delete().eq("plan_id", plan.id).eq("user_id", ctx.userId);
         if (deleteError) throw new AppError("INTERNAL_ERROR", deleteError.message);
 
-        const { data, error } = await ctx.supabase
-          .from("workout_types")
+        if (parsedLabels.length === 0) {
+          return toolSuccess([], warnings);
+        }
+
+        const { data: insertedLabels, error: labelsError } = await ctx.supabase
+          .from("labels")
           .insert(
-            params.types.map((type) => ({
+            parsedLabels.map((label) => ({
               plan_id: plan.id,
               user_id: ctx.userId,
-              key: type.key,
-              label: type.label,
-              hue: type.hue,
-              icon: type.icon ?? null,
-              sort_order: type.sortOrder,
+              key: label.key,
+              label: label.label,
+              hue: label.hue,
+              icon: label.icon ?? null,
+              metadata: label.metadata,
             })),
           )
-          .select("id, key, label, hue, icon, sort_order")
-          .order("sort_order", { ascending: true });
+          .select("id, key, label, hue, icon, metadata, created_at, updated_at")
+          .order("label", { ascending: true });
 
-        if (error) throw new AppError("INTERNAL_ERROR", error.message);
-        return toolSuccess(data ?? [], warnings);
+        if (labelsError) throw new AppError("INTERNAL_ERROR", labelsError.message);
+
+        const insertedLabelRows = insertedLabels ?? [];
+        const insertedByKey = new Map(insertedLabelRows.map((label) => [label.key, label]));
+        const activitySportRows = parsedLabels.flatMap((label) =>
+          label.activitySports
+            .map((activitySport) => ({ label_id: insertedByKey.get(label.key)?.id, user_id: ctx.userId, activity_sport: activitySport }))
+            .filter((row) => row.label_id != null),
+        );
+
+        if (activitySportRows.length > 0) {
+          const { error: activitySportsError } = await ctx.supabase.from("label_activity_sports").insert(activitySportRows);
+          if (activitySportsError) throw new AppError("INTERNAL_ERROR", activitySportsError.message);
+        }
+
+        const labels = insertedLabelRows.map((label) => ({
+          ...label,
+          activitySports: parsedLabels.find((candidate) => candidate.key === label.key)?.activitySports ?? [],
+        }));
+
+        return toolSuccess(labels, warnings);
       } catch (error) {
         return toolError(error);
       }
@@ -365,37 +447,45 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
   );
 
   server.registerTool(
-    "update_workout_type",
+    "update_label",
     {
-      title: "Update Workout Type",
-      description: "Update one workout type by key.",
-      inputSchema: updateWorkoutTypeSchema,
+      title: "Update Label",
+      description: "Update one label by key on the active plan, or on a specific plan when planId is provided.",
+      inputSchema: updateLabelSchema,
       annotations: { idempotentHint: true },
     },
     async (input) => {
       try {
-        const params = updateWorkoutTypeSchema.parse(input);
+        const params = updateLabelSchema.parse(input);
         const plan = await resolvePlanId(ctx, params.planId);
+        const existingLabel = await findLabelByKey(ctx, plan.id, params.key);
         const patch = {
           label: params.label,
           hue: params.hue,
           icon: params.icon,
-          sort_order: params.sortOrder,
+          metadata: params.metadata === undefined ? undefined : validateLabelMetadata(params.metadata),
         };
         const cleanedPatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
 
         const { data, error } = await ctx.supabase
-          .from("workout_types")
+          .from("labels")
           .update(cleanedPatch)
-          .eq("plan_id", plan.id)
+          .eq("id", existingLabel.id)
           .eq("user_id", ctx.userId)
-          .eq("key", params.key)
-          .select("id, key, label, hue, icon, sort_order")
+          .select("id, key, label, hue, icon, metadata, created_at, updated_at")
           .maybeSingle();
 
         if (error) throw new AppError("INTERNAL_ERROR", error.message);
-        if (!data) throw new AppError("NOT_FOUND", "Workout type not found");
-        return toolSuccess(data);
+        if (!data) throw new AppError("NOT_FOUND", "Label not found");
+
+        if (params.activitySports) {
+          await replaceLabelActivitySports(ctx, data.id, params.activitySports);
+        }
+
+        const activitySports = params.activitySports ?? (await getLabelsForPlan(ctx, plan.id)).find((label) => label.id === data.id)?.activitySports ?? [];
+        const warnings = activitySports.length === 0 ? [`Label '${data.key}' has no activitySports; automatic activity matching may require manual linking.`] : [];
+
+        return toolSuccess({ ...data, activitySports }, warnings);
       } catch (error) {
         return toolError(error);
       }
@@ -406,7 +496,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
     "add_phase",
     {
       title: "Add Phase",
-      description: "Add a training phase to a plan.",
+      description: "Add a training phase to a plan. ⚠️ NOT idempotent — use get_plan to check existing phases before retrying.",
       inputSchema: phaseSchema,
       annotations: { idempotentHint: false },
     },
@@ -433,7 +523,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
             sort_order: params.sortOrder,
             metadata: params.metadata ?? null,
           })
-          .select("id, name, description, start_date, end_date, sort_order, metadata, created_at")
+          .select("id, name, description, start_date, end_date, metadata, created_at")
           .single();
 
         if (error || !data) throw new AppError("INTERNAL_ERROR", error?.message ?? "Failed to add phase");
@@ -448,7 +538,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
     "update_phase",
     {
       title: "Update Phase",
-      description: "Update a phase.",
+      description: "Update a phase's name, dates, or sort order.",
       inputSchema: updatePhaseSchema,
       annotations: { idempotentHint: true },
     },
@@ -490,7 +580,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
           .update(cleanedPatch)
           .eq("id", params.phaseId)
           .eq("user_id", ctx.userId)
-          .select("id, name, description, start_date, end_date, sort_order, metadata, created_at")
+          .select("id, name, description, start_date, end_date, metadata, created_at")
           .single();
 
         if (error || !data) throw new AppError("INTERNAL_ERROR", error?.message ?? "Failed to update phase");
@@ -506,7 +596,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
     {
       title: "Remove Phase",
       description: "Remove a phase and leave workouts unlinked.",
-      inputSchema: z.object({ phaseId: z.string().uuid() }),
+      inputSchema: z.object({ phaseId: z.string().uuid().describe("Phase UUID. Workouts in this phase will be unlinked, not deleted.") }),
       annotations: { destructiveHint: true },
     },
     async (input) => {

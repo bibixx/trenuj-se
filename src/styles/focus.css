@@ -1,0 +1,18 @@
+/*
+ * Focus ring styles — only visible for keyboard users via what-input.
+ * The PostCSS plugin rewrites :focus-visible → [data-whatintent="keyboard"] :focus
+ *
+ * Uses outline (not box-shadow) because box-shadow can be stripped
+ * by forced-colors / high-contrast accessibility modes.
+ */
+
+/* Remove default browser focus outline globally.
+ * Our keyboard-only ring below replaces it. */
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}

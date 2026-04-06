@@ -179,6 +179,55 @@ describe("MCP Note Tools", () => {
       expect(result?.result.type).toBe("adjustment");
     });
 
+    test("adds a note with numeric week metadata", async () => {
+      const note = { ...MOCK_NOTE, metadata: { week: 5, source: "coach" } };
+      const mock = createMockSupabase({
+        tables: {
+          ...authTokenTables(),
+          plans: {
+            select: { data: MOCK_PLAN, error: null },
+          },
+          plan_notes: {
+            insert: { data: note, error: null },
+            select: { data: note, error: null },
+          },
+        },
+      });
+      setMockSupabase(mock);
+
+      const res = await mcpCallTool(
+        "add_plan_note",
+        {
+          type: "note",
+          content: "Week note",
+          metadata: { week: 5, source: "coach" },
+        },
+        { token: TEST_TOKEN },
+      );
+      const parsed = await parseMcpResponse(res);
+      const result = extractToolResult(parsed);
+
+      expect(result?.result.metadata).toEqual({ week: 5, source: "coach" });
+    });
+
+    test("rejects add metadata when week is invalid", async () => {
+      setMockSupabase(createMockSupabase({ tables: { ...authTokenTables() } }));
+
+      const res = await mcpCallTool(
+        "add_plan_note",
+        {
+          type: "note",
+          content: "Broken week",
+          metadata: { week: false },
+        },
+        { token: TEST_TOKEN },
+      );
+      const parsed = await parseMcpResponse(res);
+      const err = extractToolError(parsed);
+
+      expect(err?.code).toBe("VALIDATION_ERROR");
+    });
+
     test("returns NOT_FOUND when plan does not exist", async () => {
       const mock = createMockSupabase({
         tables: {
@@ -295,6 +344,36 @@ describe("MCP Note Tools", () => {
       const result = extractToolResult(parsed);
 
       expect(result?.result.metadata).toEqual({ week: 5 });
+    });
+
+    test("updates note metadata with legacy ISO week", async () => {
+      const updatedNote = { ...MOCK_NOTE, metadata: { week: "2026-W15", source: "migration" } };
+      const mock = createMockSupabase({
+        tables: {
+          ...authTokenTables(),
+          plan_notes: {
+            update: { data: updatedNote, error: null },
+            select: { data: updatedNote, error: null },
+          },
+        },
+      });
+      setMockSupabase(mock);
+
+      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, metadata: { week: "2026-W15", source: "migration" } }, { token: TEST_TOKEN });
+      const parsed = await parseMcpResponse(res);
+      const result = extractToolResult(parsed);
+
+      expect(result?.result.metadata).toEqual({ week: "2026-W15", source: "migration" });
+    });
+
+    test("rejects update metadata when week is invalid", async () => {
+      setMockSupabase(createMockSupabase({ tables: { ...authTokenTables() } }));
+
+      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, metadata: { week: 0 } }, { token: TEST_TOKEN });
+      const parsed = await parseMcpResponse(res);
+      const err = extractToolError(parsed);
+
+      expect(err?.code).toBe("VALIDATION_ERROR");
     });
 
     test("returns NOT_FOUND when note does not exist", async () => {

@@ -8,6 +8,7 @@ import { registerWorkoutTools } from "./tools/workouts";
 import { registerNoteTools } from "./tools/notes";
 import { registerAthleteTools } from "./tools/athlete";
 import { registerActivityTools } from "./tools/activities";
+import { registerIconTools } from "./tools/icons";
 import type { AppBindings } from "../lib/supabase";
 
 function buildServer(ctx: McpContext) {
@@ -48,6 +49,7 @@ function buildServer(ctx: McpContext) {
   registerNoteTools(server, ctx);
   registerAthleteTools(server, ctx);
   registerActivityTools(server, ctx);
+  registerIconTools(server);
 
   return server;
 }

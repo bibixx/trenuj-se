@@ -30,7 +30,7 @@ const requireUser: MiddlewareHandler<{ Bindings: AppBindings; Variables: Variabl
 };
 
 function sanitizePostAuthRedirect(raw: string | null | undefined) {
-  const fallback = "/dashboard/settings?strava=connected";
+  const fallback = "/settings?strava=connected";
 
   if (!raw) {
     return fallback;
@@ -170,7 +170,7 @@ stravaRoutes.get("/callback", async (c) => {
     return c.redirect(`${successUrl.pathname}${successUrl.search}${successUrl.hash}`, 302);
   } catch (error) {
     const payload = errorPayload(error);
-    return c.redirect(`/dashboard/settings?strava=error&message=${encodeURIComponent(payload.message)}`, 302);
+    return c.redirect(`/settings?strava=error&message=${encodeURIComponent(payload.message)}`, 302);
   }
 });
 

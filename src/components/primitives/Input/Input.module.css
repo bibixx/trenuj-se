@@ -1,0 +1,57 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  composes: typography-xs from global;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.input {
+  composes: typography-sm from global;
+  height: 36px;
+  padding: 0 12px;
+  background: var(--bg-inset);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--motion-timing-fast) var(--motion-function);
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  /* Always show subtle border change on focus (mouse or keyboard) */
+  &[data-focused] {
+    border-color: var(--control-border-hover);
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+
+  &.error {
+    border-color: var(--destructive);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+/* Show focus ring only for keyboard intent */
+:global([data-whatintent="keyboard"]) .input[data-focused] {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.errorText {
+  composes: typography-xs from global;
+  color: var(--destructive);
+}

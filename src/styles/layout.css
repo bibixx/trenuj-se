@@ -1,0 +1,12 @@
+:root {
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 14px;
+  --radius-full: 9999px;
+
+  /* Motion */
+  --motion-timing-fast: 150ms;
+  --motion-timing-medium: 300ms;
+  --motion-timing-slow: 500ms;
+  --motion-function: cubic-bezier(0.4, 0, 0.2, 1);
+}

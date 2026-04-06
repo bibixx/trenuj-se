@@ -1,0 +1,107 @@
+.button {
+  composes: typography-sm from global;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius);
+  line-height: var(--leading-tight);
+  cursor: pointer;
+  transition:
+    background var(--motion-timing-fast) var(--motion-function),
+    opacity var(--motion-timing-fast) var(--motion-function),
+    box-shadow var(--motion-timing-fast) var(--motion-function),
+    transform var(--motion-timing-fast) var(--motion-function);
+  user-select: none;
+  white-space: nowrap;
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+}
+
+/* Sizes */
+.default {
+  height: 36px;
+  padding: 0 16px;
+
+  &:hover:not(:disabled) {
+    transform: scale(1.04);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.99);
+  }
+}
+
+.sm {
+  composes: typography-xs from global;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+
+  &:hover:not(:disabled) {
+    transform: scale(1.06);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.99);
+  }
+}
+
+/* Variants */
+.primary {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  box-shadow: var(--border-shine);
+
+  &:hover:not(:disabled) {
+    background: oklch(from var(--accent) calc(l * 1.035) calc(c * 0.95) h);
+  }
+
+  &:active:not(:disabled) {
+    background: oklch(from var(--accent) calc(l * 0.93) calc(c * 0.91) h);
+  }
+}
+
+.secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  box-shadow: var(--border-shine);
+
+  &:hover:not(:disabled) {
+    background: var(--bg-hover);
+  }
+
+  &:active:not(:disabled) {
+    background: var(--bg-inset);
+  }
+}
+
+.ghost {
+  background: transparent;
+  color: var(--text-secondary);
+
+  &:hover:not(:disabled) {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  &:active:not(:disabled) {
+    background: var(--bg-inset);
+  }
+}
+
+.destructive {
+  background: var(--destructive);
+  color: oklch(0.98 0.003 286);
+
+  &:hover:not(:disabled) {
+    background: oklch(from var(--destructive) calc(l * 1.035) calc(c * 0.95) h);
+  }
+
+  &:active:not(:disabled) {
+    background: oklch(from var(--destructive) calc(l * 0.93) calc(c * 0.91) h);
+  }
+}

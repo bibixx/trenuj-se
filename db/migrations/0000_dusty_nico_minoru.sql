@@ -17,6 +17,7 @@ CREATE TABLE "activities" (
 	"raw_data" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "activities_strava_id_unique" UNIQUE("strava_id"),
+	CONSTRAINT "activities_sport_check" CHECK ("activities"."sport" in ('AlpineSki', 'BackcountrySki', 'Badminton', 'Canoeing', 'Crossfit', 'EBikeRide', 'Elliptical', 'EMountainBikeRide', 'Golf', 'GravelRide', 'Handcycle', 'HighIntensityIntervalTraining', 'Hike', 'IceSkate', 'InlineSkate', 'Kayaking', 'Kitesurf', 'MountainBikeRide', 'NordicSki', 'Pickleball', 'Pilates', 'Racquetball', 'Ride', 'RockClimbing', 'RollerSki', 'Rowing', 'Run', 'Sail', 'Skateboard', 'Snowboard', 'Snowshoe', 'Soccer', 'Squash', 'StairStepper', 'StandUpPaddling', 'Surfing', 'Swim', 'TableTennis', 'Tennis', 'TrailRun', 'Velomobile', 'VirtualRide', 'VirtualRow', 'VirtualRun', 'Walk', 'WeightTraining', 'Wheelchair', 'Windsurf', 'Workout', 'Yoga')),
 	CONSTRAINT "activities_duration_positive" CHECK ("activities"."duration_sec" > 0)
 );
 --> statement-breakpoint
@@ -27,6 +28,29 @@ CREATE TABLE "api_tokens" (
 	"token_hash" text NOT NULL,
 	"last_used_at" timestamp with time zone,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "label_activity_sports" (
+	"label_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"activity_sport" text NOT NULL,
+	CONSTRAINT "label_activity_sports_label_sport_unique" UNIQUE("label_id","activity_sport"),
+	CONSTRAINT "label_activity_sports_activity_sport_check" CHECK ("label_activity_sports"."activity_sport" in ('AlpineSki', 'BackcountrySki', 'Badminton', 'Canoeing', 'Crossfit', 'EBikeRide', 'Elliptical', 'EMountainBikeRide', 'Golf', 'GravelRide', 'Handcycle', 'HighIntensityIntervalTraining', 'Hike', 'IceSkate', 'InlineSkate', 'Kayaking', 'Kitesurf', 'MountainBikeRide', 'NordicSki', 'Pickleball', 'Pilates', 'Racquetball', 'Ride', 'RockClimbing', 'RollerSki', 'Rowing', 'Run', 'Sail', 'Skateboard', 'Snowboard', 'Snowshoe', 'Soccer', 'Squash', 'StairStepper', 'StandUpPaddling', 'Surfing', 'Swim', 'TableTennis', 'Tennis', 'TrailRun', 'Velomobile', 'VirtualRide', 'VirtualRow', 'VirtualRun', 'Walk', 'WeightTraining', 'Wheelchair', 'Windsurf', 'Workout', 'Yoga'))
+);
+--> statement-breakpoint
+CREATE TABLE "labels" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"plan_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"key" text NOT NULL,
+	"label" text NOT NULL,
+	"hue" integer NOT NULL,
+	"icon" text,
+	"metadata" jsonb,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "labels_plan_key_unique" UNIQUE("plan_id","key"),
+	CONSTRAINT "labels_hue_range_check" CHECK ("labels"."hue" >= 0 and "labels"."hue" < 360)
 );
 --> statement-breakpoint
 CREATE TABLE "phases" (
@@ -75,12 +99,10 @@ CREATE TABLE "plans" (
 	"start_date" date NOT NULL,
 	"end_date" date,
 	"status" text DEFAULT 'active' NOT NULL,
-	"color_by" text NOT NULL,
 	"metadata" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
 	CONSTRAINT "plans_status_check" CHECK ("plans"."status" in ('active', 'inactive')),
-	CONSTRAINT "plans_color_by_check" CHECK ("plans"."color_by" in ('sport', 'category')),
 	CONSTRAINT "plans_dates_check" CHECK ("plans"."end_date" is null or "plans"."end_date" >= "plans"."start_date")
 );
 --> statement-breakpoint
@@ -109,27 +131,13 @@ CREATE TABLE "stream_tokens" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "workout_types" (
-	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"plan_id" uuid NOT NULL,
-	"user_id" uuid NOT NULL,
-	"key" text NOT NULL,
-	"label" text NOT NULL,
-	"hue" integer NOT NULL,
-	"icon" text,
-	"sort_order" integer DEFAULT 0 NOT NULL,
-	CONSTRAINT "workout_types_plan_key_unique" UNIQUE("plan_id","key"),
-	CONSTRAINT "workout_types_hue_range_check" CHECK ("workout_types"."hue" >= 0 and "workout_types"."hue" < 360)
-);
---> statement-breakpoint
 CREATE TABLE "workouts" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"plan_id" uuid NOT NULL,
 	"phase_id" uuid,
+	"label_id" uuid,
 	"user_id" uuid NOT NULL,
 	"date" date NOT NULL,
-	"sport" text NOT NULL,
-	"category" text NOT NULL,
 	"title" text NOT NULL,
 	"description" text,
 	"target_duration_min" integer,
@@ -139,6 +147,7 @@ CREATE TABLE "workouts" (
 	"completion_notes" text,
 	"trainer_notes" text,
 	"activity_id" uuid,
+	"execution" jsonb,
 	"metadata" jsonb,
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
@@ -149,6 +158,10 @@ CREATE TABLE "workouts" (
 --> statement-breakpoint
 ALTER TABLE "activities" ADD CONSTRAINT "activities_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "api_tokens" ADD CONSTRAINT "api_tokens_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "label_activity_sports" ADD CONSTRAINT "label_activity_sports_label_id_labels_id_fk" FOREIGN KEY ("label_id") REFERENCES "public"."labels"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "label_activity_sports" ADD CONSTRAINT "label_activity_sports_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "labels" ADD CONSTRAINT "labels_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "labels" ADD CONSTRAINT "labels_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "phases" ADD CONSTRAINT "phases_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "phases" ADD CONSTRAINT "phases_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "plan_notes" ADD CONSTRAINT "plan_notes_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -159,22 +172,24 @@ ALTER TABLE "plans" ADD CONSTRAINT "plans_user_id_profiles_id_fk" FOREIGN KEY ("
 ALTER TABLE "profiles" ADD CONSTRAINT "profiles_id_users_id_fk" FOREIGN KEY ("id") REFERENCES "auth"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "strava_credentials" ADD CONSTRAINT "strava_credentials_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stream_tokens" ADD CONSTRAINT "stream_tokens_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "workout_types" ADD CONSTRAINT "workout_types_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "workout_types" ADD CONSTRAINT "workout_types_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workouts" ADD CONSTRAINT "workouts_plan_id_plans_id_fk" FOREIGN KEY ("plan_id") REFERENCES "public"."plans"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workouts" ADD CONSTRAINT "workouts_phase_id_phases_id_fk" FOREIGN KEY ("phase_id") REFERENCES "public"."phases"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "workouts" ADD CONSTRAINT "workouts_label_id_labels_id_fk" FOREIGN KEY ("label_id") REFERENCES "public"."labels"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workouts" ADD CONSTRAINT "workouts_user_id_profiles_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "workouts" ADD CONSTRAINT "workouts_activity_id_activities_id_fk" FOREIGN KEY ("activity_id") REFERENCES "public"."activities"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "activities_user_date" ON "activities" USING btree ("user_id","date");--> statement-breakpoint
 CREATE INDEX "api_tokens_hash" ON "api_tokens" USING btree ("token_hash");--> statement-breakpoint
+CREATE INDEX "label_activity_sports_label_idx" ON "label_activity_sports" USING btree ("label_id");--> statement-breakpoint
 CREATE INDEX "phases_plan_sort" ON "phases" USING btree ("plan_id","sort_order");--> statement-breakpoint
 CREATE INDEX "plan_notes_plan_created" ON "plan_notes" USING btree ("plan_id","created_at");--> statement-breakpoint
 CREATE INDEX "plan_shares_plan" ON "plan_shares" USING btree ("plan_id");--> statement-breakpoint
 CREATE INDEX "stream_tokens_hash" ON "stream_tokens" USING btree ("token_hash");--> statement-breakpoint
 CREATE INDEX "stream_tokens_expires" ON "stream_tokens" USING btree ("expires_at");--> statement-breakpoint
 CREATE INDEX "workouts_plan_date" ON "workouts" USING btree ("plan_id","date");--> statement-breakpoint
+CREATE INDEX "workouts_plan_label_date" ON "workouts" USING btree ("plan_id","label_id","date");--> statement-breakpoint
 CREATE INDEX "workouts_user_date" ON "workouts" USING btree ("user_id","date");--> statement-breakpoint
-CREATE INDEX "workouts_user_status" ON "workouts" USING btree ("user_id","status");
+CREATE INDEX "workouts_user_status" ON "workouts" USING btree ("user_id","status");--> statement-breakpoint
+CREATE UNIQUE INDEX "workouts_activity_unique_idx" ON "workouts" USING btree ("activity_id") WHERE "workouts"."activity_id" is not null;
 --> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "plans_one_active_per_user"
   ON "plans" ("user_id") WHERE "status" = 'active';
@@ -224,6 +239,11 @@ CREATE TRIGGER set_plans_updated_at
   BEFORE UPDATE ON public.plans
   FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
 --> statement-breakpoint
+DROP TRIGGER IF EXISTS set_labels_updated_at ON public.labels;
+CREATE TRIGGER set_labels_updated_at
+  BEFORE UPDATE ON public.labels
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+--> statement-breakpoint
 DROP TRIGGER IF EXISTS set_workouts_updated_at ON public.workouts;
 CREATE TRIGGER set_workouts_updated_at
   BEFORE UPDATE ON public.workouts
@@ -238,7 +258,8 @@ ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.strava_credentials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.api_tokens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.plans ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.workout_types ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.labels ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.label_activity_sports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.phases ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.workouts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
@@ -249,6 +270,11 @@ ALTER TABLE public.stream_tokens ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "select_own" ON public.profiles FOR SELECT USING (auth.uid() = id);
 CREATE POLICY "update_own" ON public.profiles FOR UPDATE USING (auth.uid() = id) WITH CHECK (auth.uid() = id);
 --> statement-breakpoint
+CREATE POLICY "select_own" ON public.strava_credentials FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "insert_own" ON public.strava_credentials FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "update_own" ON public.strava_credentials FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "delete_own" ON public.strava_credentials FOR DELETE USING (auth.uid() = user_id);
+--> statement-breakpoint
 CREATE POLICY "select_own" ON public.api_tokens FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "insert_own" ON public.api_tokens FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "delete_own" ON public.api_tokens FOR DELETE USING (auth.uid() = user_id);
@@ -258,10 +284,15 @@ CREATE POLICY "insert_own" ON public.plans FOR INSERT WITH CHECK (auth.uid() = u
 CREATE POLICY "update_own" ON public.plans FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "delete_own" ON public.plans FOR DELETE USING (auth.uid() = user_id);
 --> statement-breakpoint
-CREATE POLICY "select_own" ON public.workout_types FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "insert_own" ON public.workout_types FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "update_own" ON public.workout_types FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "delete_own" ON public.workout_types FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "select_own" ON public.labels FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "insert_own" ON public.labels FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "update_own" ON public.labels FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "delete_own" ON public.labels FOR DELETE USING (auth.uid() = user_id);
+--> statement-breakpoint
+CREATE POLICY "select_own" ON public.label_activity_sports FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "insert_own" ON public.label_activity_sports FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "update_own" ON public.label_activity_sports FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "delete_own" ON public.label_activity_sports FOR DELETE USING (auth.uid() = user_id);
 --> statement-breakpoint
 CREATE POLICY "select_own" ON public.phases FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "insert_own" ON public.phases FOR INSERT WITH CHECK (auth.uid() = user_id);

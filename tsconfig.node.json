@@ -18,5 +18,5 @@
     "noPropertyAccessFromIndexSignature": true,
     "types": ["node"]
   },
-  "include": ["drizzle.config.ts", "functions/**/*.ts", "server/**/*.ts", "db/**/*.ts", "vitest.config.ts"]
+  "include": ["drizzle.config.ts", "functions/**/*.ts", "server/**/*.ts", "db/**/*.ts", "shared/**/*.ts", "vitest.config.ts"]
 }

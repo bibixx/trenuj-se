@@ -28,7 +28,7 @@ server/
     handler.ts          — MCP server setup and request handling
     context.ts          — Auth, errors, helpers (AppError, toolSuccess/toolError)
     tools/
-      plans.ts          — Plan, phase, and workout type management
+      plans.ts          — Plan, phase, and label management
       workouts.ts       — Workout CRUD and queries
       notes.ts          — Plan note CRUD
       activities.ts     — Strava activity queries and trainer notes
@@ -59,21 +59,22 @@ tests/
 
 PostgreSQL with 11 tables, all using UUID primary keys. RLS is enabled on every table with per-user policies (`select_own`, `insert_own`, `update_own`, `delete_own`).
 
-| Table                | Purpose                                                    |
-| -------------------- | ---------------------------------------------------------- |
-| `profiles`           | User profiles (FK → `auth.users`)                          |
-| `strava_credentials` | OAuth tokens for Strava                                    |
-| `api_tokens`         | Bearer tokens for MCP auth (`tp_` prefix, SHA-256 hashed)  |
-| `plans`              | Training plans (one active per user)                       |
-| `workout_types`      | Configurable categories per plan (key, label, hue, icon)   |
-| `phases`             | Training phases within a plan                              |
-| `workouts`           | Individual planned workouts                                |
-| `activities`         | Synced Strava activities                                   |
-| `plan_notes`         | Annotations (summary / adjustment / note / recommendation) |
-| `plan_shares`        | Public share links with visibility flags                   |
-| `stream_tokens`      | Time-limited tokens for Strava stream access (15 min)      |
+| Table                   | Purpose                                                      |
+| ----------------------- | ------------------------------------------------------------ |
+| `profiles`              | User profiles (FK → `auth.users`)                            |
+| `strava_credentials`    | OAuth tokens for Strava                                      |
+| `api_tokens`            | Bearer tokens for MCP auth (`tp_` prefix, SHA-256 hashed)    |
+| `plans`                 | Training plans (one active per user)                         |
+| `labels`                | Configurable workout labels per plan (key, label, hue, icon) |
+| `label_activity_sports` | Matchable Strava SportType values per label                  |
+| `phases`                | Training phases within a plan                                |
+| `workouts`              | Individual planned workouts with `label_id` + `execution`    |
+| `activities`            | Synced Strava activities                                     |
+| `plan_notes`            | Annotations (summary / adjustment / note / recommendation)   |
+| `plan_shares`           | Public share links with visibility flags                     |
+| `stream_tokens`         | Time-limited tokens for Strava stream access (15 min)        |
 
-Key relationships: plan deletion cascades to phases, workouts, notes, workout types, and shares. Phase/activity deletion sets null on workouts (preserves the workout).
+Key relationships: plan deletion cascades to phases, workouts, notes, labels, label activity sports, and shares. Phase/activity deletion sets null on workouts (preserves the workout).
 
 Schema defined in `db/schema.ts` with Drizzle ORM. Migrations in `db/migrations/`.
 
@@ -98,13 +99,14 @@ Schema defined in `db/schema.ts` with Drizzle ORM. Migrations in `db/migrations/
 
 ## MCP tools
 
-5 tool categories registered on the MCP server:
+6 tool categories registered on the MCP server:
 
-- **Plans** — `list_plans`, `get_plan`, `create_plan`, `update_plan`, `set_workout_types`, `update_workout_type`, `add_phase`, `update_phase`, `delete_phase`
-- **Workouts** — `add_workouts`, `get_workouts`, `update_workout`, `delete_workout`, `get_workout_by_date`
+- **Plans** — `list_plans`, `get_plan`, `create_plan`, `update_plan`, `deactivate_plan`, `set_labels`, `update_label`, `add_phase`, `update_phase`, `remove_phase`
+- **Workouts** — `add_workouts`, `get_workouts`, `update_workout`, `remove_workouts`, `complete_workout`, `skip_workout`, `link_activity`, `unlink_activity`, `add_trainer_notes`
 - **Notes** — `add_plan_note`, `update_plan_note`, `delete_plan_note`, `get_plan_notes`
-- **Activities** — `get_activities`, `get_activity_detail`, `update_activity`
+- **Activities** — `get_activities`, `get_activity_streams`, `get_week_summary`, `get_plan_progress`, `compare_planned_vs_actual`
 - **Athlete** — `get_profile`
+- **Icons** — `search_icons`
 
 Resource: `guide://training-plan-guide` — markdown guide for data modeling conventions.
 

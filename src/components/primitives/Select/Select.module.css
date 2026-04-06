@@ -1,0 +1,75 @@
+.label {
+  composes: typography-xs from global;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 6px;
+}
+
+.trigger {
+  composes: typography-sm from global;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  width: 100%;
+  padding: 0 12px;
+  background: var(--bg-inset);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: border-color var(--motion-timing-fast) var(--motion-function);
+
+  &:hover {
+    border-color: var(--control-border-hover);
+  }
+}
+
+.icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.positioner {
+  z-index: 60;
+}
+
+.popup {
+  background: var(--bg-elevated);
+  border-radius: var(--radius);
+  box-shadow: var(--border-shine), var(--shadow-floating);
+  padding: 4px;
+  min-width: 160px;
+  overflow-y: auto;
+  max-height: 240px;
+}
+
+.item {
+  composes: typography-sm from global;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background var(--motion-timing-fast) var(--motion-function);
+
+  &:hover,
+  &[data-highlighted] {
+    background: var(--bg-hover);
+  }
+
+  &[data-selected] {
+    color: var(--accent);
+  }
+}
+
+.itemIndicator {
+  display: flex;
+  align-items: center;
+  width: 14px;
+}

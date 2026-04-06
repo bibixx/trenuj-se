@@ -1,0 +1,130 @@
+.shareList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.shareItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: var(--radius-sm);
+}
+
+.shareItemInactive {
+  opacity: 0.5;
+}
+
+.shareTopRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.shareLinkRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.shareLink {
+  composes: typography-xs from global;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.shareActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.shareMeta {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+}
+
+.toggleGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px 16px;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggleLabel {
+  composes: typography-xs from global;
+  color: var(--text-secondary);
+  user-select: none;
+}
+
+.emptyText {
+  composes: typography-sm from global;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.dialogFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.iconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition:
+    background var(--motion-timing-fast) var(--motion-function),
+    color var(--motion-timing-fast) var(--motion-function);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+  }
+}
+
+.iconButtonDestructive {
+  composes: iconButton;
+
+  &:hover {
+    background: rgba(255, 0, 0, 0.12);
+    color: var(--destructive);
+  }
+}
+
+.copyFeedback {
+  composes: typography-xs from global;
+  color: var(--success);
+  white-space: nowrap;
+}
+
+.deactivatedBadge {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+  font-style: italic;
+}

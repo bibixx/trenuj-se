@@ -1,0 +1,79 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-backdrop);
+  backdrop-filter: blur(4px);
+  z-index: 50;
+  animation: fadeIn var(--motion-timing-medium) var(--motion-function);
+}
+
+.content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 51;
+  width: min(calc(100vw - 32px), 440px);
+  max-height: calc(100dvh - 64px);
+  overflow-y: auto;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--border-shine), var(--shadow-elevated);
+  padding: 24px;
+  animation: slideIn var(--motion-timing-medium) var(--motion-function);
+}
+
+.title {
+  composes: typography-lg from global;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  padding-right: 32px;
+}
+
+.description {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    color var(--motion-timing-fast) var(--motion-function),
+    background var(--motion-timing-fast) var(--motion-function);
+
+  &:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%);
+  }
+}

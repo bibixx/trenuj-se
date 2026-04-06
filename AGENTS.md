@@ -118,10 +118,10 @@ All inputs are validated with Zod schemas. Define the schema inline in the tool/
 - Every table has RLS enabled with `select_own`, `insert_own`, `update_own`, `delete_own` policies.
 - `userId` column on every table (FK → `profiles.id`) for RLS scoping.
 - JSONB `metadata` fields on `plans`, `phases`, `workouts`, `plan_notes` for extensibility.
-- Check constraints enforce enums (`status`, `type`, `colorBy`), positive values, and date ranges.
+- Check constraints enforce enums (`status`, `type`), positive values, and date ranges.
 - `updated_at` columns are auto-updated by database triggers.
 - A trigger auto-creates a `profiles` row on auth user signup.
-- Cascade deletes: plan → phases, workouts, notes, workout types, shares. Phase/activity deletion → sets null on workouts.
+- Cascade deletes: plan → phases, workouts, notes, labels, label activity sports, shares. Phase/activity deletion → sets null on workouts.
 - Only one active plan per user (enforced in application logic + unique partial index).
 
 ## Testing conventions

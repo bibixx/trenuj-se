@@ -1,0 +1,49 @@
+import { QueryClientProvider } from "@tanstack/react-query";
+import { RouterProvider, createRouter } from "@tanstack/react-router";
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import whatInput from "what-input";
+import "@fontsource-variable/plus-jakarta-sans";
+import "@fontsource-variable/jetbrains-mono";
+import "./styles/global.css";
+import { initTheme } from "./lib/theme.ts";
+import { queryClient } from "./lib/query-client.ts";
+import { routeTree } from "./routeTree.gen";
+
+// Ignore modifier keys (defaults) + Escape + arrow keys so they
+// don't flip the intent to "keyboard" when navigating within components.
+whatInput.ignoreKeys([
+  13, // Enter
+  16, // Shift
+  17, // Control
+  18, // Alt
+  27, // Escape
+  37, // ArrowLeft
+  38, // ArrowUp
+  39, // ArrowRight
+  40, // ArrowDown
+  91, // Left Cmd
+  93, // Right Cmd
+]);
+
+const router = createRouter({
+  routeTree,
+  context: { queryClient },
+});
+
+declare module "@tanstack/react-router" {
+  interface Register {
+    router: typeof router;
+  }
+}
+
+initTheme();
+
+const rootElement = document.getElementById("root")!;
+createRoot(rootElement).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  </StrictMode>,
+);

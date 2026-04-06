@@ -1,0 +1,29 @@
+.root {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.name {
+  composes: typography-xl from global;
+  color: var(--text-primary);
+  flex: 1 1 0%;
+  min-width: 0;
+}
+
+.goal {
+  composes: typography-sm from global;
+  color: var(--text-muted);
+  line-height: var(--leading-relaxed);
+  flex-basis: 100%;
+}
+
+.actions {
+  composes: typography-xl from global;
+  height: 1lh;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}

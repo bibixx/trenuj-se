@@ -1,0 +1,22 @@
+.pill {
+  composes: typography-xs from global;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  background: rgba(255, 107, 43, 0.12);
+  color: var(--strava);
+  text-decoration: none;
+  transition: background var(--motion-timing-fast) var(--motion-function);
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(255, 107, 43, 0.2);
+  }
+
+  :global([data-theme="light"]) & {
+    background: var(--strava);
+    color: oklch(0.98 0.003 286);
+  }
+}

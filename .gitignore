@@ -19,6 +19,7 @@ coverage
 
 # Local env / secrets
 .dev.vars
+.env.local
 
 # Plans (Craft Agent session plans)
 plans

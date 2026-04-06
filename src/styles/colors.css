@@ -1,0 +1,93 @@
+:root,
+[data-theme="dark"] {
+  /* Surfaces */
+  --bg: oklch(0.1766 0.0103 294.4);
+  --bg-card: oklch(1 0 none / 0.05);
+  --bg-inset: oklch(1 0 none / 0.03);
+  --bg-hover: oklch(1 0 none / 0.08);
+  --bg-elevated: oklch(0.22 0.0097 285.5);
+
+  /* Text */
+  --text-primary: oklch(0.9707 0.0027 none);
+  --text-secondary: oklch(1 0 none / 0.6);
+  --text-muted: oklch(1 0 none / 0.35);
+  --text-on-accent: oklch(0.1766 0.0103 294.4);
+
+  /* Borders / overlays / shadows */
+  --border-subtle: oklch(1 0 none / 0.06);
+  --border-strong: oklch(1 0 none / 0.12);
+  --control-border: oklch(1 0 none / 0.08);
+  --control-border-hover: oklch(1 0 none / 0.16);
+  --overlay-backdrop: rgba(0, 0, 0, 0.6);
+  --shadow-elevated: 0 16px 48px rgba(0, 0, 0, 0.5);
+  --shadow-floating: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-toast: 0 4px 12px rgba(0, 0, 0, 0.4), 0 16px 32px rgba(0, 0, 0, 0.2);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.35);
+  --scrollbar-thumb-active: rgba(255, 255, 255, 0.5);
+
+  /* Workout hue recipes */
+  --workout-tint-lightness: 0.22;
+  --workout-tint-chroma: 0.024;
+  --workout-accent-lightness: 0.6;
+  --workout-accent-chroma: 0.2;
+  --workout-neutral-tint: rgba(255, 255, 255, 0.04);
+  --workout-neutral-accent: rgba(255, 255, 255, 0.26);
+
+  /* Border Shine (signature glow) */
+  --border-shine: oklch(0.8736 0.0302 285.7 / 0.09) 0 0 0 1px inset, oklch(0.9349 0.031 285.7 / 0.13) 0 1px 0.5px 0 inset, oklch(0.1122 0.0198 282.7 / 0.54) 0 2px 4px -2px;
+
+  /* Accents */
+  --accent-base: 0.916 0.196 119.75;
+  --accent: oklch(var(--accent-base));
+  --strava: oklch(0.7038 0.1948 41.1);
+  --success: oklch(0.8003 0.182 151.7);
+  --destructive: oklch(0.6369 0.2078 25.3);
+
+  /* Focus ring */
+  --focus-ring: oklch(var(--accent-base) / 0.5);
+  --focus-ring-offset: 2px;
+}
+
+[data-theme="light"] {
+  --accent-base: 0.91 0.23 120.79;
+  --accent: oklch(var(--accent-base));
+  --success: oklch(0.71 0.29 146.95);
+
+  /* Surfaces */
+  --bg: oklch(0.965 0.004 286);
+  --bg-card: oklch(1 0 none / 0.78);
+  --bg-inset: oklch(0.19 0.01 285 / 0.045);
+  --bg-hover: oklch(0.19 0.01 285 / 0.075);
+  --bg-elevated: oklch(0.992 0.002 286);
+
+  /* Text */
+  --text-primary: oklch(0.24 0.012 286);
+  --text-secondary: oklch(0.24 0.012 286 / 0.72);
+  --text-muted: oklch(0.24 0.012 286 / 0.5);
+  --text-on-accent: oklch(0.2 0.01 286);
+
+  /* Borders / overlays / shadows */
+  --border-subtle: rgba(4, 4, 26, 0.1);
+  --border-strong: rgba(4, 4, 26, 0.18);
+  --control-border: rgba(4, 4, 26, 0.12);
+  --control-border-hover: rgba(4, 4, 26, 0.22);
+  --overlay-backdrop: rgba(18, 20, 32, 0.18);
+  --shadow-elevated: 0 16px 48px rgba(15, 17, 34, 0.12);
+  --shadow-floating: 0 8px 24px rgba(15, 17, 34, 0.14);
+  --shadow-toast: 0 4px 12px rgba(15, 17, 34, 0.08), 0 16px 32px rgba(15, 17, 34, 0.1);
+  --scrollbar-thumb: rgba(4, 4, 26, 0.16);
+  --scrollbar-thumb-hover: rgba(4, 4, 26, 0.28);
+  --scrollbar-thumb-active: rgba(4, 4, 26, 0.38);
+
+  /* Workout hue recipes */
+  --workout-tint-lightness: 1;
+  --workout-tint-chroma: 0.032;
+  --workout-accent-lightness: 0.8;
+  --workout-accent-chroma: 0.48;
+  --workout-neutral-tint: rgba(4, 4, 26, 0.035);
+  --workout-neutral-accent: rgba(4, 4, 26, 0.22);
+
+  /* Border Shine (signature light treatment) */
+  --border-shine: rgba(4, 4, 26, 0.27) 0px -0.5px 0.25px 0px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px inset, rgba(5, 5, 26, 0.18) 0px 0px 2px 0px;
+}

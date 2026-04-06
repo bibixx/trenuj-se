@@ -1,0 +1,50 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+
+  & > [data-ds-badge]:first-child {
+    margin-left: -6px;
+  }
+}
+
+.weekRange {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+}
+
+.weekLabel {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+}
+
+.stats {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.progressRow {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressLabel {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.volume {
+  composes: typography-xs from global;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}

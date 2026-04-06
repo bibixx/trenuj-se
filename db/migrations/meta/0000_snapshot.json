@@ -1,5 +1,5 @@
 {
-  "id": "dafd41be-6a05-406e-a12c-f58aac34bf78",
+  "id": "e130ebf2-32b8-4387-9e6e-939eb629a51c",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -157,6 +157,10 @@
       },
       "policies": {},
       "checkConstraints": {
+        "activities_sport_check": {
+          "name": "activities_sport_check",
+          "value": "\"activities\".\"sport\" in ('AlpineSki', 'BackcountrySki', 'Badminton', 'Canoeing', 'Crossfit', 'EBikeRide', 'Elliptical', 'EMountainBikeRide', 'Golf', 'GravelRide', 'Handcycle', 'HighIntensityIntervalTraining', 'Hike', 'IceSkate', 'InlineSkate', 'Kayaking', 'Kitesurf', 'MountainBikeRide', 'NordicSki', 'Pickleball', 'Pilates', 'Racquetball', 'Ride', 'RockClimbing', 'RollerSki', 'Rowing', 'Run', 'Sail', 'Skateboard', 'Snowboard', 'Snowshoe', 'Soccer', 'Squash', 'StairStepper', 'StandUpPaddling', 'Surfing', 'Swim', 'TableTennis', 'Tennis', 'TrailRun', 'Velomobile', 'VirtualRide', 'VirtualRow', 'VirtualRun', 'Walk', 'WeightTraining', 'Wheelchair', 'Windsurf', 'Workout', 'Yoga')"
+        },
         "activities_duration_positive": {
           "name": "activities_duration_positive",
           "value": "\"activities\".\"duration_sec\" > 0"
@@ -258,6 +262,189 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.label_activity_sports": {
+      "name": "label_activity_sports",
+      "schema": "",
+      "columns": {
+        "label_id": {
+          "name": "label_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activity_sport": {
+          "name": "activity_sport",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "label_activity_sports_label_idx": {
+          "name": "label_activity_sports_label_idx",
+          "columns": [
+            {
+              "expression": "label_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "label_activity_sports_label_id_labels_id_fk": {
+          "name": "label_activity_sports_label_id_labels_id_fk",
+          "tableFrom": "label_activity_sports",
+          "tableTo": "labels",
+          "columnsFrom": ["label_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "label_activity_sports_user_id_profiles_id_fk": {
+          "name": "label_activity_sports_user_id_profiles_id_fk",
+          "tableFrom": "label_activity_sports",
+          "tableTo": "profiles",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "label_activity_sports_label_sport_unique": {
+          "name": "label_activity_sports_label_sport_unique",
+          "nullsNotDistinct": false,
+          "columns": ["label_id", "activity_sport"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "label_activity_sports_activity_sport_check": {
+          "name": "label_activity_sports_activity_sport_check",
+          "value": "\"label_activity_sports\".\"activity_sport\" in ('AlpineSki', 'BackcountrySki', 'Badminton', 'Canoeing', 'Crossfit', 'EBikeRide', 'Elliptical', 'EMountainBikeRide', 'Golf', 'GravelRide', 'Handcycle', 'HighIntensityIntervalTraining', 'Hike', 'IceSkate', 'InlineSkate', 'Kayaking', 'Kitesurf', 'MountainBikeRide', 'NordicSki', 'Pickleball', 'Pilates', 'Racquetball', 'Ride', 'RockClimbing', 'RollerSki', 'Rowing', 'Run', 'Sail', 'Skateboard', 'Snowboard', 'Snowshoe', 'Soccer', 'Squash', 'StairStepper', 'StandUpPaddling', 'Surfing', 'Swim', 'TableTennis', 'Tennis', 'TrailRun', 'Velomobile', 'VirtualRide', 'VirtualRow', 'VirtualRun', 'Walk', 'WeightTraining', 'Wheelchair', 'Windsurf', 'Workout', 'Yoga')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.labels": {
+      "name": "labels",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "plan_id": {
+          "name": "plan_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "key": {
+          "name": "key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hue": {
+          "name": "hue",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "icon": {
+          "name": "icon",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "metadata": {
+          "name": "metadata",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "labels_plan_id_plans_id_fk": {
+          "name": "labels_plan_id_plans_id_fk",
+          "tableFrom": "labels",
+          "tableTo": "plans",
+          "columnsFrom": ["plan_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "labels_user_id_profiles_id_fk": {
+          "name": "labels_user_id_profiles_id_fk",
+          "tableFrom": "labels",
+          "tableTo": "profiles",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "labels_plan_key_unique": {
+          "name": "labels_plan_key_unique",
+          "nullsNotDistinct": false,
+          "columns": ["plan_id", "key"]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "labels_hue_range_check": {
+          "name": "labels_hue_range_check",
+          "value": "\"labels\".\"hue\" >= 0 and \"labels\".\"hue\" < 360"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.phases": {
@@ -648,12 +835,6 @@
           "notNull": true,
           "default": "'active'"
         },
-        "color_by": {
-          "name": "color_by",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
         "metadata": {
           "name": "metadata",
           "type": "jsonb",
@@ -694,10 +875,6 @@
         "plans_status_check": {
           "name": "plans_status_check",
           "value": "\"plans\".\"status\" in ('active', 'inactive')"
-        },
-        "plans_color_by_check": {
-          "name": "plans_color_by_check",
-          "value": "\"plans\".\"color_by\" in ('sport', 'category')"
         },
         "plans_dates_check": {
           "name": "plans_dates_check",
@@ -909,99 +1086,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.workout_types": {
-      "name": "workout_types",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "plan_id": {
-          "name": "plan_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "user_id": {
-          "name": "user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "key": {
-          "name": "key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "label": {
-          "name": "label",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hue": {
-          "name": "hue",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "icon": {
-          "name": "icon",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sort_order": {
-          "name": "sort_order",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "workout_types_plan_id_plans_id_fk": {
-          "name": "workout_types_plan_id_plans_id_fk",
-          "tableFrom": "workout_types",
-          "tableTo": "plans",
-          "columnsFrom": ["plan_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "workout_types_user_id_profiles_id_fk": {
-          "name": "workout_types_user_id_profiles_id_fk",
-          "tableFrom": "workout_types",
-          "tableTo": "profiles",
-          "columnsFrom": ["user_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "workout_types_plan_key_unique": {
-          "name": "workout_types_plan_key_unique",
-          "nullsNotDistinct": false,
-          "columns": ["plan_id", "key"]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {
-        "workout_types_hue_range_check": {
-          "name": "workout_types_hue_range_check",
-          "value": "\"workout_types\".\"hue\" >= 0 and \"workout_types\".\"hue\" < 360"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.workouts": {
       "name": "workouts",
       "schema": "",
@@ -1025,6 +1109,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "label_id": {
+          "name": "label_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "user_id": {
           "name": "user_id",
           "type": "uuid",
@@ -1034,18 +1124,6 @@
         "date": {
           "name": "date",
           "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "sport": {
-          "name": "sport",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category": {
-          "name": "category",
-          "type": "text",
           "primaryKey": false,
           "notNull": true
         },
@@ -1105,6 +1183,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "execution": {
+          "name": "execution",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "metadata": {
           "name": "metadata",
           "type": "jsonb",
@@ -1132,6 +1216,33 @@
           "columns": [
             {
               "expression": "plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "date",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "workouts_plan_label_date": {
+          "name": "workouts_plan_label_date",
+          "columns": [
+            {
+              "expression": "plan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "label_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1189,6 +1300,22 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "workouts_activity_unique_idx": {
+          "name": "workouts_activity_unique_idx",
+          "columns": [
+            {
+              "expression": "activity_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"workouts\".\"activity_id\" is not null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
@@ -1206,6 +1333,15 @@
           "tableFrom": "workouts",
           "tableTo": "phases",
           "columnsFrom": ["phase_id"],
+          "columnsTo": ["id"],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "workouts_label_id_labels_id_fk": {
+          "name": "workouts_label_id_labels_id_fk",
+          "tableFrom": "workouts",
+          "tableTo": "labels",
+          "columnsFrom": ["label_id"],
           "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "no action"

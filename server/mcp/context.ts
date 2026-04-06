@@ -1,6 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Context } from "hono";
 import { z, ZodError } from "zod";
+import { STRAVA_SPORT_TYPES } from "../../shared/activity";
+import { knownMetadataSchemas } from "../../shared/workout-metadata";
+import { executionSchema } from "../../shared/workout-execution-schema";
 import { createServerSupabase, type AppBindings } from "../lib/supabase";
 
 export type McpContext = {
@@ -110,7 +113,7 @@ export async function resolvePlanId(ctx: McpContext, planId?: string) {
   if (planId) {
     const { data, error } = await ctx.supabase
       .from("plans")
-      .select("id, user_id, status, color_by, start_date, end_date, name, goal, metadata, created_at, updated_at")
+      .select("id, user_id, status, start_date, end_date, name, goal, metadata, created_at, updated_at")
       .eq("id", planId)
       .eq("user_id", ctx.userId)
       .maybeSingle();
@@ -128,7 +131,7 @@ export async function resolvePlanId(ctx: McpContext, planId?: string) {
 
   const { data, error } = await ctx.supabase
     .from("plans")
-    .select("id, user_id, status, color_by, start_date, end_date, name, goal, metadata, created_at, updated_at")
+    .select("id, user_id, status, start_date, end_date, name, goal, metadata, created_at, updated_at")
     .eq("user_id", ctx.userId)
     .eq("status", "active")
     .maybeSingle();
@@ -144,57 +147,35 @@ export async function resolvePlanId(ctx: McpContext, planId?: string) {
   return data;
 }
 
-export const knownMetadataSchemas = {
-  intervals: z.array(
-    z
-      .object({
-        distance_m: z.number().int().positive().optional(),
-        duration_min: z.number().positive().optional(),
-        pace_target: z.string().min(1).optional(),
-        rest_sec: z.number().int().nonnegative(),
-        count: z.number().int().positive(),
-        description: z.string().min(1).optional(),
-      })
-      .superRefine((value, issueContext) => {
-        if (!value.distance_m && !value.duration_min) {
-          issueContext.addIssue({
-            code: "custom",
-            message: "Each interval needs distance_m or duration_min",
-          });
-        }
-      }),
-  ),
-  zones: z.array(
-    z.object({
-      zone: z.union([z.number(), z.string().min(1)]),
-      duration_min: z.number().positive(),
-    }),
-  ),
-  sets: z.array(
-    z.object({
-      exercise: z.string().min(1),
-      reps: z.number().int().positive(),
-      sets: z.number().int().positive(),
-      weight_kg: z.number().nonnegative().optional(),
-      notes: z.string().min(1).optional(),
-    }),
-  ),
-  segments: z.array(
-    z.object({
-      sport: z.string().min(1),
-      duration_min: z.number().positive(),
-      description: z.string().min(1).optional(),
-    }),
-  ),
-};
+export const activitySportSchema = z.enum(STRAVA_SPORT_TYPES);
+export const labelMetadataSchema = z.record(z.string(), z.unknown());
+
+// Re-export shared schemas for existing server consumers
+export { knownMetadataSchemas } from "../../shared/workout-metadata";
+export { executionSchema } from "../../shared/workout-execution-schema";
+
+export function validateLabelMetadata(metadata: unknown) {
+  if (metadata == null) {
+    return null;
+  }
+
+  return labelMetadataSchema.parse(metadata);
+}
+
+export function validateWorkoutExecution(execution: unknown) {
+  if (execution == null) {
+    return null;
+  }
+
+  return executionSchema.parse(execution);
+}
 
 export function validateWorkoutMetadata(metadata: unknown) {
   if (metadata == null) {
     return null;
   }
 
-  const baseSchema = z.record(z.string(), z.unknown());
-  const parsedBase = baseSchema.parse(metadata);
+  const parsedBase = labelMetadataSchema.parse(metadata);
 
   for (const [key, schema] of Object.entries(knownMetadataSchemas)) {
     if (key in parsedBase) {
@@ -210,4 +191,10 @@ export function assertSingleTarget(workoutId?: string, activityId?: string) {
   if (count !== 1) {
     throw new AppError("VALIDATION_ERROR", "Exactly one of workoutId or activityId is required");
   }
+}
+
+export function collectMissingActivitySportWarnings(labels: Array<{ key: string; activitySports: string[] }>) {
+  return labels
+    .filter((label) => label.activitySports.length === 0)
+    .map((label) => `Label '${label.key}' has no activitySports; automatic activity matching may require manual linking.`);
 }

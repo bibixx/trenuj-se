@@ -1,0 +1,42 @@
+.root {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: var(--radius);
+  background: var(--bg-inset);
+  box-shadow: inset 0 0 0 1px var(--border-subtle);
+  width: fit-content;
+}
+
+.item {
+  composes: typography-xs from global;
+  min-width: 56px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  transform: scale(1);
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: color, background, box-shadow, transform;
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
+    color: var(--text-primary);
+    transform: scale(1.04);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+
+  &:not([data-pressed]):hover {
+    background: var(--bg-hover);
+  }
+
+  &[data-pressed] {
+    color: var(--text-primary);
+    background: var(--bg-card);
+    box-shadow: var(--border-shine);
+  }
+}

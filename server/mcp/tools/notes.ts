@@ -1,20 +1,25 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { planNoteMetadataSchema } from "../../../shared/plan-note-metadata";
 import { AppError, resolvePlanId, toolError, toolSuccess, type McpContext } from "../context";
 
 const noteTypeSchema = z.enum(["summary", "adjustment", "note", "recommendation"]);
+const noteMetadataSchema = planNoteMetadataSchema;
 
 export function registerNoteTools(server: McpServer, ctx: McpContext) {
   server.registerTool(
     "add_plan_note",
     {
       title: "Add Plan Note",
-      description: "Add a markdown note to a plan.",
+      description: "Add a markdown note to a plan. ⚠️ NOT idempotent — each call creates a new note even with identical content.",
       inputSchema: z.object({
-        planId: z.string().uuid().optional(),
-        type: noteTypeSchema,
-        content: z.string().trim().min(1),
-        metadata: z.record(z.string(), z.unknown()).optional(),
+        planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+        type: noteTypeSchema.describe("Note type: 'summary' (weekly/phase recap), 'adjustment' (plan change rationale), 'note' (general), 'recommendation' (coaching suggestion)."),
+        content: z.string().trim().min(1).describe("Note body in markdown."),
+        metadata: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe("Arbitrary key-value data. `metadata.week` must be a positive integer plan week or a legacy ISO week string."),
       }),
       annotations: { idempotentHint: false },
     },
@@ -25,7 +30,7 @@ export function registerNoteTools(server: McpServer, ctx: McpContext) {
             planId: z.string().uuid().optional(),
             type: noteTypeSchema,
             content: z.string().trim().min(1),
-            metadata: z.record(z.string(), z.unknown()).optional(),
+            metadata: noteMetadataSchema.optional(),
           })
           .parse(input);
         const plan = await resolvePlanId(ctx, params.planId);
@@ -53,12 +58,16 @@ export function registerNoteTools(server: McpServer, ctx: McpContext) {
     "update_plan_note",
     {
       title: "Update Plan Note",
-      description: "Update an existing plan note.",
+      description: "Update a plan note's type, content, or metadata.",
       inputSchema: z.object({
-        noteId: z.string().uuid(),
-        type: noteTypeSchema.optional(),
-        content: z.string().trim().min(1).optional(),
-        metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+        noteId: z.string().uuid().describe("Note UUID."),
+        type: noteTypeSchema.optional().describe("Note type: 'summary', 'adjustment', 'note', or 'recommendation'."),
+        content: z.string().trim().min(1).optional().describe("Note body in markdown."),
+        metadata: z
+          .record(z.string(), z.unknown())
+          .nullable()
+          .optional()
+          .describe("Arbitrary key-value data. `metadata.week` must be a positive integer plan week or a legacy ISO week string. Set to null to clear."),
       }),
       annotations: { idempotentHint: true },
     },
@@ -69,7 +78,7 @@ export function registerNoteTools(server: McpServer, ctx: McpContext) {
             noteId: z.string().uuid(),
             type: noteTypeSchema.optional(),
             content: z.string().trim().min(1).optional(),
-            metadata: z.record(z.string(), z.unknown()).nullable().optional(),
+            metadata: noteMetadataSchema.nullable().optional(),
           })
           .parse(input);
 
@@ -96,8 +105,8 @@ export function registerNoteTools(server: McpServer, ctx: McpContext) {
     "delete_plan_note",
     {
       title: "Delete Plan Note",
-      description: "Delete a plan note.",
-      inputSchema: z.object({ noteId: z.string().uuid() }),
+      description: "Permanently delete a plan note.",
+      inputSchema: z.object({ noteId: z.string().uuid().describe("Note UUID.") }),
       annotations: { destructiveHint: true },
     },
     async (input) => {
@@ -116,11 +125,11 @@ export function registerNoteTools(server: McpServer, ctx: McpContext) {
     "get_plan_notes",
     {
       title: "Get Plan Notes",
-      description: "Get plan notes for a specific or active plan.",
+      description: "Get notes for the active plan, or for a specific plan when planId is provided.",
       inputSchema: z.object({
-        planId: z.string().uuid().optional(),
-        type: noteTypeSchema.optional(),
-        limit: z.number().int().positive().max(100).default(20).optional(),
+        planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+        type: noteTypeSchema.optional().describe("Filter by note type: 'summary', 'adjustment', 'note', or 'recommendation'."),
+        limit: z.number().int().positive().max(100).default(20).optional().describe("Max results (default 20, max 100)."),
       }),
       annotations: { readOnlyHint: true },
     },

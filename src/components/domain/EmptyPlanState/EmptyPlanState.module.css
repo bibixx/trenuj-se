@@ -1,0 +1,84 @@
+.root {
+  display: flex;
+  justify-content: center;
+  padding-top: 80px;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    translate: 8px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+.card {
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.heading {
+  composes: typography-lg from global;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tabContent {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: slideIn var(--motion-timing-slow) var(--motion-function);
+}
+
+.description {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.promptArea {
+  height: 240px;
+  background: var(--bg-inset);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+  position: relative;
+}
+
+.promptText {
+  composes: typography-xs from global;
+  padding: 12px 16px;
+  padding-bottom: 40px;
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.toggleGroup {
+  width: 100%;
+  display: flex;
+  gap: 4px;
+}
+
+.toggleItem {
+  flex: 1;
+
+  &:hover {
+    transform: scale(1.01);
+  }
+
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+.copyRow {
+  display: flex;
+  justify-content: flex-end;
+  position: absolute;
+  bottom: 12px;
+  right: 16px;
+}

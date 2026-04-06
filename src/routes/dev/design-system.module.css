@@ -1,0 +1,453 @@
+/* Layout */
+.themeRoot {
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text-primary);
+}
+
+.layout {
+  display: flex;
+  height: 100dvh;
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  width: 220px;
+  height: 100dvh;
+  border-right: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+  background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+}
+
+.sidebarContent {
+  padding: 20px 12px;
+}
+
+.sidebarHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.sidebarTitle {
+  composes: typography-sm from global;
+  font-weight: var(--weight-bold);
+  color: var(--text-primary);
+  padding: 8px 10px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.navItem {
+  position: relative;
+  padding: 8px 10px;
+  composes: typography-sm from global;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: color, background, transform;
+  transform: scale(1);
+
+  &:hover {
+    color: var(--text-primary);
+    background: var(--bg-hover);
+    z-index: 1;
+  }
+
+  &:hover:not(:disabled) {
+    transform: scale(1.04);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.99);
+  }
+}
+
+.navItemActive {
+  color: var(--text-primary);
+  background: var(--bg-card);
+  box-shadow: var(--border-shine);
+}
+
+.main {
+  flex: 1;
+  padding: 32px;
+  width: 100%;
+  max-width: 720px;
+  margin-inline: auto;
+}
+
+/* Sections */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sectionTitle {
+  composes: typography-2xl from global;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.subTitle {
+  composes: typography-base from global;
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  margin-top: 16px;
+}
+
+.description {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+}
+
+.themeNote {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+}
+
+/* Rows / Grids */
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.inputGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.progressGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Tokens */
+.swatchGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.swatch {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.swatchColor {
+  width: 100%;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.swatchName {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+}
+
+.shineDemo {
+  display: flex;
+}
+
+.shineBox {
+  composes: typography-sm from global;
+  padding: 20px 32px;
+  border-radius: var(--radius);
+  box-shadow: var(--border-shine);
+  color: var(--text-secondary);
+  background: var(--bg-card);
+}
+
+.typeXs {
+  composes: typography-xs from global;
+}
+.typeSm {
+  composes: typography-sm from global;
+}
+.typeBase {
+  composes: typography-base from global;
+}
+.typeLg {
+  composes: typography-lg from global;
+}
+.typeXl {
+  composes: typography-xl from global;
+}
+.type2xl {
+  composes: typography-2xl from global;
+}
+
+.typeScale {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.typeRow {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.typeLabel {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+}
+
+.radiusGrid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.radiusItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.radiusBox {
+  width: 64px;
+  height: 64px;
+  background: var(--bg-card);
+  box-shadow: var(--border-shine);
+}
+
+/* Easing demo */
+.easingGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.easingRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.easingLabel {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.easingTrack {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-card);
+  border-radius: var(--radius-full);
+  position: relative;
+}
+
+.easingDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent);
+  position: absolute;
+  top: -4px;
+  left: 0;
+  transition: left 600ms;
+}
+
+/* Checkbox labels */
+.checkLabel {
+  composes: typography-sm from global;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* Domain: icon demos */
+.iconDemo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.iconLabel {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+}
+
+/* Skeleton grid */
+.skeletonGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Composites: card stack */
+.cardStack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Colors section */
+.hueControl {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hueLabel {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+
+  & code {
+    color: var(--accent);
+  }
+}
+
+.hueSlider {
+  flex: 1;
+  accent-color: var(--accent);
+}
+
+.colorDemo {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.colorRow {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.colorSample {
+  composes: typography-sm from global;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  border-radius: var(--radius);
+
+  & span {
+    font-weight: var(--weight-medium);
+  }
+
+  & code {
+    font-size: var(--text-xs);
+    opacity: 0.7;
+  }
+}
+
+/* Scroll Area demo */
+.scrollAreaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+
+  & > div {
+    min-width: 0;
+  }
+}
+
+.scrollAreaDemo {
+  height: 216px;
+  margin-top: 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-inset);
+}
+
+.scrollAreaDemoH {
+  margin-top: 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-inset);
+}
+
+.scrollAreaDemoHContent {
+  padding: 12px;
+}
+
+.scrollAreaItem {
+  composes: typography-sm from global;
+  padding: 8px 14px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid color-mix(in srgb, var(--border-subtle) 75%, transparent);
+}
+
+.scrollAreaChip {
+  composes: typography-xs from global;
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  white-space: nowrap;
+  width: 64px;
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    position: static;
+    width: 100%;
+    height: auto;
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+    padding: 12px;
+  }
+
+  .sidebarContent {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0;
+  }
+
+  .sidebarHeader {
+    margin-bottom: 0;
+  }
+
+  .sidebarTitle {
+    display: none;
+  }
+
+  .main {
+    padding: 20px 16px;
+  }
+
+  .colorRow {
+    grid-template-columns: 1fr;
+  }
+}

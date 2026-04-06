@@ -1,0 +1,1 @@
+ALTER TABLE "label_activity_sports" ADD COLUMN "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL;

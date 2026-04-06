@@ -7,29 +7,39 @@ shareRoutes.get("/:shareId", async (c) => {
   const shareId = c.req.param("shareId");
   const supabase = createServerSupabase(c);
 
-  // 1. Look up the share (service role bypasses RLS)
   const { data: share, error: shareError } = await supabase.from("plan_shares").select("*").eq("id", shareId).single();
-
   if (shareError || !share || !share.active) {
     return c.json({ error: "Share not found" }, 404);
   }
 
   const planId = share.plan_id;
 
-  // 2. Fetch plan (always included)
-  const { data: plan, error: planError } = await supabase.from("plans").select("name, goal, start_date, end_date, status, color_by, metadata").eq("id", planId).single();
-
+  const { data: plan, error: planError } = await supabase.from("plans").select("name, goal, start_date, end_date, status, metadata").eq("id", planId).single();
   if (planError || !plan) {
     return c.json({ error: "Share not found" }, 404);
   }
 
-  // 3. Fetch phases and workout types in parallel (always included)
-  const [phasesResult, workoutTypesResult] = await Promise.all([
+  const [phasesResult, labelsResult, labelActivitySportsResult] = await Promise.all([
     supabase.from("phases").select("id, name, description, start_date, end_date, sort_order, metadata").eq("plan_id", planId).order("sort_order"),
-    supabase.from("workout_types").select("key, label, hue, icon, sort_order").eq("plan_id", planId).order("sort_order"),
+    supabase.from("labels").select("id, key, label, hue, icon, metadata, created_at, updated_at").eq("plan_id", planId).order("label"),
+    supabase.from("label_activity_sports").select("label_id, activity_sport"),
   ]);
 
-  // 4. Conditionally fetch workouts, activities, plan notes
+  const labelIds = new Set((labelsResult.data ?? []).map((label) => label.id));
+  const activitySportsByLabelId = new Map<string, string[]>();
+  for (const row of labelActivitySportsResult.data ?? []) {
+    if (!labelIds.has(row.label_id)) continue;
+    const current = activitySportsByLabelId.get(row.label_id) ?? [];
+    current.push(row.activity_sport);
+    activitySportsByLabelId.set(row.label_id, current);
+  }
+
+  const labels = (labelsResult.data ?? []).map((label) => ({
+    ...label,
+    activitySports: activitySportsByLabelId.get(label.id) ?? [],
+  }));
+  const labelsById = new Map(labels.map((label) => [label.id, label]));
+
   let workouts: Record<string, unknown>[] | null = null;
   let planNotes: Record<string, unknown>[] | null = null;
 
@@ -37,9 +47,8 @@ shareRoutes.get("/:shareId", async (c) => {
     const workoutFields = [
       "id",
       "phase_id",
+      "label_id",
       "date",
-      "sport",
-      "category",
       "title",
       "description",
       "target_duration_min",
@@ -47,6 +56,7 @@ shareRoutes.get("/:shareId", async (c) => {
       "sort_order",
       "status",
       "completion_notes",
+      "execution",
       "metadata",
     ];
 
@@ -60,19 +70,21 @@ shareRoutes.get("/:shareId", async (c) => {
 
     const { data } = await supabase.from("workouts").select(workoutFields.join(", ")).eq("plan_id", planId).order("date").order("sort_order");
 
-    workouts = (data as Record<string, unknown>[] | null) ?? [];
+    workouts = ((data as Record<string, unknown>[] | null) ?? []).map((workout) => ({
+      ...workout,
+      label: typeof workout["label_id"] === "string" ? (labelsById.get(workout["label_id"]) ?? null) : null,
+    }));
   }
 
   if (share.include_plan_notes) {
     const { data } = await supabase.from("plan_notes").select("id, type, content, metadata, created_at").eq("plan_id", planId).order("created_at", { ascending: false });
-
     planNotes = data ?? [];
   }
 
   return c.json({
     plan,
     phases: phasesResult.data ?? [],
-    workoutTypes: workoutTypesResult.data ?? [],
+    labels,
     workouts,
     planNotes,
   });

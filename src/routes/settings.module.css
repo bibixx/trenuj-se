@@ -1,0 +1,236 @@
+.scroll {
+  height: 100dvh;
+}
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 32px 16px 80px;
+  max-width: 672px;
+  margin: 0 auto;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition:
+    background var(--motion-timing-fast) var(--motion-function),
+    color var(--motion-timing-fast) var(--motion-function);
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--text-primary);
+  }
+}
+
+.heading {
+  composes: typography-xl from global;
+  color: var(--text-primary);
+}
+
+/* Grid */
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Card sections */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cardHeaderInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.cardMeta {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.cardTitle {
+  composes: typography-base from global;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.cardDescription {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+/* Forms */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.buttonRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.error {
+  composes: typography-sm from global;
+  color: var(--destructive);
+}
+
+.success {
+  composes: typography-sm from global;
+  color: var(--success);
+}
+
+.hint {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+}
+
+/* Tokens */
+.tokenList {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tokenRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border-subtle);
+
+  &:first-child {
+    border-top: none;
+  }
+}
+
+.tokenName {
+  composes: typography-sm from global;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.tokenMeta {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.emptyText {
+  composes: typography-sm from global;
+  color: var(--text-muted);
+}
+
+/* New token display */
+.newToken {
+  background: var(--bg-inset);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.newTokenLabel {
+  composes: typography-xs from global;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.newTokenRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Strava */
+.stravaButton {
+  composes: typography-sm from global;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 0 16px;
+  border: none;
+  border-radius: var(--radius);
+  background: oklch(0.58 0.17 38);
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  transition:
+    background var(--motion-timing-fast) var(--motion-function),
+    transform var(--motion-timing-fast) var(--motion-function);
+
+  &:hover {
+    background: oklch(0.62 0.17 38);
+    transform: scale(1.04);
+  }
+
+  &:active {
+    background: oklch(0.53 0.17 38);
+    transform: scale(0.99);
+  }
+}
+
+.newTokenValue {
+  composes: typography-xs from global;
+  font-family: var(--font-mono);
+  color: var(--accent);
+  background: var(--bg-inset);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  flex: 1;
+  overflow-x: auto;
+  white-space: nowrap;
+  user-select: all;
+}
+
+/* Dialog layout */
+.dialogForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
+}

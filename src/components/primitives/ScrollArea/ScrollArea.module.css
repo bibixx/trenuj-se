@@ -1,0 +1,212 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  height: 100%;
+}
+
+.viewport {
+  height: 100%;
+}
+
+.viewport[data-has-overflow-y] {
+  overscroll-behavior-block: contain;
+}
+
+.viewport[data-has-overflow-x] {
+  overscroll-behavior-inline: contain;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.scrollbar {
+  padding: 2px;
+  box-sizing: border-box;
+  opacity: 0;
+  transition: opacity var(--motion-timing-fast) var(--motion-function);
+  transition-property: opacity;
+
+  &[data-orientation="vertical"] {
+    width: 16px;
+
+    .thumb {
+      width: 100%;
+
+      &::before {
+        inset-inline-start: 8px;
+      }
+
+      &:hover::before {
+        inset-inline-start: 4px;
+      }
+    }
+  }
+
+  &[data-orientation="horizontal"] {
+    height: 16px;
+
+    .thumb {
+      height: 100%;
+
+      &::before {
+        inset-block-start: 8px;
+      }
+
+      &:hover::before {
+        inset-block-start: 4px;
+      }
+    }
+  }
+}
+
+.scrollbar:hover,
+.scrollbar[data-scrolling] {
+  opacity: 1;
+}
+
+:global([data-scrollbar="persistent"]) .scrollbar {
+  opacity: 1;
+}
+
+.thumb {
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+
+    background: var(--scrollbar-thumb);
+    border-radius: var(--radius-full);
+    transition: var(--motion-timing-fast) var(--motion-function);
+    transition-property: background-color, inset-block-start, inset-inline-start;
+  }
+
+  &:hover::before {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  &:active::before {
+    background: var(--scrollbar-thumb-active);
+  }
+}
+
+/* Fadeout masks - driven by Base UI's data-overflow-* attributes */
+
+@property --fadeout-top-opacity {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@property --fadeout-bottom-opacity {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@property --fadeout-left-opacity {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+@property --fadeout-right-opacity {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 1;
+}
+
+.verticalFadeout {
+  --fadeout-top-opacity: 1;
+  --fadeout-bottom-opacity: 1;
+  --fadeout-size-top: 72px;
+  --fadeout-size-bottom: 0px;
+  --fadeout-padding-top: 0px;
+  --fadeout-padding-bottom: 0px;
+
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: --fadeout-top-opacity, --fadeout-bottom-opacity;
+  mask: linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent var(--fadeout-padding-top),
+    rgba(0, 0, 0, var(--fadeout-top-opacity)) var(--fadeout-padding-top),
+    black calc(var(--fadeout-padding-top) + var(--fadeout-size-top)),
+    black calc(100% - var(--fadeout-padding-bottom) - var(--fadeout-size-bottom)),
+    rgba(0, 0, 0, var(--fadeout-bottom-opacity)) calc(100% - var(--fadeout-padding-bottom)),
+    transparent calc(100% - var(--fadeout-padding-bottom)),
+    transparent 100%
+  );
+}
+
+.verticalFadeout[data-overflow-y-start] {
+  --fadeout-top-opacity: 0;
+}
+
+.verticalFadeout[data-overflow-y-end] {
+  --fadeout-bottom-opacity: 0;
+}
+
+.horizontalFadeout {
+  --fadeout-left-opacity: 1;
+  --fadeout-right-opacity: 1;
+  --fadeout-size-left: 72px;
+  --fadeout-size-right: 72px;
+  --fadeout-padding-left: 0px;
+  --fadeout-padding-right: 0px;
+
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: --fadeout-left-opacity, --fadeout-right-opacity;
+  mask: linear-gradient(
+    to right,
+    transparent 0,
+    transparent var(--fadeout-padding-left),
+    rgba(0, 0, 0, var(--fadeout-left-opacity)) var(--fadeout-padding-left),
+    black calc(var(--fadeout-padding-left) + var(--fadeout-size-left)),
+    black calc(100% - var(--fadeout-padding-right) - var(--fadeout-size-right)),
+    rgba(0, 0, 0, var(--fadeout-right-opacity)) calc(100% - var(--fadeout-padding-right)),
+    transparent calc(100% - var(--fadeout-padding-right)),
+    transparent 100%
+  );
+}
+
+.horizontalFadeout[data-overflow-x-start] {
+  --fadeout-left-opacity: 0;
+}
+
+.horizontalFadeout[data-overflow-x-end] {
+  --fadeout-right-opacity: 0;
+}
+
+.verticalFadeout.horizontalFadeout {
+  transition-property: --fadeout-top-opacity, --fadeout-bottom-opacity, --fadeout-left-opacity, --fadeout-right-opacity;
+  mask:
+    linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent var(--fadeout-padding-top),
+      rgba(0, 0, 0, var(--fadeout-top-opacity)) var(--fadeout-padding-top),
+      black calc(var(--fadeout-padding-top) + var(--fadeout-size-top)),
+      black calc(100% - var(--fadeout-padding-bottom) - var(--fadeout-size-bottom)),
+      rgba(0, 0, 0, var(--fadeout-bottom-opacity)) calc(100% - var(--fadeout-padding-bottom)),
+      transparent calc(100% - var(--fadeout-padding-bottom)),
+      transparent 100%
+    ),
+    linear-gradient(
+      to right,
+      transparent 0,
+      transparent var(--fadeout-padding-left),
+      rgba(0, 0, 0, var(--fadeout-left-opacity)) var(--fadeout-padding-left),
+      black calc(var(--fadeout-padding-left) + var(--fadeout-size-left)),
+      black calc(100% - var(--fadeout-padding-right) - var(--fadeout-size-right)),
+      rgba(0, 0, 0, var(--fadeout-right-opacity)) calc(100% - var(--fadeout-padding-right)),
+      transparent calc(100% - var(--fadeout-padding-right)),
+      transparent 100%
+    );
+  mask-composite: intersect;
+}

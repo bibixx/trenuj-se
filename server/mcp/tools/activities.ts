@@ -17,6 +17,35 @@ function addDays(date: Date, days: number) {
   return copy;
 }
 
+async function getPlanLabels(ctx: McpContext, planId: string) {
+  const [{ data: labels, error: labelsError }, { data: activitySports, error: activitySportsError }] = await Promise.all([
+    ctx.supabase.from("labels").select("id, key, label, hue, icon, metadata, created_at, updated_at").eq("plan_id", planId).eq("user_id", ctx.userId),
+    ctx.supabase.from("label_activity_sports").select("label_id, activity_sport").eq("user_id", ctx.userId),
+  ]);
+
+  if (labelsError) throw new AppError("INTERNAL_ERROR", labelsError.message);
+  if (activitySportsError) throw new AppError("INTERNAL_ERROR", activitySportsError.message);
+
+  const labelIds = new Set((labels ?? []).map((label) => label.id));
+  const sportsByLabelId = new Map<string, string[]>();
+  for (const row of activitySports ?? []) {
+    if (!labelIds.has(row.label_id)) continue;
+    const current = sportsByLabelId.get(row.label_id) ?? [];
+    current.push(row.activity_sport);
+    sportsByLabelId.set(row.label_id, current);
+  }
+
+  return (labels ?? []).map((label) => ({
+    id: label.id,
+    key: label.key,
+    label: label.label,
+    hue: label.hue,
+    icon: label.icon,
+    metadata: label.metadata,
+    activitySports: sportsByLabelId.get(label.id) ?? [],
+  }));
+}
+
 export function registerActivityTools(server: McpServer, ctx: McpContext) {
   server.registerTool(
     "get_activities",
@@ -24,10 +53,10 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
       title: "Get Activities",
       description: "Query synced Strava activities with filters and linked workout titles.",
       inputSchema: z.object({
-        dateFrom: z.string().datetime().optional().or(z.string().date().optional()),
-        dateTo: z.string().datetime().optional().or(z.string().date().optional()),
-        sport: z.string().trim().min(1).optional(),
-        limit: z.number().int().positive().max(100).default(20).optional(),
+        dateFrom: z.string().datetime().optional().or(z.string().date().optional()).describe("Filter start boundary (ISO datetime or YYYY-MM-DD)."),
+        dateTo: z.string().datetime().optional().or(z.string().date().optional()).describe("Filter end boundary (ISO datetime or YYYY-MM-DD)."),
+        sport: z.string().trim().min(1).optional().describe("Filter by Strava sport type (e.g. 'Run', 'Ride', 'Swim')."),
+        limit: z.number().int().positive().max(100).default(20).optional().describe("Max results (default 20, max 100)."),
       }),
       annotations: { readOnlyHint: true },
     },
@@ -88,7 +117,7 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
     {
       title: "Get Activity Streams",
       description: "Return a short-lived URL for fetching detailed Strava activity streams.",
-      inputSchema: z.object({ activityId: z.string().uuid() }),
+      inputSchema: z.object({ activityId: z.string().uuid().describe("Activity UUID.") }),
       annotations: { readOnlyHint: true },
     },
     async (input) => {
@@ -115,24 +144,32 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
     "get_week_summary",
     {
       title: "Get Week Summary",
-      description: "Aggregate planned versus actual workload for a week.",
-      inputSchema: z.object({ weekDate: z.string().date().optional() }),
+      description: "Aggregate planned workouts and actual activity workload for a Monday–Sunday week on the active plan, or on a specific plan when planId is provided.",
+      inputSchema: z.object({
+        weekDate: z.string().date().optional().describe("Any date within the target week (YYYY-MM-DD). Defaults to the current week."),
+        planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+      }),
       annotations: { readOnlyHint: true },
     },
     async (input) => {
       try {
-        const params = z.object({ weekDate: z.string().date().optional() }).parse(input ?? {});
+        const params = z.object({ weekDate: z.string().date().optional(), planId: z.string().uuid().optional() }).parse(input ?? {});
         const anchor = params.weekDate ? new Date(`${params.weekDate}T00:00:00Z`) : new Date();
         const weekStart = startOfWeek(anchor);
         const weekEnd = addDays(weekStart, 6);
         const from = weekStart.toISOString().slice(0, 10);
         const to = weekEnd.toISOString().slice(0, 10);
+        const plan = await resolvePlanId(ctx, params.planId);
+
+        const labels = await getPlanLabels(ctx, plan.id);
+        const labelsById = new Map(labels.map((label) => [label.id, label]));
 
         const [{ data: workouts, error: workoutError }, { data: activities, error: activityError }] = await Promise.all([
           ctx.supabase
             .from("workouts")
-            .select("id, sport, status, target_duration_min, target_distance_m, activity_id")
+            .select("id, label_id, status, target_duration_min, target_distance_m, activity_id")
             .eq("user_id", ctx.userId)
+            .eq("plan_id", plan.id)
             .gte("date", from)
             .lte("date", to),
           ctx.supabase
@@ -146,37 +183,46 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
         if (workoutError) throw new AppError("INTERNAL_ERROR", workoutError.message);
         if (activityError) throw new AppError("INTERNAL_ERROR", activityError.message);
 
-        const bySport = new Map<
+        const byLabel = new Map<
           string,
           {
+            key: string;
+            label: string;
             plannedDurationMin: number;
             plannedDistanceM: number;
-            actualDurationSec: number;
-            actualDistanceM: number;
             plannedCount: number;
             completedCount: number;
             skippedCount: number;
           }
         >();
-        const ensure = (sport: string) => {
-          if (!bySport.has(sport)) {
-            bySport.set(sport, { plannedDurationMin: 0, plannedDistanceM: 0, actualDurationSec: 0, actualDistanceM: 0, plannedCount: 0, completedCount: 0, skippedCount: 0 });
-          }
-          return bySport.get(sport)!;
-        };
+        const byActivitySport = new Map<string, { sport: string; actualDurationSec: number; actualDistanceM: number; activityCount: number }>();
 
         for (const workout of workouts ?? []) {
-          const bucket = ensure(workout.sport);
-          bucket.plannedCount += 1;
-          bucket.plannedDurationMin += workout.target_duration_min ?? 0;
-          bucket.plannedDistanceM += workout.target_distance_m ?? 0;
-          if (workout.status === "completed") bucket.completedCount += 1;
-          if (workout.status === "skipped") bucket.skippedCount += 1;
+          const label = workout.label_id ? labelsById.get(workout.label_id) : null;
+          const key = label?.key ?? "unlabeled";
+          const current = byLabel.get(key) ?? {
+            key,
+            label: label?.label ?? "Unlabeled",
+            plannedDurationMin: 0,
+            plannedDistanceM: 0,
+            plannedCount: 0,
+            completedCount: 0,
+            skippedCount: 0,
+          };
+          current.plannedCount += 1;
+          current.plannedDurationMin += workout.target_duration_min ?? 0;
+          current.plannedDistanceM += workout.target_distance_m ?? 0;
+          if (workout.status === "completed") current.completedCount += 1;
+          if (workout.status === "skipped") current.skippedCount += 1;
+          byLabel.set(key, current);
         }
+
         for (const activity of activities ?? []) {
-          const bucket = ensure(activity.sport);
-          bucket.actualDurationSec += activity.duration_sec;
-          bucket.actualDistanceM += activity.distance_m ?? 0;
+          const current = byActivitySport.get(activity.sport) ?? { sport: activity.sport, actualDurationSec: 0, actualDistanceM: 0, activityCount: 0 };
+          current.actualDurationSec += activity.duration_sec;
+          current.actualDistanceM += activity.distance_m ?? 0;
+          current.activityCount += 1;
+          byActivitySport.set(activity.sport, current);
         }
 
         const totalPlanned = (workouts ?? []).length;
@@ -190,7 +236,8 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
           completedCount: completed,
           skippedCount: skipped,
           completionRate: totalPlanned > 0 ? completed / totalPlanned : 0,
-          bySport: Array.from(bySport.entries()).map(([sport, value]) => ({ sport, ...value })),
+          byLabel: Array.from(byLabel.values()),
+          byActivitySport: Array.from(byActivitySport.values()),
         });
       } catch (error) {
         return toolError(error);
@@ -202,8 +249,8 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
     "get_plan_progress",
     {
       title: "Get Plan Progress",
-      description: "Return overall progress metrics for a plan.",
-      inputSchema: z.object({ planId: z.string().uuid().optional() }),
+      description: "Return aggregate numeric progress metrics for the active plan, or for a specific plan when planId is provided.",
+      inputSchema: z.object({ planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted.") }),
       annotations: { readOnlyHint: true },
     },
     async (input) => {
@@ -260,27 +307,24 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
     "compare_planned_vs_actual",
     {
       title: "Compare Planned Vs Actual",
-      description: "Compare planned workouts against actual activity-linked execution across a date range.",
+      description: "Compare planned workouts on the active plan, or on a specific plan when planId is provided, against linked activity execution across a date range.",
       inputSchema: z.object({
-        planId: z.string().uuid().optional(),
-        dateFrom: z.string().date().optional(),
-        dateTo: z.string().date().optional(),
+        planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+        dateFrom: z.string().date().optional().describe("Filter start date (YYYY-MM-DD, inclusive)."),
+        dateTo: z.string().date().optional().describe("Filter end date (YYYY-MM-DD, inclusive)."),
       }),
       annotations: { readOnlyHint: true },
     },
     async (input) => {
       try {
-        const params = z
-          .object({
-            planId: z.string().uuid().optional(),
-            dateFrom: z.string().date().optional(),
-            dateTo: z.string().date().optional(),
-          })
-          .parse(input ?? {});
+        const params = z.object({ planId: z.string().uuid().optional(), dateFrom: z.string().date().optional(), dateTo: z.string().date().optional() }).parse(input ?? {});
         const plan = await resolvePlanId(ctx, params.planId);
+        const labels = await getPlanLabels(ctx, plan.id);
+        const labelsById = new Map(labels.map((label) => [label.id, label]));
+
         let query = ctx.supabase
           .from("workouts")
-          .select("id, date, sport, category, title, status, target_duration_min, target_distance_m, activity_id")
+          .select("id, date, label_id, title, status, target_duration_min, target_distance_m, activity_id")
           .eq("plan_id", plan.id)
           .eq("user_id", ctx.userId)
           .order("date", { ascending: true })
@@ -302,18 +346,20 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
 
         const perWorkout = (workouts ?? []).map((workout) => {
           const activity = workout.activity_id ? activityMap.get(workout.activity_id) : null;
+          const label = workout.label_id ? labelsById.get(workout.label_id) : null;
           return {
             workoutId: workout.id,
             date: workout.date,
             title: workout.title,
-            sport: workout.sport,
+            label,
             status: workout.status,
             plannedDurationMin: workout.target_duration_min,
             plannedDistanceM: workout.target_distance_m,
             actualDurationSec: activity?.duration_sec ?? null,
             actualDistanceM: activity?.distance_m ?? null,
             activityName: activity?.name ?? null,
-            sportMatch: activity ? activity.sport === workout.sport : null,
+            activitySport: activity?.sport ?? null,
+            sportMatch: activity ? (label?.activitySports ?? []).includes(activity.sport) : null,
             missed: !activity && workout.status !== "skipped",
             extra: false,
           };
