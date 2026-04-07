@@ -33,6 +33,7 @@ body {
   height: 100dvh;
   overflow: hidden;
   position: relative;
+  background: var(--bg);
 }
 
 body::before,
@@ -54,6 +55,9 @@ body::after {
   mix-blend-mode: soft-light;
   opacity: 0.5;
   z-index: 9999;
+  @supports (padding: env(safe-area-inset-top)) {
+    mask-image: linear-gradient(to bottom, transparent, black 48px, black calc(100% - 48px), transparent);
+  }
 }
 
 [data-theme="light"] body::after {

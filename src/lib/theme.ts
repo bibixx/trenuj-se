@@ -30,8 +30,14 @@ let currentResolved: ResolvedTheme = "dark";
 let initialized = false;
 const listeners = new Set<() => void>();
 
+const THEME_COLORS: Record<ResolvedTheme, string> = {
+  dark: "#141419",
+  light: "#f3f2f6",
+};
+
 function applyTheme(theme: ResolvedTheme) {
   document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", THEME_COLORS[theme]);
 }
 
 function notify() {
