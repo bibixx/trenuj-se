@@ -1,7 +1,8 @@
 import { Collapsible } from "@base-ui-components/react/collapsible";
 import clsx from "clsx";
 import { IconTriangleInvertedFilled } from "@tabler/icons-react";
-import { type CSSProperties, useState } from "react";
+import { type CSSProperties, useCallback, useState } from "react";
+import { triggerHaptic } from "tactus";
 import { Badge } from "../../primitives/Badge/Badge.tsx";
 import { Checkbox } from "../../primitives/Checkbox/Checkbox.tsx";
 import { StravaPill } from "../../domain/StravaPill/StravaPill.tsx";
@@ -55,12 +56,16 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
   const expandable = !editorial && hasContent;
 
   const [expanded, setExpanded] = useState(defaultExpanded || editorial);
+  const handleOpenChange = useCallback((open: boolean) => {
+    triggerHaptic();
+    setExpanded(open);
+  }, []);
 
   const rowClass = variant === "standard" ? (isOptional ? "optional" : "workout") : variant;
   const hueStyle = hue != null ? ({ "--session-hue": hue } as CSSProperties) : undefined;
 
   return (
-    <Collapsible.Root open={expanded} onOpenChange={expandable ? setExpanded : undefined}>
+    <Collapsible.Root open={expanded} onOpenChange={expandable ? handleOpenChange : undefined}>
       <article className={clsx(styles.card, styles[rowClass], { [styles.completed!]: isCompleted, [styles.today!]: isToday })} style={hueStyle}>
         <Collapsible.Trigger disabled={!expandable} className={clsx(styles.row, { [styles.expandable!]: expandable })}>
           <div className={styles.day}>{dateLabel}</div>
