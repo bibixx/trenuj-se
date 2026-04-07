@@ -63,7 +63,6 @@ function sanitizePostAuthRedirect(raw: string | null | undefined) {
 const stravaRoutes = new Hono<{ Bindings: AppBindings; Variables: Variables }>();
 
 stravaRoutes.use("/profile", requireUser);
-stravaRoutes.use("/auth", requireUser);
 stravaRoutes.use("/disconnect", requireUser);
 stravaRoutes.use("/sync", requireUser);
 
@@ -83,7 +82,7 @@ stravaRoutes.get("/profile", async (c) => {
   return c.json({ profile, stravaConnected: Boolean(profile.strava_athlete_id), activePlan });
 });
 
-stravaRoutes.get("/auth", async (c) => {
+stravaRoutes.get("/auth", requireUser, async (c) => {
   const userId = c.get("userId");
   const config = getStravaOauthConfig(c.env);
   const state = crypto.randomUUID();
@@ -104,7 +103,7 @@ stravaRoutes.get("/auth", async (c) => {
   authorizeUrl.searchParams.set("scope", "activity:read_all");
   authorizeUrl.searchParams.set("state", `${state}:${encodeURIComponent(callback)}`);
 
-  return c.redirect(authorizeUrl.toString(), 302);
+  return c.json({ url: authorizeUrl.toString() });
 });
 
 stravaRoutes.get("/callback", async (c) => {

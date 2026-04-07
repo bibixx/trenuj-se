@@ -429,27 +429,26 @@ describe("GET /api/strava/auth", () => {
     expect(res.status).toBe(401);
   });
 
-  test("302 redirects to Strava OAuth", async () => {
+  test("returns JSON with Strava OAuth URL", async () => {
     const mock = makeAuthMock();
     setMockSupabase(mock);
 
     const res = await app.request("/api/strava/auth", { headers: AUTH_HEADER }, MOCK_ENV);
-    expect(res.status).toBe(302);
-    const location = res.headers.get("location")!;
-    expect(location).toContain("strava.com/oauth/authorize");
-    expect(location).toContain("client_id=mock-strava-id");
-    expect(location).toContain("scope=activity%3Aread_all");
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { url: string };
+    expect(body.url).toContain("strava.com/oauth/authorize");
+    expect(body.url).toContain("client_id=mock-strava-id");
+    expect(body.url).toContain("scope=activity%3Aread_all");
   });
 
-  test("302 includes callback in state param", async () => {
+  test("includes callback in state param", async () => {
     const mock = makeAuthMock();
     setMockSupabase(mock);
 
     const res = await app.request("/api/strava/auth?callback=/dashboard/plan", { headers: AUTH_HEADER }, MOCK_ENV);
-    expect(res.status).toBe(302);
-    const location = res.headers.get("location")!;
-    // Parse the redirect URL and decode the state param to check the callback
-    const url = new URL(location);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { url: string };
+    const url = new URL(body.url);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
     expect(decodeURIComponent(encodedCallback)).toBe("/dashboard/plan");
@@ -460,8 +459,9 @@ describe("GET /api/strava/auth", () => {
     setMockSupabase(mock);
 
     const res = await app.request("/api/strava/auth?callback=//evil.com/steal", { headers: AUTH_HEADER }, MOCK_ENV);
-    expect(res.status).toBe(302);
-    const url = new URL(res.headers.get("location")!);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { url: string };
+    const url = new URL(body.url);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
     expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
@@ -472,8 +472,9 @@ describe("GET /api/strava/auth", () => {
     setMockSupabase(mock);
 
     const res = await app.request("/api/strava/auth?callback=/api/tokens", { headers: AUTH_HEADER }, MOCK_ENV);
-    expect(res.status).toBe(302);
-    const url = new URL(res.headers.get("location")!);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { url: string };
+    const url = new URL(body.url);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
     expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
@@ -484,8 +485,9 @@ describe("GET /api/strava/auth", () => {
     setMockSupabase(mock);
 
     const res = await app.request("/api/strava/auth?callback=/mcp", { headers: AUTH_HEADER }, MOCK_ENV);
-    expect(res.status).toBe(302);
-    const url = new URL(res.headers.get("location")!);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { url: string };
+    const url = new URL(body.url);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
     expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
@@ -496,8 +498,9 @@ describe("GET /api/strava/auth", () => {
     setMockSupabase(mock);
 
     const res = await app.request("/api/strava/auth?callback=https://evil.com", { headers: AUTH_HEADER }, MOCK_ENV);
-    expect(res.status).toBe(302);
-    const url = new URL(res.headers.get("location")!);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { url: string };
+    const url = new URL(body.url);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
     expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");

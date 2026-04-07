@@ -215,8 +215,18 @@ function StravaCard({ profile, stravaParam }: { profile: Profile | null; stravaP
     }
   };
 
-  const handleConnect = () => {
-    window.location.href = `/api/strava/auth?callback=${encodeURIComponent("/settings?strava=connected")}`;
+  const [connecting, setConnecting] = useState(false);
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const res = await apiFetch(`/api/strava/auth?callback=${encodeURIComponent("/settings?strava=connected")}`);
+      const { url } = (await res.json()) as { url: string };
+      window.location.href = url;
+    } catch (err) {
+      setFeedback(err instanceof Error ? err.message : "Failed to start Strava connection");
+      setConnecting(false);
+    }
   };
 
   return (
@@ -240,8 +250,8 @@ function StravaCard({ profile, stravaParam }: { profile: Profile | null; stravaP
             </Button>
           </>
         ) : (
-          <button className={styles.stravaButton} onClick={handleConnect}>
-            Connect with Strava
+          <button className={styles.stravaButton} onClick={handleConnect} disabled={connecting}>
+            {connecting ? "Connecting…" : "Connect with Strava"}
           </button>
         )}
       </div>
