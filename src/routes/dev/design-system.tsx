@@ -28,21 +28,33 @@ function DesignSystemLayout() {
     <div className={styles.themeRoot} data-theme={resolved}>
       <div className={styles.layout}>
         <nav className={styles.sidebar}>
-          <div className={styles.sidebarHeader}>
-            <h2 className={styles.sidebarTitle}>Design System</h2>
-            <ToggleGroup.Root value={[preference]} onValueChange={(v) => v.length > 0 && setTheme(v[0] as ThemePreference)} aria-label="Theme preview">
-              <ToggleGroup.Item value="system">System</ToggleGroup.Item>
-              <ToggleGroup.Item value="dark">Dark</ToggleGroup.Item>
-              <ToggleGroup.Item value="light">Light</ToggleGroup.Item>
-            </ToggleGroup.Root>
-          </div>
-          <div className={styles.navList}>
-            {SECTIONS.map((section) => (
-              <Link key={section.to} to={section.to} className={styles.navItem} activeProps={{ className: styles.navItemActive }} onClick={() => triggerHaptic()}>
-                {section.label}
-              </Link>
-            ))}
-          </div>
+          <ScrollArea.Root style={{ width: "100%", height: "100%" }}>
+            <ScrollArea.Viewport className={styles.sidebarViewport} fadeout={{ sizeTop: 64, sizeBottom: 0, sizeLeft: 64, sizeRight: 64, direction: "both" }}>
+              <ScrollArea.Content className={styles.sidebarContent}>
+                <div className={styles.sidebarHeader}>
+                  <h2 className={styles.sidebarTitle}>Design System</h2>
+                  <ToggleGroup.Root value={[preference]} onValueChange={(v) => v.length > 0 && setTheme(v[0] as ThemePreference)} aria-label="Theme preview">
+                    <ToggleGroup.Item value="system">System</ToggleGroup.Item>
+                    <ToggleGroup.Item value="dark">Dark</ToggleGroup.Item>
+                    <ToggleGroup.Item value="light">Light</ToggleGroup.Item>
+                  </ToggleGroup.Root>
+                </div>
+                {SECTIONS.map((section) => (
+                  <Link key={section.to} to={section.to} className={styles.navItem} activeProps={{ className: styles.navItemActive }} onClick={() => triggerHaptic()}>
+                    {section.label}
+                  </Link>
+                ))}
+                <div className={styles.mobileThemeToggle}>
+                  <ToggleGroup.Root value={[preference]} onValueChange={(v) => v.length > 0 && setTheme(v[0] as ThemePreference)} aria-label="Theme preview">
+                    <ToggleGroup.Item value="system">System</ToggleGroup.Item>
+                    <ToggleGroup.Item value="dark">Dark</ToggleGroup.Item>
+                    <ToggleGroup.Item value="light">Light</ToggleGroup.Item>
+                  </ToggleGroup.Root>
+                </div>
+              </ScrollArea.Content>
+            </ScrollArea.Viewport>
+            <ScrollArea.Scrollbar />
+          </ScrollArea.Root>
         </nav>
         <ScrollArea.Root style={{ width: "100%", height: "100%" }}>
           <ScrollArea.Viewport fadeout={{ sizeTop: 64, sizeBottom: 0 }}>
