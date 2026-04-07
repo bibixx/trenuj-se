@@ -431,16 +431,19 @@
   .sidebarContent {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     padding: 0;
   }
 
   .sidebarHeader {
-    margin-bottom: 0;
+    display: none;
   }
 
-  .sidebarTitle {
-    display: none;
+  .navItem {
+    flex-shrink: 0;
+    white-space: nowrap;
+    padding: 6px 14px;
+    border-radius: var(--radius-full);
   }
 
   .main {

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { triggerHaptic } from "tactus";
 import { ScrollAreaComponent as ScrollArea } from "../../components/primitives/ScrollArea/ScrollArea.tsx";
 import { ToggleGroup } from "../../components/primitives/ToggleGroup/ToggleGroup.tsx";
 import { useTheme } from "../../lib/theme.ts";
@@ -39,7 +40,7 @@ function DesignSystemLayout() {
                   </ToggleGroup.Root>
                 </div>
                 {SECTIONS.map((section) => (
-                  <Link key={section.to} to={section.to} className={styles.navItem} activeProps={{ className: styles.navItemActive }}>
+                  <Link key={section.to} to={section.to} className={styles.navItem} activeProps={{ className: styles.navItemActive }} onClick={() => triggerHaptic()}>
                     {section.label}
                   </Link>
                 ))}
