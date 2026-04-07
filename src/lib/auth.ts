@@ -1,6 +1,7 @@
 import type { Session, User } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 import { queryClient } from "./query-client.ts";
+import { indexedDbPersister } from "./query-persister.ts";
 import { supabase } from "./supabase.ts";
 
 interface AuthState {
@@ -32,6 +33,7 @@ export function useAuth(): AuthState {
       // On logout, clear all cached data
       if (event === "SIGNED_OUT") {
         queryClient.clear();
+        indexedDbPersister.removeClient();
       }
     });
 

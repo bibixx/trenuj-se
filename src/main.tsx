@@ -1,4 +1,5 @@
-import { QueryClientProvider } from "@tanstack/react-query";
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
+import { indexedDbPersister } from "./lib/query-persister.ts";
 import { RouterProvider, createRouter } from "@tanstack/react-router";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -39,11 +40,16 @@ declare module "@tanstack/react-router" {
 
 initTheme();
 
+const persistOptions = {
+  persister: indexedDbPersister,
+  maxAge: 14 * 24 * 60 * 60_000, // 14 days
+};
+
 const rootElement = document.getElementById("root")!;
 createRoot(rootElement).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
+    <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
       <RouterProvider router={router} />
-    </QueryClientProvider>
+    </PersistQueryClientProvider>
   </StrictMode>,
 );
