@@ -7,25 +7,34 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
  * Load VITE_* vars from .dev.vars (Wrangler's env file) so the frontend
  * dev server picks them up without needing a separate .env.local.
  */
-function loadDevVars(): Record<string, string> {
+function loadDevVars(): { env: Record<string, string>; allEnv: Record<string, string> } {
   try {
     const content = readFileSync(".dev.vars", "utf-8");
     const env: Record<string, string> = {};
+    const allEnv: Record<string, string> = {};
     for (const line of content.split("\n")) {
-      const match = line.match(/^(VITE_\w+)=(.*)$/);
-      if (match) {
-        env[match[1]!] = match[2]!;
+      const match = line.match(/^(\w+)=(.*)$/);
+      const key = match?.[1];
+      const value = match?.[2];
+
+      if (!key) {
+        continue;
+      }
+
+      allEnv[key] = value!;
+      if (key.startsWith("VITE_")) {
+        env[key] = value!;
       }
     }
-    return env;
+    return { env, allEnv };
   } catch {
-    return {};
+    return { env: {}, allEnv: {} };
   }
 }
 
 export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
-  const devVars = loadDevVars();
+  const { env: devVars, allEnv } = loadDevVars();
 
   return {
     define: Object.fromEntries(Object.entries(devVars).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)])),
@@ -58,6 +67,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      allowedHosts: allEnv.ALLOWED_HOSTS?.split(",") ?? [],
       proxy: {
         "/api": "http://localhost:8788",
         "/mcp": "http://localhost:8788",
