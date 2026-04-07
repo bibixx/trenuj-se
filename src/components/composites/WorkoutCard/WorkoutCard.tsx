@@ -52,7 +52,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
   const editorial = variant === "note";
   const isCompleted = workout.status === "completed";
   const isOptional = variant === "optional";
-  const hasContent = !!(workout.description || workout.trainerNotes);
+  const hasContent = !!(workout.description || workout.trainerNotes || workout.completionNotes);
   const expandable = !editorial && hasContent;
 
   const [expanded, setExpanded] = useState(defaultExpanded || editorial);
@@ -104,6 +104,12 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
                 <div className={styles.trainerNotes}>
                   <span className={styles.trainerLabel}>Trainer Notes</span>
                   {renderDescription ? renderDescription(workout.trainerNotes) : workout.trainerNotes}
+                </div>
+              )}
+              {workout.completionNotes && (
+                <div className={styles.completionNotes}>
+                  <span className={styles.completionLabel}>Completion Notes</span>
+                  {renderDescription ? renderDescription(workout.completionNotes) : workout.completionNotes}
                 </div>
               )}
             </div>
