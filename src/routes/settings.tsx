@@ -53,6 +53,7 @@ function SettingsPage() {
           </header>
 
           <div className={styles.grid}>
+            <AccountCard email={user?.email} />
             <AppearanceCard />
             <PasswordCard />
             <StravaCard profile={profile ?? null} stravaParam={stravaParam} />
@@ -61,6 +62,31 @@ function SettingsPage() {
       </ScrollArea.Viewport>
       <ScrollArea.Scrollbar />
     </ScrollArea.Root>
+  );
+}
+
+// --- Account Card ---
+
+function AccountCard({ email }: { email: string | undefined }) {
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+  };
+
+  return (
+    <Card className={styles.card}>
+      <div className={styles.cardHeader}>
+        <div className={styles.cardHeaderInfo}>
+          <span className={styles.cardMeta}>Account</span>
+          <h2 className={styles.cardTitle}>Email</h2>
+        </div>
+      </div>
+      <Input label="Email address" value={email ?? ""} readOnly />
+      <div className={styles.buttonRow}>
+        <Button variant="destructive" onClick={handleLogout}>
+          Log out
+        </Button>
+      </div>
+    </Card>
   );
 }
 

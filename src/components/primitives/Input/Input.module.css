@@ -27,7 +27,7 @@
   }
 
   /* Always show subtle border change on focus (mouse or keyboard) */
-  &[data-focused] {
+  &[data-focused]:not(:read-only) {
     border-color: var(--control-border-hover);
   }
 
@@ -37,6 +37,11 @@
 
   &.error {
     border-color: var(--destructive);
+  }
+
+  &:read-only {
+    color: var(--text-secondary);
+    cursor: default;
   }
 
   &:disabled {
