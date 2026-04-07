@@ -4,7 +4,16 @@
   background: var(--overlay-backdrop);
   backdrop-filter: blur(4px);
   z-index: 50;
-  animation: fadeIn var(--motion-timing-medium) var(--motion-function);
+  opacity: 1;
+  transition: opacity var(--motion-timing-medium) var(--motion-function);
+
+  &[data-starting-style] {
+    opacity: 0;
+  }
+
+  &[data-ending-style] {
+    opacity: 0;
+  }
 }
 
 .content {
@@ -20,7 +29,20 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--border-shine), var(--shadow-elevated);
   padding: 24px;
-  animation: slideIn var(--motion-timing-medium) var(--motion-function);
+  opacity: 1;
+  transition:
+    opacity var(--motion-timing-medium) var(--motion-function),
+    transform var(--motion-timing-medium) var(--motion-function);
+
+  &[data-starting-style] {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
+
+  &[data-ending-style] {
+    opacity: 0;
+    transform: translate(-50%, -48%);
+  }
 }
 
 .title {
@@ -55,25 +77,5 @@
   &:hover {
     color: var(--text-primary);
     background: var(--bg-hover);
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -48%);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%);
   }
 }
