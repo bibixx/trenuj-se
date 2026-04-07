@@ -1,5 +1,6 @@
 import clsx from "clsx";
 import { useRef, useEffect, useState, useLayoutEffect } from "react";
+import { triggerHaptic } from "tactus";
 import { ScrollAreaComponent as ScrollArea } from "../../primitives/ScrollArea/ScrollArea.tsx";
 import styles from "./WeekNavigation.module.css";
 
@@ -51,7 +52,10 @@ export function WeekNavigation({ totalWeeks, currentWeek, onWeekChange, classNam
                     if (el) pillRefs.current.set(week, el);
                   }}
                   className={clsx(styles.pill, isActive && styles.active)}
-                  onClick={() => onWeekChange(week)}
+                  onClick={() => {
+                    triggerHaptic();
+                    onWeekChange(week);
+                  }}
                   aria-pressed={isActive}
                 >
                   W{week}
