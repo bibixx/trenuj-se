@@ -431,6 +431,7 @@
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     padding: 10px 12px;
+    mask: linear-gradient(to right, black 0, black calc(100% - 32px), transparent 100%);
   }
 
   .sidebarHeader {
