@@ -52,6 +52,15 @@ export function initTheme() {
   currentResolved = resolve(currentPreference);
   applyTheme(currentResolved);
 
+  const isIos = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isStandalone = window.matchMedia("(display-mode: standalone)").matches || ("standalone" in navigator && (navigator as unknown as { standalone: boolean }).standalone);
+  if (isIos) {
+    document.documentElement.dataset.ios = "";
+    if (isStandalone) {
+      document.documentElement.dataset.iosPwa = "";
+    }
+  }
+
   window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
     if (currentPreference !== "system") return;
     currentResolved = getSystemTheme();
