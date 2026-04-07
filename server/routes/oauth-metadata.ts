@@ -3,21 +3,18 @@ import type { AppBindings } from "../lib/supabase";
 
 const oauthMetadataRoutes = new Hono<{ Bindings: AppBindings }>();
 
-oauthMetadataRoutes.get("/", (c) => {
+oauthMetadataRoutes.get("/", async (c) => {
   const supabaseUrl = c.env.VITE_SUPABASE_URL;
-  const issuer = `${supabaseUrl}/auth/v1`;
 
-  return c.json({
-    issuer,
-    authorization_endpoint: `${issuer}/oauth/authorize`,
-    token_endpoint: `${issuer}/oauth/token`,
-    registration_endpoint: `${issuer}/oauth/register`,
-    jwks_uri: `${issuer}/.well-known/jwks.json`,
-    response_types_supported: ["code"],
-    grant_types_supported: ["authorization_code", "refresh_token"],
-    code_challenge_methods_supported: ["S256"],
-    token_endpoint_auth_methods_supported: ["none", "client_secret_basic", "client_secret_post"],
-  });
+  // Proxy Supabase's actual discovery document so values stay in sync
+  const response = await fetch(`${supabaseUrl}/.well-known/oauth-authorization-server/auth/v1`);
+
+  if (!response.ok) {
+    return c.json({ error: "Failed to fetch OAuth metadata" }, 502);
+  }
+
+  const metadata = await response.json();
+  return c.json(metadata);
 });
 
 export default oauthMetadataRoutes;

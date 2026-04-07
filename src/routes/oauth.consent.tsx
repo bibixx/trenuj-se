@@ -9,7 +9,7 @@ import { LoginPage } from "../pages/LoginPage.tsx";
 import styles from "./oauth.consent.module.css";
 
 const searchSchema = z.object({
-  authorization_id: z.string().uuid(),
+  authorization_id: z.string().min(1),
 });
 
 export const Route = createFileRoute("/oauth/consent")({
@@ -31,7 +31,7 @@ interface OAuthRedirect {
 
 type AuthorizationResponse = OAuthAuthorizationDetails | OAuthRedirect;
 
-async function oauthFetch<T>(path: string, method: "GET" | "PUT"): Promise<{ data: T | null; error: string | null }> {
+async function oauthFetch<T>(path: string, method: "GET" | "POST", body?: unknown): Promise<{ data: T | null; error: string | null }> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData?.session?.access_token;
 
@@ -46,11 +46,15 @@ async function oauthFetch<T>(path: string, method: "GET" | "PUT"): Promise<{ dat
       "Content-Type": "application/json",
       apikey: import.meta.env.VITE_SUPABASE_ANON_KEY as string,
     },
+    body: body ? JSON.stringify(body) : undefined,
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    return { data: null, error: (body as Record<string, string>).error_description ?? (body as Record<string, string>).msg ?? `Request failed (${response.status})` };
+    const responseBody = await response.json().catch(() => ({}));
+    return {
+      data: null,
+      error: (responseBody as Record<string, string>).error_description ?? (responseBody as Record<string, string>).msg ?? `Request failed (${response.status})`,
+    };
   }
 
   const data = await response.json();
@@ -98,7 +102,7 @@ function OAuthConsentPage() {
     setSubmitting(true);
     setError(null);
 
-    const { data, error: approveError } = await oauthFetch<OAuthRedirect>(`/oauth/authorizations/${authorization_id}/approve`, "PUT");
+    const { data, error: approveError } = await oauthFetch<OAuthRedirect>(`/oauth/authorizations/${authorization_id}/consent`, "POST", { action: "approve" });
 
     if (approveError || !data) {
       setError(approveError ?? "Failed to approve");
@@ -113,7 +117,7 @@ function OAuthConsentPage() {
     setSubmitting(true);
     setError(null);
 
-    const { data, error: denyError } = await oauthFetch<OAuthRedirect>(`/oauth/authorizations/${authorization_id}/deny`, "PUT");
+    const { data, error: denyError } = await oauthFetch<OAuthRedirect>(`/oauth/authorizations/${authorization_id}/consent`, "POST", { action: "deny" });
 
     if (denyError || !data) {
       setError(denyError ?? "Failed to deny");
