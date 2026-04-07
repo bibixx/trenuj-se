@@ -21,10 +21,13 @@
   gap: 2px;
   flex-shrink: 0;
   background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+  padding: 20px 12px;
+  overflow-y: auto;
 }
 
-.sidebarContent {
-  padding: 20px 12px;
+.navList {
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebarHeader {
@@ -421,22 +424,22 @@
     position: static;
     width: 100%;
     height: auto;
-    flex-direction: row;
-    overflow-x: auto;
     border-right: none;
     border-bottom: 1px solid var(--border-subtle);
-    padding: 12px;
-  }
-
-  .sidebarContent {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 10px 12px;
   }
 
   .sidebarHeader {
     display: none;
+  }
+
+  .navList {
+    flex-direction: row;
+    gap: 6px;
   }
 
   .navItem {
