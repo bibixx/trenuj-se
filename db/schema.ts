@@ -34,21 +34,6 @@ export const stravaCredentials = pgTable("strava_credentials", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });
 
-export const apiTokens = pgTable(
-  "api_tokens",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
-    name: text("name").notNull(),
-    tokenHash: text("token_hash").notNull(),
-    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [index("api_tokens_hash").on(table.tokenHash)],
-);
-
 export const plans = pgTable(
   "plans",
   {
@@ -264,7 +249,6 @@ export const streamTokens = pgTable(
 export const tables = {
   profiles,
   stravaCredentials,
-  apiTokens,
   plans,
   labels,
   labelActivitySports,

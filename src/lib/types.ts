@@ -95,13 +95,6 @@ export interface Activity {
   createdAt: string;
 }
 
-export interface ApiToken {
-  id: string;
-  name: string;
-  lastUsedAt: string | null;
-  createdAt: string;
-}
-
 export interface PlanShare {
   id: string;
   planId: string;

@@ -18,7 +18,7 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 function RootLayout() {
   const { user, loading } = useAuth();
   const location = useLocation();
-  const isPublic = location.pathname.startsWith("/dev/") || location.pathname.startsWith("/share/");
+  const isPublic = location.pathname.startsWith("/dev/") || location.pathname.startsWith("/share/") || location.pathname.startsWith("/oauth/");
 
   // Fetch active plan when logged in — used to scope Realtime subscriptions
   const { data: activePlan } = useQuery({

@@ -102,7 +102,7 @@ All inputs are validated with Zod schemas. Define the schema inline in the tool/
 ### Auth model
 
 - **HTTP routes** (`server/routes/`): Use Supabase session auth. Call `createUserSupabase(c)` to get a client scoped to the authenticated user.
-- **MCP endpoint**: Uses `authenticateMcpRequest(c)` which validates `Bearer tp_*` tokens against SHA-256 hashes in the `api_tokens` table. Returns an `McpContext` with `supabase` (service-role client), `userId`, `tokenId`, and `bindings`.
+- **MCP endpoint**: Uses `authenticateMcpRequest(c)` which validates OAuth 2.1 access tokens via `supabase.auth.getUser()`. Returns an `McpContext` with `supabase` (service-role client), `userId`, and `bindings`. OAuth discovery is at `/.well-known/oauth-authorization-server`, consent page at `/oauth/consent`.
 - **Shares endpoint**: Uses service-role Supabase client to bypass RLS (public access).
 
 ### Strava integration

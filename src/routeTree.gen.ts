@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ShareShareIdRouteImport } from './routes/share.$shareId'
+import { Route as OauthConsentRouteImport } from './routes/oauth.consent'
 import { Route as DevDesignSystemRouteImport } from './routes/dev/design-system'
 import { Route as DevDesignSystemIndexRouteImport } from './routes/dev/design-system/index'
 import { Route as DevDesignSystemTokensRouteImport } from './routes/dev/design-system/tokens'
@@ -36,6 +37,11 @@ const IndexRoute = IndexRouteImport.update({
 const ShareShareIdRoute = ShareShareIdRouteImport.update({
   id: '/share/$shareId',
   path: '/share/$shareId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OauthConsentRoute = OauthConsentRouteImport.update({
+  id: '/oauth/consent',
+  path: '/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DevDesignSystemRoute = DevDesignSystemRouteImport.update({
@@ -96,6 +102,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/dev/design-system': typeof DevDesignSystemRouteWithChildren
+  '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
@@ -110,6 +117,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
+  '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
@@ -126,6 +134,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/settings': typeof SettingsRoute
   '/dev/design-system': typeof DevDesignSystemRouteWithChildren
+  '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
@@ -143,6 +152,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/dev/design-system'
+    | '/oauth/consent'
     | '/share/$shareId'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
@@ -157,6 +167,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/settings'
+    | '/oauth/consent'
     | '/share/$shareId'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
@@ -172,6 +183,7 @@ export interface FileRouteTypes {
     | '/'
     | '/settings'
     | '/dev/design-system'
+    | '/oauth/consent'
     | '/share/$shareId'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
@@ -188,6 +200,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SettingsRoute: typeof SettingsRoute
   DevDesignSystemRoute: typeof DevDesignSystemRouteWithChildren
+  OauthConsentRoute: typeof OauthConsentRoute
   ShareShareIdRoute: typeof ShareShareIdRoute
 }
 
@@ -212,6 +225,13 @@ declare module '@tanstack/react-router' {
       path: '/share/$shareId'
       fullPath: '/share/$shareId'
       preLoaderRoute: typeof ShareShareIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/oauth/consent': {
+      id: '/oauth/consent'
+      path: '/oauth/consent'
+      fullPath: '/oauth/consent'
+      preLoaderRoute: typeof OauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dev/design-system': {
@@ -319,6 +339,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SettingsRoute: SettingsRoute,
   DevDesignSystemRoute: DevDesignSystemRouteWithChildren,
+  OauthConsentRoute: OauthConsentRoute,
   ShareShareIdRoute: ShareShareIdRoute,
 }
 export const routeTree = rootRouteImport

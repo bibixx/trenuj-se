@@ -6,9 +6,9 @@ Connect to the Workout Planner MCP server first:
 
 - **Transport:** Streamable HTTP
 - **Endpoint:** `https://trenuj.se/mcp`
-- **Auth:** Bearer token in the `Authorization` header. Tokens are prefixed with `tp_` — generate one from your account settings in the app.
+- **Auth:** OAuth 2.1 — your MCP client handles authentication automatically. You'll be prompted to log in and approve access when connecting for the first time.
 
-Configure your AI client to connect to the server using the transport and auth details above. Refer to your client's documentation for how to add an MCP server.
+Point your AI client at the endpoint above. It will discover the OAuth configuration and guide you through sign-in. Refer to your client's documentation for how to add an MCP server.
 
 ---
 

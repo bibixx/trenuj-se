@@ -6,13 +6,13 @@ You have access to a training plan MCP server. Use it to manage the athlete's pl
 
 - **Transport:** Streamable HTTP
 - **Endpoint:** `{SERVER_URL}/mcp`
-- **Auth:** `Authorization: Bearer {TOKEN}` (tokens are prefixed `tp_`)
+- **Auth:** OAuth 2.1 — MCP clients that support OAuth will handle authentication automatically. On first connection, you'll be prompted to log in and approve access.
 
-The user will provide you with the server URL and API token. If they haven't, ask for them before proceeding.
+The user will provide you with the server URL. If they haven't, ask for it before proceeding.
 
 ## Setup by Client
 
-Pick the section matching your environment. Replace `{SERVER_URL}` and `{TOKEN}` with actual values.
+Pick the section matching your environment. Replace `{SERVER_URL}` with the actual server URL.
 
 ### Claude Desktop
 
@@ -23,16 +23,13 @@ Write to `~/Library/Application Support/Claude/claude_desktop_config.json` (macO
   "mcpServers": {
     "workout-planner": {
       "type": "streamableHttp",
-      "url": "{SERVER_URL}/mcp",
-      "headers": {
-        "Authorization": "Bearer {TOKEN}"
-      }
+      "url": "{SERVER_URL}/mcp"
     }
   }
 }
 ```
 
-Then restart Claude Desktop.
+Then restart Claude Desktop. You'll be prompted to authorize access on first use.
 
 ### Claude Code (CLI)
 
@@ -41,59 +38,7 @@ Run:
 ```bash
 claude mcp add workout-planner \
   --transport streamable-http \
-  "{SERVER_URL}/mcp" \
-  --header "Authorization: Bearer {TOKEN}"
-```
-
-Or create `.mcp.json` in the project root:
-
-```json
-{
-  "mcpServers": {
-    "workout-planner": {
-      "type": "streamableHttp",
-      "url": "{SERVER_URL}/mcp",
-      "headers": {
-        "Authorization": "Bearer {TOKEN}"
-      }
-    }
-  }
-}
-```
-
-### Cursor
-
-Create `.cursor/mcp.json` in the project root:
-
-```json
-{
-  "mcpServers": {
-    "workout-planner": {
-      "type": "streamableHttp",
-      "url": "{SERVER_URL}/mcp",
-      "headers": {
-        "Authorization": "Bearer {TOKEN}"
-      }
-    }
-  }
-}
-```
-
-### Windsurf
-
-Write to `~/.codeium/windsurf/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "workout-planner": {
-      "serverUrl": "{SERVER_URL}/mcp",
-      "headers": {
-        "Authorization": "Bearer {TOKEN}"
-      }
-    }
-  }
-}
+  "{SERVER_URL}/mcp"
 ```
 
 ### VS Code (GitHub Copilot)
@@ -105,29 +50,7 @@ Create `.vscode/mcp.json` in the workspace. Requires `chat.mcp.enabled: true` in
   "servers": {
     "workout-planner": {
       "type": "http",
-      "url": "{SERVER_URL}/mcp",
-      "headers": {
-        "Authorization": "Bearer {TOKEN}"
-      }
-    }
-  }
-}
-```
-
-### Zed
-
-Add to Zed settings (`settings.json`):
-
-```json
-{
-  "context_servers": {
-    "workout-planner": {
-      "settings": {
-        "url": "{SERVER_URL}/mcp",
-        "headers": {
-          "Authorization": "Bearer {TOKEN}"
-        }
-      }
+      "url": "{SERVER_URL}/mcp"
     }
   }
 }

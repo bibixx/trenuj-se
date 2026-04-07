@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { clearMockSupabase, setMockSupabase } from "../helpers/setup.ts";
-import { MOCK_PHASE_ID, MOCK_PLAN_ID, MOCK_TOKEN_ID, MOCK_USER_ID } from "../helpers/mock-env.ts";
+import { MOCK_PHASE_ID, MOCK_PLAN_ID, MOCK_USER_ID } from "../helpers/mock-env.ts";
 import { extractToolResult, mcpCallTool, parseMcpResponse, resetMcpIds } from "../helpers/mcp.ts";
 
-const TEST_TOKEN = "tp_abc123testtoken";
 const VALID_PLAN_ID = "a0000000-0000-4000-8000-000000000010";
 
 const MOCK_PLAN = {
@@ -20,12 +19,9 @@ const MOCK_PLAN = {
   updated_at: "2024-01-01T00:00:00Z",
 };
 
-function authTokenTables() {
+function mockAuth() {
   return {
-    api_tokens: {
-      select: { data: { id: MOCK_TOKEN_ID, user_id: MOCK_USER_ID }, error: null },
-      update: { data: null, error: null },
-    },
+    getUser: { data: { user: { id: MOCK_USER_ID } }, error: null },
   };
 }
 
@@ -41,8 +37,8 @@ describe("MCP Plan Tools", () => {
   test("get_plan returns labels and summary", async () => {
     setMockSupabase(
       createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: { select: { data: MOCK_PLAN, error: null } },
           phases: {
             select: {
@@ -81,7 +77,7 @@ describe("MCP Plan Tools", () => {
       }),
     );
 
-    const parsed = await parseMcpResponse(await mcpCallTool("get_plan", { planId: VALID_PLAN_ID }, { token: TEST_TOKEN }));
+    const parsed = await parseMcpResponse(await mcpCallTool("get_plan", { planId: VALID_PLAN_ID }, {}));
     const result = extractToolResult(parsed);
 
     expect(result?.result.labels).toEqual([
@@ -103,8 +99,8 @@ describe("MCP Plan Tools", () => {
   test("set_labels replaces labels and warns when activitySports are missing", async () => {
     setMockSupabase(
       createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: { select: { data: MOCK_PLAN, error: null } },
           labels: {
             delete: { data: null, error: null },
@@ -126,7 +122,7 @@ describe("MCP Plan Tools", () => {
           planId: VALID_PLAN_ID,
           labels: [{ key: "mobility", label: "Mobility", hue: 40, activitySports: [] }],
         },
-        { token: TEST_TOKEN },
+        {},
       ),
     );
     const result = extractToolResult(parsed);
@@ -150,8 +146,8 @@ describe("MCP Plan Tools", () => {
   test("update_label updates label fields and activitySports", async () => {
     setMockSupabase(
       createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: { select: { data: MOCK_PLAN, error: null } },
           labels: {
             select: {
@@ -190,7 +186,7 @@ describe("MCP Plan Tools", () => {
     );
 
     const parsed = await parseMcpResponse(
-      await mcpCallTool("update_label", { planId: VALID_PLAN_ID, key: "easy-run", label: "Aerobic Run", hue: 140, activitySports: ["Run", "TrailRun"] }, { token: TEST_TOKEN }),
+      await mcpCallTool("update_label", { planId: VALID_PLAN_ID, key: "easy-run", label: "Aerobic Run", hue: 140, activitySports: ["Run", "TrailRun"] }, {}),
     );
     const result = extractToolResult(parsed);
 
@@ -199,7 +195,7 @@ describe("MCP Plan Tools", () => {
   });
 
   test("set_labels rejects non-slug label keys", async () => {
-    setMockSupabase(createMockSupabase({ tables: { ...authTokenTables() } }));
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
 
     const parsed = await parseMcpResponse(
       await mcpCallTool(
@@ -208,16 +204,16 @@ describe("MCP Plan Tools", () => {
           planId: VALID_PLAN_ID,
           labels: [{ key: "Easy Run", label: "Easy Run", hue: 120, activitySports: [] }],
         },
-        { token: TEST_TOKEN },
+        {},
       ),
     );
     expect(parsed.error ?? parsed.result).toBeDefined();
   });
 
   test("create_plan no longer accepts colorBy", async () => {
-    setMockSupabase(createMockSupabase({ tables: { ...authTokenTables() } }));
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
 
-    const parsed = await parseMcpResponse(await mcpCallTool("create_plan", { name: "Plan", startDate: "2024-01-01", colorBy: "sport" }, { token: TEST_TOKEN }));
+    const parsed = await parseMcpResponse(await mcpCallTool("create_plan", { name: "Plan", startDate: "2024-01-01", colorBy: "sport" }, {}));
 
     expect(parsed.error ?? parsed.result).toBeDefined();
   });

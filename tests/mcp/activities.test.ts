@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { clearMockSupabase, setMockSupabase } from "../helpers/setup.ts";
-import { MOCK_PLAN_ID, MOCK_TOKEN_ID, MOCK_USER_ID } from "../helpers/mock-env.ts";
+import { MOCK_PLAN_ID, MOCK_USER_ID } from "../helpers/mock-env.ts";
 import { extractToolResult, mcpCallTool, parseMcpResponse, resetMcpIds } from "../helpers/mcp.ts";
 
-const TEST_TOKEN = "tp_abc123testtoken";
 const VALID_PLAN_ID = "a0000000-0000-4000-8000-000000000010";
 
 const MOCK_PLAN = {
@@ -31,12 +30,9 @@ const MOCK_LABEL = {
   updated_at: "2024-01-01T00:00:00Z",
 };
 
-function authTokenTables() {
+function mockAuth() {
   return {
-    api_tokens: {
-      select: { data: { id: MOCK_TOKEN_ID, user_id: MOCK_USER_ID }, error: null },
-      update: { data: null, error: null },
-    },
+    getUser: { data: { user: { id: MOCK_USER_ID } }, error: null },
   };
 }
 
@@ -47,8 +43,8 @@ describe("MCP Activity Tools", () => {
   test("get_week_summary returns byLabel and byActivitySport buckets", async () => {
     setMockSupabase(
       createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: { select: { data: MOCK_PLAN, error: null } },
           labels: { select: { data: [MOCK_LABEL], error: null } },
           label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
@@ -71,7 +67,7 @@ describe("MCP Activity Tools", () => {
       }),
     );
 
-    const parsed = await parseMcpResponse(await mcpCallTool("get_week_summary", { planId: VALID_PLAN_ID, weekDate: "2024-03-04" }, { token: TEST_TOKEN }));
+    const parsed = await parseMcpResponse(await mcpCallTool("get_week_summary", { planId: VALID_PLAN_ID, weekDate: "2024-03-04" }, {}));
     const result = extractToolResult(parsed);
 
     expect(result?.result.byLabel[0].key).toBe("easy-run");
@@ -81,8 +77,8 @@ describe("MCP Activity Tools", () => {
   test("compare_planned_vs_actual matches activity sport against label activitySports", async () => {
     setMockSupabase(
       createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: { select: { data: MOCK_PLAN, error: null } },
           labels: { select: { data: [MOCK_LABEL], error: null } },
           label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
@@ -104,7 +100,7 @@ describe("MCP Activity Tools", () => {
       }),
     );
 
-    const parsed = await parseMcpResponse(await mcpCallTool("compare_planned_vs_actual", { planId: VALID_PLAN_ID }, { token: TEST_TOKEN }));
+    const parsed = await parseMcpResponse(await mcpCallTool("compare_planned_vs_actual", { planId: VALID_PLAN_ID }, {}));
     const result = extractToolResult(parsed);
 
     expect(result?.result.perWorkout[0].sportMatch).toBe(true);

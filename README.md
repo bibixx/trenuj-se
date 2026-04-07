@@ -21,7 +21,7 @@ Backend-only shape of the workout planner app — an MCP-first training plan man
 server/
   index.ts              — Hono app entry point, route registration
   routes/
-    mcp-auth.ts         — API token CRUD (create, list, revoke)
+    oauth-metadata.ts   — OAuth 2.1 discovery metadata endpoint
     shares.ts           — Public plan sharing endpoint
     strava.ts           — OAuth flow, webhooks, sync, streams
   mcp/
@@ -42,8 +42,9 @@ server/
 functions/
   api/[[route]].ts      — Cloudflare Pages catch-all → Hono /api/*
   mcp/[[route]].ts      — Cloudflare Pages catch-all → Hono /mcp
+  .well-known/          — OAuth discovery endpoint
 db/
-  schema.ts             — Drizzle table definitions (11 tables)
+  schema.ts             — Drizzle table definitions (10 tables)
   migrations/           — SQL migration files
 tests/
   helpers/
@@ -57,13 +58,12 @@ tests/
 
 ## Database
 
-PostgreSQL with 11 tables, all using UUID primary keys. RLS is enabled on every table with per-user policies (`select_own`, `insert_own`, `update_own`, `delete_own`).
+PostgreSQL with 10 tables, all using UUID primary keys. RLS is enabled on every table with per-user policies (`select_own`, `insert_own`, `update_own`, `delete_own`).
 
 | Table                   | Purpose                                                      |
 | ----------------------- | ------------------------------------------------------------ |
 | `profiles`              | User profiles (FK → `auth.users`)                            |
 | `strava_credentials`    | OAuth tokens for Strava                                      |
-| `api_tokens`            | Bearer tokens for MCP auth (`tp_` prefix, SHA-256 hashed)    |
 | `plans`                 | Training plans (one active per user)                         |
 | `labels`                | Configurable workout labels per plan (key, label, hue, icon) |
 | `label_activity_sports` | Matchable Strava SportType values per label                  |
@@ -80,22 +80,20 @@ Schema defined in `db/schema.ts` with Drizzle ORM. Migrations in `db/migrations/
 
 ## API surface
 
-| Method | Path                          | Auth      | Description                                     |
-| ------ | ----------------------------- | --------- | ----------------------------------------------- |
-| GET    | `/api/health`                 | none      | Health check                                    |
-| GET    | `/api/tokens`                 | Supabase  | List user's API tokens                          |
-| POST   | `/api/tokens`                 | Supabase  | Create API token (returns `tp_` prefixed token) |
-| DELETE | `/api/tokens/:id`             | Supabase  | Revoke API token                                |
-| GET    | `/api/strava/profile`         | Supabase  | Athlete profile and connection state            |
-| GET    | `/api/strava/auth`            | Supabase  | Start Strava OAuth flow                         |
-| GET    | `/api/strava/callback`        | Supabase  | OAuth callback                                  |
-| POST   | `/api/strava/disconnect`      | Supabase  | Revoke Strava connection                        |
-| GET    | `/api/strava/webhook/:secret` | none      | Webhook verification                            |
-| POST   | `/api/strava/webhook/:secret` | none      | Webhook events (activity CRUD)                  |
-| POST   | `/api/strava/sync`            | Supabase  | Manual sync (up to 90 days)                     |
-| GET    | `/api/strava/streams/:id`     | token     | Stream data with temporary token                |
-| GET    | `/api/shares/:shareId`        | none      | Fetch shared plan (public)                      |
-| ALL    | `/mcp`                        | MCP token | MCP server endpoint                             |
+| Method | Path                                      | Auth      | Description                          |
+| ------ | ----------------------------------------- | --------- | ------------------------------------ |
+| GET    | `/api/health`                             | none      | Health check                         |
+| GET    | `/.well-known/oauth-authorization-server` | none      | OAuth 2.1 discovery metadata         |
+| GET    | `/api/strava/profile`                     | Supabase  | Athlete profile and connection state |
+| GET    | `/api/strava/auth`                        | Supabase  | Start Strava OAuth flow              |
+| GET    | `/api/strava/callback`                    | Supabase  | OAuth callback                       |
+| POST   | `/api/strava/disconnect`                  | Supabase  | Revoke Strava connection             |
+| GET    | `/api/strava/webhook/:secret`             | none      | Webhook verification                 |
+| POST   | `/api/strava/webhook/:secret`             | none      | Webhook events (activity CRUD)       |
+| POST   | `/api/strava/sync`                        | Supabase  | Manual sync (up to 90 days)          |
+| GET    | `/api/strava/streams/:id`                 | token     | Stream data with temporary token     |
+| GET    | `/api/shares/:shareId`                    | none      | Fetch shared plan (public)           |
+| ALL    | `/mcp`                                    | OAuth JWT | MCP server endpoint                  |
 
 ## MCP tools
 
@@ -114,8 +112,8 @@ Resource: `guide://training-plan-guide` — markdown guide for data modeling con
 
 Two auth paths:
 
-1. **Supabase session** — used by HTTP routes (`/api/tokens`, `/api/strava/*`). Bearer token from Supabase auth.
-2. **MCP tokens** — used by the `/mcp` endpoint. `tp_`-prefixed tokens, SHA-256 hashed in `api_tokens` table. Managed via the `/api/tokens` routes.
+1. **Supabase session** — used by HTTP routes (`/api/strava/*`). Bearer token from Supabase auth.
+2. **OAuth 2.1** — used by the `/mcp` endpoint. MCP clients authenticate via Supabase's OAuth 2.1 server with PKCE. Discovery at `/.well-known/oauth-authorization-server`, consent page at `/oauth/consent`. Access tokens are validated via `supabase.auth.getUser()`.
 
 ## Scripts
 

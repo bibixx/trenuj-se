@@ -12,15 +12,18 @@ export function resetMcpIds() {
   jsonRpcId = 1;
 }
 
-export async function mcpRequest(method: string, params: Record<string, unknown> = {}, options: { token?: string; env?: AppBindings } = {}) {
+const DEFAULT_TOKEN = "mock-oauth-access-token";
+
+export async function mcpRequest(method: string, params: Record<string, unknown> = {}, options: { token?: string | false; env?: AppBindings } = {}) {
   const env = options.env ?? MOCK_ENV;
+  const token = options.token === false ? undefined : (options.token ?? DEFAULT_TOKEN);
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     Accept: "application/json, text/event-stream",
   };
 
-  if (options.token) {
-    headers["Authorization"] = `Bearer ${options.token}`;
+  if (token) {
+    headers["Authorization"] = `Bearer ${token}`;
   }
 
   const body = JSON.stringify({
@@ -33,7 +36,7 @@ export async function mcpRequest(method: string, params: Record<string, unknown>
   return app.request("/mcp", { method: "POST", headers, body }, env);
 }
 
-export async function mcpInitialize(options: { token?: string; env?: AppBindings } = {}) {
+export async function mcpInitialize(options: { token?: string | false; env?: AppBindings } = {}) {
   return mcpRequest(
     "initialize",
     {
@@ -45,7 +48,7 @@ export async function mcpInitialize(options: { token?: string; env?: AppBindings
   );
 }
 
-export async function mcpCallTool(name: string, args: Record<string, unknown> = {}, options: { token?: string; env?: AppBindings } = {}) {
+export async function mcpCallTool(name: string, args: Record<string, unknown> = {}, options: { token?: string | false; env?: AppBindings } = {}) {
   return mcpRequest("tools/call", { name, arguments: args }, options);
 }
 

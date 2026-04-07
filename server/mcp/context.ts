@@ -9,7 +9,6 @@ import { createServerSupabase, type AppBindings } from "../lib/supabase";
 export type McpContext = {
   supabase: SupabaseClient;
   userId: string;
-  tokenId: string;
   bindings: AppBindings;
 };
 
@@ -82,29 +81,21 @@ export async function authenticateMcpRequest(c: Context<{ Bindings: AppBindings 
   const authorization = c.req.header("authorization");
 
   if (!authorization?.startsWith("Bearer ")) {
-    throw new AppError("AUTH_ERROR", "Invalid or missing API token");
+    throw new AppError("AUTH_ERROR", "Invalid or missing access token");
   }
 
-  const rawToken = authorization.slice("Bearer ".length).trim();
-  if (!rawToken.startsWith("tp_")) {
-    throw new AppError("AUTH_ERROR", "Invalid or missing API token");
-  }
-
-  const tokenHash = await hashToken(rawToken);
+  const accessToken = authorization.slice("Bearer ".length).trim();
   const supabase = createServerSupabase(c);
 
-  const { data, error } = await supabase.from("api_tokens").select("id, user_id").eq("token_hash", tokenHash).maybeSingle();
+  const { data, error } = await supabase.auth.getUser(accessToken);
 
-  if (error || !data) {
-    throw new AppError("AUTH_ERROR", "Invalid or missing API token");
+  if (error || !data.user) {
+    throw new AppError("AUTH_ERROR", "Invalid or expired access token");
   }
-
-  await supabase.from("api_tokens").update({ last_used_at: new Date().toISOString() }).eq("id", data.id);
 
   return {
     supabase,
-    userId: data.user_id,
-    tokenId: data.id,
+    userId: data.user.id,
     bindings: c.env,
   };
 }

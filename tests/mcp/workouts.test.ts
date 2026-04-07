@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { clearMockSupabase, setMockSupabase } from "../helpers/setup.ts";
-import { MOCK_PLAN_ID, MOCK_TOKEN_ID, MOCK_USER_ID, MOCK_WORKOUT_ID } from "../helpers/mock-env.ts";
+import { MOCK_PLAN_ID, MOCK_USER_ID, MOCK_WORKOUT_ID } from "../helpers/mock-env.ts";
 import { extractToolError, extractToolResult, mcpCallTool, parseMcpResponse, resetMcpIds } from "../helpers/mcp.ts";
 
-const TEST_TOKEN = "tp_abc123testtoken";
 const VALID_PLAN_ID = "a0000000-0000-4000-8000-000000000010";
 const VALID_WORKOUT_ID = "a0000000-0000-4000-8000-000000000030";
 
@@ -32,12 +31,9 @@ const MOCK_LABEL = {
   updated_at: "2024-01-01T00:00:00Z",
 };
 
-function authTokenTables() {
+function mockAuth() {
   return {
-    api_tokens: {
-      select: { data: { id: MOCK_TOKEN_ID, user_id: MOCK_USER_ID }, error: null },
-      update: { data: null, error: null },
-    },
+    getUser: { data: { user: { id: MOCK_USER_ID } }, error: null },
   };
 }
 
@@ -48,8 +44,8 @@ describe("MCP Workout Tools", () => {
   test("add_workouts supports labelKey and returns inline label", async () => {
     setMockSupabase(
       createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: { select: { data: MOCK_PLAN, error: null } },
           labels: { select: { data: [MOCK_LABEL], error: null } },
           label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
@@ -98,7 +94,7 @@ describe("MCP Workout Tools", () => {
             },
           ],
         },
-        { token: TEST_TOKEN },
+        {},
       ),
     );
     const result = extractToolResult(parsed);
@@ -109,8 +105,8 @@ describe("MCP Workout Tools", () => {
   test("add_workouts warns when a label has no activitySports", async () => {
     setMockSupabase(
       createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: { select: { data: MOCK_PLAN, error: null } },
           labels: { select: { data: [MOCK_LABEL], error: null } },
           label_activity_sports: { select: { data: [], error: null } },
@@ -150,7 +146,7 @@ describe("MCP Workout Tools", () => {
           planId: VALID_PLAN_ID,
           workouts: [{ date: "2024-03-01", labelKey: "easy-run", title: "Easy Run", description: "Easy aerobic run", sortOrder: 0 }],
         },
-        { token: TEST_TOKEN },
+        {},
       ),
     );
     const result = extractToolResult(parsed);
@@ -160,7 +156,7 @@ describe("MCP Workout Tools", () => {
 
   test("update_workout validates execution payloads", async () => {
     setMockSupabase(
-      createMockSupabase({ tables: { ...authTokenTables(), workouts: { select: { data: { id: VALID_WORKOUT_ID, plan_id: MOCK_PLAN_ID, label_id: "label-1" }, error: null } } } }),
+      createMockSupabase({ auth: mockAuth(), tables: { workouts: { select: { data: { id: VALID_WORKOUT_ID, plan_id: MOCK_PLAN_ID, label_id: "label-1" }, error: null } } } }),
     );
 
     const parsed = await parseMcpResponse(
@@ -173,7 +169,7 @@ describe("MCP Workout Tools", () => {
             structure: [{ type: "interval", repetitions: 3, work: { target: { type: "time", seconds: 60 } } }],
           },
         },
-        { token: TEST_TOKEN },
+        {},
       ),
     );
     const error = extractToolError(parsed);
@@ -184,8 +180,8 @@ describe("MCP Workout Tools", () => {
   test("get_workouts can filter by labelKey and returns inline labels", async () => {
     setMockSupabase(
       createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: { select: { data: MOCK_PLAN, error: null } },
           labels: { select: { data: [MOCK_LABEL], error: null } },
           label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
@@ -220,7 +216,7 @@ describe("MCP Workout Tools", () => {
       }),
     );
 
-    const parsed = await parseMcpResponse(await mcpCallTool("get_workouts", { planId: VALID_PLAN_ID, labelKey: "easy-run" }, { token: TEST_TOKEN }));
+    const parsed = await parseMcpResponse(await mcpCallTool("get_workouts", { planId: VALID_PLAN_ID, labelKey: "easy-run" }, {}));
     const result = extractToolResult(parsed);
 
     expect(result?.result).toHaveLength(1);
@@ -228,7 +224,7 @@ describe("MCP Workout Tools", () => {
   });
 
   test("add_workouts rejects providing both labelId and labelKey", async () => {
-    setMockSupabase(createMockSupabase({ tables: { ...authTokenTables(), plans: { select: { data: MOCK_PLAN, error: null } } } }));
+    setMockSupabase(createMockSupabase({ auth: mockAuth(), tables: { plans: { select: { data: MOCK_PLAN, error: null } } } }));
 
     const parsed = await parseMcpResponse(
       await mcpCallTool(
@@ -246,14 +242,14 @@ describe("MCP Workout Tools", () => {
             },
           ],
         },
-        { token: TEST_TOKEN },
+        {},
       ),
     );
     expect(parsed.error ?? parsed.result).toBeDefined();
   });
 
   test("update_workout rejects providing both labelId and labelKey", async () => {
-    setMockSupabase(createMockSupabase({ tables: { ...authTokenTables() } }));
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
 
     const parsed = await parseMcpResponse(
       await mcpCallTool(
@@ -263,7 +259,7 @@ describe("MCP Workout Tools", () => {
           labelId: "11111111-1111-4111-8111-111111111111",
           labelKey: "easy-run",
         },
-        { token: TEST_TOKEN },
+        {},
       ),
     );
 
@@ -273,8 +269,8 @@ describe("MCP Workout Tools", () => {
   test("link_activity returns conflict when the activity is already linked elsewhere", async () => {
     setMockSupabase(
       createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           workouts: {
             select: [
               { data: { id: VALID_WORKOUT_ID, activity_id: null }, error: null },
@@ -295,7 +291,7 @@ describe("MCP Workout Tools", () => {
           workoutId: VALID_WORKOUT_ID,
           activityId: "a0000000-0000-4000-8000-000000000055",
         },
-        { token: TEST_TOKEN },
+        {},
       ),
     );
     const error = extractToolError(parsed);

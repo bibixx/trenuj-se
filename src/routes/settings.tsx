@@ -13,11 +13,10 @@ import { apiFetch } from "../lib/api.ts";
 import { useTheme } from "../lib/theme.ts";
 import type { ThemePreference } from "../lib/theme.ts";
 import { useAuth } from "../lib/auth.ts";
-import { tokensQueryOptions, useCreateToken, useRevokeToken } from "../lib/queries/api-tokens.ts";
 import { profileKeys, profileQueryOptions } from "../lib/queries/profile.ts";
 import { queryClient } from "../lib/query-client.ts";
 import { supabase } from "../lib/supabase.ts";
-import type { ApiToken, Profile } from "../lib/types.ts";
+import type { Profile } from "../lib/types.ts";
 import styles from "./settings.module.css";
 
 interface SettingsSearch {
@@ -42,11 +41,6 @@ function SettingsPage() {
     enabled: !!user,
   });
 
-  const { data: tokens = [] } = useQuery({
-    ...tokensQueryOptions,
-    enabled: !!user,
-  });
-
   return (
     <ScrollArea.Root className={styles.scroll}>
       <ScrollArea.Viewport fadeout={{ sizeTop: 32, sizeBottom: 40 }}>
@@ -62,7 +56,6 @@ function SettingsPage() {
             <AppearanceCard />
             <PasswordCard />
             <StravaCard profile={profile ?? null} stravaParam={stravaParam} />
-            <TokensCard tokens={tokens} />
           </div>
         </ScrollArea.Content>
       </ScrollArea.Viewport>
@@ -245,138 +238,4 @@ function StravaCard({ profile, stravaParam }: { profile: Profile | null; stravaP
       </Dialog.Root>
     </Card>
   );
-}
-
-// --- Tokens Card ---
-
-function TokensCard({ tokens }: { tokens: ApiToken[] }) {
-  const createToken = useCreateToken();
-  const revokeToken = useRevokeToken();
-  const [newTokenValue, setNewTokenValue] = useState<string | null>(null);
-
-  // Create token dialog
-  const [createOpen, setCreateOpen] = useState(false);
-  const [tokenName, setTokenName] = useState("");
-
-  // Revoke confirm dialog
-  const [revokeTarget, setRevokeTarget] = useState<ApiToken | null>(null);
-
-  const handleCreate = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!tokenName.trim()) return;
-    try {
-      const result = await createToken.mutateAsync(tokenName.trim());
-      setNewTokenValue(result.token);
-      setCreateOpen(false);
-      setTokenName("");
-    } catch {
-      // mutation error handled by TanStack Query
-    }
-  };
-
-  const handleRevoke = () => {
-    if (!revokeTarget) return;
-    revokeToken.mutate(revokeTarget.id);
-    setRevokeTarget(null);
-  };
-
-  const handleCopyToken = () => {
-    if (newTokenValue) {
-      navigator.clipboard.writeText(newTokenValue);
-    }
-  };
-
-  return (
-    <Card className={styles.card}>
-      <div className={styles.cardHeader}>
-        <div className={styles.cardHeaderInfo}>
-          <span className={styles.cardMeta}>API tokens</span>
-          <h2 className={styles.cardTitle}>MCP access</h2>
-        </div>
-        <Button variant="secondary" size="sm" onClick={() => setCreateOpen(true)} disabled={createToken.isPending}>
-          Create token
-        </Button>
-      </div>
-
-      {newTokenValue && (
-        <div className={styles.newToken}>
-          <p className={styles.newTokenLabel}>Copy this token now — it won't be shown again:</p>
-          <div className={styles.newTokenRow}>
-            <code className={styles.newTokenValue}>{newTokenValue}</code>
-            <Button variant="secondary" size="sm" onClick={handleCopyToken}>
-              Copy
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => setNewTokenValue(null)}>
-              Dismiss
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {tokens.length === 0 ? (
-        <p className={styles.emptyText}>No tokens yet</p>
-      ) : (
-        <div className={styles.tokenList}>
-          {tokens.map((token) => (
-            <div key={token.id} className={styles.tokenRow}>
-              <div>
-                <div className={styles.tokenName}>{token.name}</div>
-                <div className={styles.tokenMeta}>
-                  Created {formatDate(token.createdAt)}
-                  {token.lastUsedAt ? ` · Last used ${formatDate(token.lastUsedAt)}` : " · Never used"}
-                </div>
-              </div>
-              <Button variant="destructive" size="sm" onClick={() => setRevokeTarget(token)} disabled={revokeToken.isPending}>
-                Revoke
-              </Button>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Create token dialog */}
-      <Dialog.Root open={createOpen} onOpenChange={setCreateOpen}>
-        <Dialog.Content>
-          <Dialog.Close />
-          <Dialog.Title>Create API token</Dialog.Title>
-          <Dialog.Description>Give your token a name so you can identify it later.</Dialog.Description>
-          <form onSubmit={handleCreate} className={styles.dialogForm}>
-            <Input label="Token name" value={tokenName} onChange={(e) => setTokenName(e.target.value)} placeholder="e.g. Claude Desktop" autoFocus />
-            <div className={styles.dialogActions}>
-              <Button variant="ghost" type="button" onClick={() => setCreateOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={!tokenName.trim() || createToken.isPending}>
-                {createToken.isPending ? "Creating…" : "Create"}
-              </Button>
-            </div>
-          </form>
-        </Dialog.Content>
-      </Dialog.Root>
-
-      {/* Revoke confirm dialog */}
-      <Dialog.Root open={!!revokeTarget} onOpenChange={(open) => !open && setRevokeTarget(null)}>
-        <Dialog.Content>
-          <Dialog.Close />
-          <Dialog.Title>Revoke token</Dialog.Title>
-          <Dialog.Description>
-            Revoke <strong>{revokeTarget?.name}</strong>? Any MCP client using this token will lose access immediately. This cannot be undone.
-          </Dialog.Description>
-          <div className={styles.dialogActions}>
-            <Button variant="ghost" onClick={() => setRevokeTarget(null)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleRevoke}>
-              Revoke
-            </Button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Root>
-    </Card>
-  );
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
 }

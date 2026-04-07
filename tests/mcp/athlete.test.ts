@@ -1,10 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { setMockSupabase, clearMockSupabase } from "../helpers/setup.ts";
-import { MOCK_TOKEN_ID, MOCK_USER_ID, MOCK_PLAN_ID } from "../helpers/mock-env.ts";
+import { MOCK_USER_ID, MOCK_PLAN_ID } from "../helpers/mock-env.ts";
 import { mcpCallTool, parseMcpResponse, extractToolResult, extractToolError, resetMcpIds } from "../helpers/mcp.ts";
-
-const TEST_TOKEN = "tp_abc123testtoken";
 
 const MOCK_PROFILE = {
   id: MOCK_USER_ID,
@@ -21,12 +19,9 @@ const MOCK_ACTIVE_PLAN = {
   end_date: "2024-12-31",
 };
 
-function authTokenTables() {
+function mockAuth() {
   return {
-    api_tokens: {
-      select: { data: { id: MOCK_TOKEN_ID, user_id: MOCK_USER_ID }, error: null },
-      update: { data: null, error: null },
-    },
+    getUser: { data: { user: { id: MOCK_USER_ID } }, error: null },
   };
 }
 
@@ -45,8 +40,8 @@ describe("MCP Athlete Tools", () => {
     test("returns profile with strava connected and active plan summary", async () => {
       const workouts = [{ status: "completed" }, { status: "completed" }, { status: "planned" }];
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           profiles: {
             select: { data: MOCK_PROFILE, error: null },
           },
@@ -60,7 +55,7 @@ describe("MCP Athlete Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_profile", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_profile", {}, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -81,8 +76,8 @@ describe("MCP Athlete Tools", () => {
 
     test("returns profile with activePlan null when no active plan exists", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           profiles: {
             select: { data: MOCK_PROFILE, error: null },
           },
@@ -93,7 +88,7 @@ describe("MCP Athlete Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_profile", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_profile", {}, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -107,8 +102,8 @@ describe("MCP Athlete Tools", () => {
     test("returns stravaConnected: false when no strava_athlete_id on profile", async () => {
       const profileWithoutStrava = { ...MOCK_PROFILE, strava_athlete_id: null };
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           profiles: {
             select: { data: profileWithoutStrava, error: null },
           },
@@ -119,7 +114,7 @@ describe("MCP Athlete Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_profile", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_profile", {}, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -129,8 +124,8 @@ describe("MCP Athlete Tools", () => {
 
     test("returns NOT_FOUND when profile does not exist", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           profiles: {
             select: { data: null, error: null },
           },
@@ -141,7 +136,7 @@ describe("MCP Athlete Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_profile", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_profile", {}, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
@@ -150,8 +145,8 @@ describe("MCP Athlete Tools", () => {
 
     test("returns INTERNAL_ERROR when profile query fails", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           profiles: {
             select: { data: null, error: { message: "DB error" } },
           },
@@ -162,7 +157,7 @@ describe("MCP Athlete Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_profile", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_profile", {}, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
@@ -171,8 +166,8 @@ describe("MCP Athlete Tools", () => {
 
     test("returns INTERNAL_ERROR when plan query fails", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           profiles: {
             select: { data: MOCK_PROFILE, error: null },
           },
@@ -183,7 +178,7 @@ describe("MCP Athlete Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_profile", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_profile", {}, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
@@ -192,8 +187,8 @@ describe("MCP Athlete Tools", () => {
 
     test("returns INTERNAL_ERROR when workouts query fails when active plan exists", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           profiles: {
             select: { data: MOCK_PROFILE, error: null },
           },
@@ -207,7 +202,7 @@ describe("MCP Athlete Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_profile", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_profile", {}, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
@@ -216,8 +211,8 @@ describe("MCP Athlete Tools", () => {
 
     test("returns zero completionRate when plan has no workouts", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           profiles: {
             select: { data: MOCK_PROFILE, error: null },
           },
@@ -231,7 +226,7 @@ describe("MCP Athlete Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_profile", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_profile", {}, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 

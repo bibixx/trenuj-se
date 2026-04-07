@@ -1,10 +1,8 @@
 import { describe, test, expect, beforeEach, afterEach } from "vitest";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { setMockSupabase, clearMockSupabase } from "../helpers/setup.ts";
-import { MOCK_TOKEN_ID, MOCK_USER_ID, MOCK_PLAN_ID, MOCK_NOTE_ID } from "../helpers/mock-env.ts";
+import { MOCK_USER_ID, MOCK_PLAN_ID, MOCK_NOTE_ID } from "../helpers/mock-env.ts";
 import { mcpCallTool, parseMcpResponse, extractToolResult, extractToolError, resetMcpIds } from "../helpers/mcp.ts";
-
-const TEST_TOKEN = "tp_abc123testtoken";
 
 // Valid UUID v4s used as tool arguments (must pass Zod uuid validation)
 const VALID_PLAN_ID = "a0000000-0000-4000-8000-000000000010";
@@ -35,12 +33,9 @@ const MOCK_NOTE = {
   updated_at: "2024-01-15T00:00:00Z",
 };
 
-function authTokenTables() {
+function mockAuth() {
   return {
-    api_tokens: {
-      select: { data: { id: MOCK_TOKEN_ID, user_id: MOCK_USER_ID }, error: null },
-      update: { data: null, error: null },
-    },
+    getUser: { data: { user: { id: MOCK_USER_ID } }, error: null },
   };
 }
 
@@ -58,8 +53,8 @@ describe("MCP Note Tools", () => {
   describe("add_plan_note", () => {
     test("adds a note with type and content", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -78,7 +73,7 @@ describe("MCP Note Tools", () => {
           type: "note",
           content: "This is a test note",
         },
-        { token: TEST_TOKEN },
+        {},
       );
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
@@ -91,8 +86,8 @@ describe("MCP Note Tools", () => {
     test("adds a summary note for active plan", async () => {
       const summaryNote = { ...MOCK_NOTE, id: MOCK_NOTE_ID, type: "summary", content: "Week 1 summary" };
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -110,7 +105,7 @@ describe("MCP Note Tools", () => {
           type: "summary",
           content: "Week 1 summary",
         },
-        { token: TEST_TOKEN },
+        {},
       );
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
@@ -121,8 +116,8 @@ describe("MCP Note Tools", () => {
     test("adds a recommendation note", async () => {
       const recNote = { ...MOCK_NOTE, type: "recommendation", content: "Consider adding more rest days" };
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -140,7 +135,7 @@ describe("MCP Note Tools", () => {
           type: "recommendation",
           content: "Consider adding more rest days",
         },
-        { token: TEST_TOKEN },
+        {},
       );
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
@@ -151,8 +146,8 @@ describe("MCP Note Tools", () => {
     test("adds an adjustment note with metadata", async () => {
       const adjNote = { ...MOCK_NOTE, type: "adjustment", content: "Reduced volume", metadata: { reason: "fatigue" } };
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -171,7 +166,7 @@ describe("MCP Note Tools", () => {
           content: "Reduced volume",
           metadata: { reason: "fatigue" },
         },
-        { token: TEST_TOKEN },
+        {},
       );
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
@@ -182,8 +177,8 @@ describe("MCP Note Tools", () => {
     test("adds a note with numeric week metadata", async () => {
       const note = { ...MOCK_NOTE, metadata: { week: 5, source: "coach" } };
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -202,7 +197,7 @@ describe("MCP Note Tools", () => {
           content: "Week note",
           metadata: { week: 5, source: "coach" },
         },
-        { token: TEST_TOKEN },
+        {},
       );
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
@@ -211,7 +206,7 @@ describe("MCP Note Tools", () => {
     });
 
     test("rejects add metadata when week is invalid", async () => {
-      setMockSupabase(createMockSupabase({ tables: { ...authTokenTables() } }));
+      setMockSupabase(createMockSupabase({ auth: mockAuth() }));
 
       const res = await mcpCallTool(
         "add_plan_note",
@@ -220,7 +215,7 @@ describe("MCP Note Tools", () => {
           content: "Broken week",
           metadata: { week: false },
         },
-        { token: TEST_TOKEN },
+        {},
       );
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
@@ -230,8 +225,8 @@ describe("MCP Note Tools", () => {
 
     test("returns NOT_FOUND when plan does not exist", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: null, error: null },
           },
@@ -246,7 +241,7 @@ describe("MCP Note Tools", () => {
           type: "note",
           content: "Note for ghost plan",
         },
-        { token: TEST_TOKEN },
+        {},
       );
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
@@ -256,8 +251,8 @@ describe("MCP Note Tools", () => {
 
     test("returns error when insert fails", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -274,7 +269,7 @@ describe("MCP Note Tools", () => {
           type: "note",
           content: "Failing note",
         },
-        { token: TEST_TOKEN },
+        {},
       );
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
@@ -289,8 +284,8 @@ describe("MCP Note Tools", () => {
     test("updates note content", async () => {
       const updatedNote = { ...MOCK_NOTE, content: "Updated note content" };
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plan_notes: {
             update: { data: updatedNote, error: null },
             select: { data: updatedNote, error: null },
@@ -299,7 +294,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, content: "Updated note content" }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, content: "Updated note content" }, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -309,8 +304,8 @@ describe("MCP Note Tools", () => {
     test("updates note type", async () => {
       const updatedNote = { ...MOCK_NOTE, type: "adjustment" };
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plan_notes: {
             update: { data: updatedNote, error: null },
             select: { data: updatedNote, error: null },
@@ -319,7 +314,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, type: "adjustment" }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, type: "adjustment" }, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -329,8 +324,8 @@ describe("MCP Note Tools", () => {
     test("updates note metadata", async () => {
       const updatedNote = { ...MOCK_NOTE, metadata: { week: 5 } };
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plan_notes: {
             update: { data: updatedNote, error: null },
             select: { data: updatedNote, error: null },
@@ -339,7 +334,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, metadata: { week: 5 } }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, metadata: { week: 5 } }, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -349,8 +344,8 @@ describe("MCP Note Tools", () => {
     test("updates note metadata with legacy ISO week", async () => {
       const updatedNote = { ...MOCK_NOTE, metadata: { week: "2026-W15", source: "migration" } };
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plan_notes: {
             update: { data: updatedNote, error: null },
             select: { data: updatedNote, error: null },
@@ -359,7 +354,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, metadata: { week: "2026-W15", source: "migration" } }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, metadata: { week: "2026-W15", source: "migration" } }, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -367,9 +362,9 @@ describe("MCP Note Tools", () => {
     });
 
     test("rejects update metadata when week is invalid", async () => {
-      setMockSupabase(createMockSupabase({ tables: { ...authTokenTables() } }));
+      setMockSupabase(createMockSupabase({ auth: mockAuth() }));
 
-      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, metadata: { week: 0 } }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, metadata: { week: 0 } }, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
@@ -378,8 +373,8 @@ describe("MCP Note Tools", () => {
 
     test("returns NOT_FOUND when note does not exist", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plan_notes: {
             update: { data: null, error: null },
             select: { data: null, error: null },
@@ -388,7 +383,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("update_plan_note", { noteId: VALID_MISSING_ID, content: "Ghost note" }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("update_plan_note", { noteId: VALID_MISSING_ID, content: "Ghost note" }, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
@@ -397,8 +392,8 @@ describe("MCP Note Tools", () => {
 
     test("returns INTERNAL_ERROR on supabase error", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plan_notes: {
             update: { data: null, error: { message: "DB error" } },
             select: { data: null, error: { message: "DB error" } },
@@ -407,7 +402,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, content: "Failing update" }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("update_plan_note", { noteId: VALID_NOTE_ID, content: "Failing update" }, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
@@ -420,8 +415,8 @@ describe("MCP Note Tools", () => {
   describe("delete_plan_note", () => {
     test("deletes a note by id", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plan_notes: {
             delete: { data: null, error: null },
           },
@@ -429,7 +424,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("delete_plan_note", { noteId: VALID_NOTE_ID }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("delete_plan_note", { noteId: VALID_NOTE_ID }, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -439,8 +434,8 @@ describe("MCP Note Tools", () => {
 
     test("returns error when delete fails", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plan_notes: {
             delete: { data: null, error: { message: "Cannot delete note" } },
           },
@@ -448,7 +443,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("delete_plan_note", { noteId: VALID_NOTE_ID }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("delete_plan_note", { noteId: VALID_NOTE_ID }, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
@@ -462,8 +457,8 @@ describe("MCP Note Tools", () => {
     test("returns all notes for the active plan", async () => {
       const notes = [MOCK_NOTE, { ...MOCK_NOTE, id: MOCK_NOTE_ID, type: "summary", content: "Week summary" }];
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -474,7 +469,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_plan_notes", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_plan_notes", {}, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult<unknown[]>(parsed);
 
@@ -485,8 +480,8 @@ describe("MCP Note Tools", () => {
     test("filters notes by type", async () => {
       const summaryNotes = [{ ...MOCK_NOTE, type: "summary", content: "Week 1 summary" }];
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -497,7 +492,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_plan_notes", { type: "summary" }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_plan_notes", { type: "summary" }, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -506,8 +501,8 @@ describe("MCP Note Tools", () => {
 
     test("returns notes for explicit planId", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -518,7 +513,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_plan_notes", { planId: VALID_PLAN_ID }, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_plan_notes", { planId: VALID_PLAN_ID }, {});
       const parsed = await parseMcpResponse(res);
       const result = extractToolResult(parsed);
 
@@ -527,8 +522,8 @@ describe("MCP Note Tools", () => {
 
     test("returns NOT_FOUND when no active plan", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: null, error: null },
           },
@@ -536,7 +531,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_plan_notes", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_plan_notes", {}, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
@@ -545,8 +540,8 @@ describe("MCP Note Tools", () => {
 
     test("returns error when select fails", async () => {
       const mock = createMockSupabase({
+        auth: mockAuth(),
         tables: {
-          ...authTokenTables(),
           plans: {
             select: { data: MOCK_PLAN, error: null },
           },
@@ -557,7 +552,7 @@ describe("MCP Note Tools", () => {
       });
       setMockSupabase(mock);
 
-      const res = await mcpCallTool("get_plan_notes", {}, { token: TEST_TOKEN });
+      const res = await mcpCallTool("get_plan_notes", {}, {});
       const parsed = await parseMcpResponse(res);
       const err = extractToolError(parsed);
 
