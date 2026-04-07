@@ -2,6 +2,7 @@ import { ToggleGroup as BaseToggleGroup } from "@base-ui-components/react/toggle
 import { Toggle as BaseToggle } from "@base-ui-components/react/toggle";
 import clsx from "clsx";
 import type { ReactNode } from "react";
+import { triggerHaptic } from "tactus";
 import styles from "./ToggleGroup.module.css";
 
 interface RootProps {
@@ -14,7 +15,15 @@ interface RootProps {
 
 function Root({ value, onValueChange, className, children, ...props }: RootProps) {
   return (
-    <BaseToggleGroup value={value} onValueChange={onValueChange} className={clsx(styles.root, className)} {...props}>
+    <BaseToggleGroup
+      value={value}
+      onValueChange={(v) => {
+        triggerHaptic();
+        onValueChange(v);
+      }}
+      className={clsx(styles.root, className)}
+      {...props}
+    >
       {children}
     </BaseToggleGroup>
   );
