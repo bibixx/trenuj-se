@@ -1,6 +1,7 @@
 import { Checkbox as BaseCheckbox } from "@base-ui-components/react/checkbox";
 import clsx from "clsx";
 import { IconCheck, IconMinus } from "@tabler/icons-react";
+import { triggerHaptic } from "tactus";
 import styles from "./Checkbox.module.css";
 
 interface CheckboxProps {
@@ -23,7 +24,14 @@ export function Checkbox({ hue, className, checked, indeterminate, onCheckedChan
       style={hueStyle}
       checked={checked}
       indeterminate={indeterminate}
-      onCheckedChange={readOnly ? undefined : onCheckedChange}
+      onCheckedChange={
+        readOnly
+          ? undefined
+          : (checked) => {
+              triggerHaptic();
+              onCheckedChange?.(checked);
+            }
+      }
       disabled={disabled}
       data-readonly={readOnly || undefined}
     >
