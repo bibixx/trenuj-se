@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
+import { VitePWA } from "vite-plugin-pwa";
 
 /**
  * Load VITE_* vars from .dev.vars (Wrangler's env file) so the frontend
@@ -38,7 +39,44 @@ export default defineConfig(({ mode }) => {
 
   return {
     define: Object.fromEntries(Object.entries(devVars).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)])),
-    plugins: [TanStackRouterVite({ target: "react", autoCodeSplitting: true }), react()],
+    plugins: [
+      TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
+      react(),
+      VitePWA({
+        registerType: "autoUpdate",
+        manifest: false,
+        workbox: {
+          skipWaiting: true,
+          clientsClaim: true,
+          cleanupOutdatedCaches: true,
+          globPatterns: ["**/*.{html,css}"],
+          navigateFallback: "/index.html",
+          navigateFallbackDenylist: [/^\/api\//, /^\/mcp/],
+          runtimeCaching: [
+            {
+              urlPattern: /\/assets\/.+\.js$/,
+              handler: "StaleWhileRevalidate",
+              options: {
+                cacheName: "js-chunks",
+                expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              },
+            },
+            {
+              urlPattern: /\/assets\/icons\/.+\.svg$/,
+              handler: "CacheFirst",
+              options: {
+                cacheName: "icons",
+                expiration: { maxEntries: 200, maxAgeSeconds: 30 * 24 * 60 * 60 },
+              },
+            },
+            {
+              urlPattern: /\/(api|mcp)\//,
+              handler: "NetworkOnly",
+            },
+          ],
+        },
+      }),
+    ],
     build: {
       outDir: "dist",
       assetsInlineLimit(filePath) {
