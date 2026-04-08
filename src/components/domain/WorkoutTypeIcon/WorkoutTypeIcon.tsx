@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { resolveIcon, FALLBACK_ICON_NAME } from "../../../lib/icon-resolver.ts";
-import { useTablerIcon } from "../../../lib/use-tabler-icon.ts";
+import { getTablerIconUrl } from "../../../lib/tabler-icon-url.ts";
 import styles from "./WorkoutTypeIcon.module.css";
 
 interface WorkoutTypeIconProps {
@@ -9,8 +9,7 @@ interface WorkoutTypeIconProps {
 }
 
 function TablerMaskIcon({ name, size }: { name: string; size: number }) {
-  const url = useTablerIcon(name);
-  if (!url) return null;
+  const url = getTablerIconUrl(name);
 
   return (
     <span
