@@ -9,3 +9,12 @@ not_found_handling = "single-page-application"
 [vars]
 # Override locally via `.dev.vars`.
 PUBLIC_APP_URL = "https://www.trenuj.se"
+VITE_SUPABASE_URL = "https://bjyrrqtzzywauescjmhr.supabase.co"
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
