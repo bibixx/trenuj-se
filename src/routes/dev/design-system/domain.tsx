@@ -10,7 +10,7 @@ export const Route = createFileRoute("/dev/design-system/domain")({
   component: DomainSection,
 });
 
-const iconExamples = ["run", "bike", "swim", "strength", "yoga", "hike", "notes", "\u{1F3C3}\u200D\u2642\uFE0F", "\u{1F4AA}", "\u{1F6B4}", null];
+const iconExamples = ["run", "bike", "swimming", "barbell", "yoga", "mountain", "notes", "\u{1F3C3}\u200D\u2642\uFE0F", "\u{1F4AA}", "\u{1F6B4}", null];
 
 function DomainSection() {
   const [iconInput, setIconInput] = useState("run");
