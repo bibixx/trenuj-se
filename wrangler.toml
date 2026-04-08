@@ -1,6 +1,10 @@
 name = "trenuj-se"
 compatibility_date = "2026-04-01"
-pages_build_output_dir = "dist"
+main = "server/worker.ts"
+
+[assets]
+directory = "dist"
+not_found_handling = "single-page-application"
 
 [vars]
 # Override locally via `.dev.vars`.
