@@ -67,7 +67,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
   return (
     <Collapsible.Root open={expanded} onOpenChange={expandable ? handleOpenChange : undefined}>
       <article className={clsx(styles.card, styles[rowClass], { [styles.completed!]: isCompleted, [styles.today!]: isToday })} style={hueStyle}>
-        <Collapsible.Trigger disabled={!expandable} className={clsx(styles.row, { [styles.expandable!]: expandable })}>
+        <Collapsible.Trigger className={clsx(styles.row, { [styles.expandable!]: expandable })}>
           <div className={styles.day}>{dateLabel}</div>
           <WorkoutTypeIcon icon={workout.label?.icon ?? null} />
           <div className={styles.info}>
