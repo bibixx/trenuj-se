@@ -37,8 +37,16 @@ export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
   const { env: devVars, allEnv } = loadDevVars();
 
+  // In CI / production builds, VITE_* vars come from process.env instead of .dev.vars.
+  const viteEnv: Record<string, string> = { ...devVars };
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.startsWith("VITE_") && value !== undefined) {
+      viteEnv[key] = value;
+    }
+  }
+
   return {
-    define: Object.fromEntries(Object.entries(devVars).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)])),
+    define: Object.fromEntries(Object.entries(viteEnv).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)])),
     plugins: [
       TanStackRouterVite({ target: "react", autoCodeSplitting: true }),
       react(),

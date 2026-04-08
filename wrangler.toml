@@ -8,6 +8,4 @@ not_found_handling = "single-page-application"
 
 [vars]
 # Override locally via `.dev.vars`.
-VITE_SUPABASE_URL = "https://bjyrrqtzzywauescjmhr.supabase.co"
-VITE_SUPABASE_ANON_KEY = "sb_publishable_xDr64w3C_jsGn-AAXltRow_9AhtydeC"
 PUBLIC_APP_URL = "https://www.trenuj.se"
