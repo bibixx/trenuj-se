@@ -30,6 +30,11 @@ export function useAuth(): AuthState {
       const user = session?.user ?? null;
       setState((prev) => ({ ...prev, user, session }));
 
+      // Clean up the leftover # fragment after OAuth redirect
+      if (event === "SIGNED_IN" && window.location.hash === "") {
+        history.replaceState(null, "", window.location.pathname + window.location.search);
+      }
+
       // On logout, clear all cached data
       if (event === "SIGNED_OUT") {
         queryClient.clear();

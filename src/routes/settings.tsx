@@ -55,7 +55,7 @@ function SettingsPage() {
           <div className={styles.grid}>
             <AccountCard email={user?.email} />
             <AppearanceCard />
-            <PasswordCard />
+            {user?.app_metadata.provider === "email" && <PasswordCard />}
             <StravaCard profile={profile ?? null} stravaParam={stravaParam} />
           </div>
         </ScrollArea.Content>
