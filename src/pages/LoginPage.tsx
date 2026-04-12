@@ -25,6 +25,13 @@ export function LoginPage() {
     }
   }
 
+  async function handleGoogleSignIn() {
+    const { error: authError } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    if (authError) {
+      setError(authError.message);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <Card className={styles.card}>
@@ -37,6 +44,10 @@ export function LoginPage() {
             {loading ? "Signing in…" : "Sign in"}
           </Button>
         </form>
+        <div className={styles.divider}>or</div>
+        <Button variant="secondary" className={styles.googleButton} onClick={handleGoogleSignIn}>
+          Sign in with Google
+        </Button>
       </Card>
     </div>
   );

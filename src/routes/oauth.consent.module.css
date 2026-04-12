@@ -3,26 +3,25 @@
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
-  padding: max(var(--space-4), env(safe-area-inset-top)) max(var(--space-4), env(safe-area-inset-right)) max(var(--space-4), env(safe-area-inset-bottom))
-    max(var(--space-4), env(safe-area-inset-left));
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
 
 .card {
   width: 100%;
   max-width: 420px;
-  padding: var(--space-6);
+  padding: 24px;
 }
 
 .title {
   font-size: var(--text-lg);
   font-weight: 600;
-  margin-bottom: var(--space-2);
+  margin-bottom: 8px;
 }
 
 .description {
-  color: var(--color-text-secondary);
+  color: var(--text-secondary);
   font-size: var(--text-sm);
-  margin-bottom: var(--space-5);
+  margin-bottom: 20px;
 }
 
 .clientName {
@@ -31,7 +30,7 @@
 
 .actions {
   display: flex;
-  gap: var(--space-3);
+  gap: 12px;
 }
 
 .error {
