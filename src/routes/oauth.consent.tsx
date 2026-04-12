@@ -1,11 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { Button } from "../components/primitives/Button/Button.tsx";
 import { Card } from "../components/primitives/Card/Card.tsx";
 import { useAuth } from "../lib/auth.ts";
 import { supabase } from "../lib/supabase.ts";
-import { LoginPage } from "../pages/LoginPage.tsx";
 import styles from "./oauth.consent.module.css";
 
 const searchSchema = z.object({
@@ -133,7 +132,7 @@ function OAuthConsentPage() {
   }
 
   if (!user) {
-    return <LoginPage />;
+    return <Navigate to="/login" />;
   }
 
   if (loading) {

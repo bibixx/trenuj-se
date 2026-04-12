@@ -1,9 +1,10 @@
-.page {
+.centered {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100dvh;
-  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  flex: 1;
+  min-height: 0;
 }
 
 .card {
@@ -62,9 +63,15 @@
   margin-top: 8px;
 }
 
-.modeSwitchButton {
+.modeSwitchLink {
   color: var(--text-primary);
   font-weight: 500;
   text-decoration: underline;
   text-underline-offset: 2px;
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: color;
+
+  &:hover {
+    color: var(--text-muted);
+  }
 }

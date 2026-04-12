@@ -10,12 +10,34 @@ interface AuthState {
   loading: boolean;
 }
 
+function getStorageKey(): string {
+  const url = new URL(import.meta.env.VITE_SUPABASE_URL as string);
+  const projectRef = url.hostname.split(".")[0];
+  return `sb-${projectRef}-auth-token`;
+}
+
+function readSessionFromStorage(): { user: User; session: Session } | null {
+  try {
+    const raw = localStorage.getItem(getStorageKey());
+    if (!raw) return null;
+    const data = JSON.parse(raw) as Session;
+    if (!data?.user || !data?.access_token) return null;
+    return { user: data.user, session: data };
+  } catch {
+    return null;
+  }
+}
+
+function getInitialAuthState(): AuthState {
+  const stored = readSessionFromStorage();
+  if (stored) {
+    return { user: stored.user, session: stored.session, loading: false };
+  }
+  return { user: null, session: null, loading: false };
+}
+
 export function useAuth(): AuthState {
-  const [state, setState] = useState<AuthState>({
-    user: null,
-    session: null,
-    loading: true,
-  });
+  const [state, setState] = useState<AuthState>(getInitialAuthState);
 
   useEffect(() => {
     // Get initial session
