@@ -12,6 +12,10 @@ export function clearMockSupabase() {
   currentMockSupabase = null;
 }
 
+vi.mock("../../server/lib/og-image.ts", () => ({
+  renderOgImage: vi.fn(async () => new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
+}));
+
 vi.mock("../../server/lib/supabase.ts", () => ({
   createServerSupabase: vi.fn(() => {
     if (!currentMockSupabase) {

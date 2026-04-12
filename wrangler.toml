@@ -1,5 +1,6 @@
 name = "trenuj-se"
 compatibility_date = "2026-04-01"
+compatibility_flags = ["nodejs_compat"]
 main = "server/worker.ts"
 
 [assets]
@@ -10,6 +11,15 @@ not_found_handling = "single-page-application"
 # Override locally via `.dev.vars`.
 PUBLIC_APP_URL = "https://www.trenuj.se"
 VITE_SUPABASE_URL = "https://bjyrrqtzzywauescjmhr.supabase.co"
+
+[define]
+"process.env.NODE_ENV" = '"production"'
+"process.env.JEST_WORKER_ID" = 'undefined'
+"process.env.SATORI_STANDALONE" = '"0"'
+
+[[rules]]
+type = "Data"
+globs = ["**/*.ttf"]
 
 [observability]
 [observability.logs]
