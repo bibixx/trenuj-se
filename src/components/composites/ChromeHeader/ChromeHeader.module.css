@@ -1,0 +1,62 @@
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  view-transition-name: chrome-header;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.name {
+  composes: typography-base from global;
+}
+
+.name.name {
+  font-weight: 700;
+  color: oklch(var(--accent-base) / 0.66);
+  white-space: nowrap;
+  margin-left: -10px;
+  padding-left: 12px;
+  padding-right: 12px;
+  gap: 6px;
+
+  svg {
+    stroke: oklch(var(--accent-base));
+    opacity: 0.66;
+  }
+
+  &:hover:not(:disabled) {
+    color: oklch(var(--accent-base) / 1);
+
+    svg {
+      stroke: oklch(var(--accent-base));
+      opacity: 1;
+    }
+  }
+
+  &:active:not(:disabled) {
+    color: oklch(var(--accent-base) / 0.8);
+
+    svg {
+      stroke: oklch(var(--accent-base));
+      opacity: 0.8;
+    }
+  }
+
+  @media (max-width: 640px) {
+    margin-left: -4px;
+  }
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
