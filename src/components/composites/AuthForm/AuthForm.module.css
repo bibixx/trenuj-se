@@ -63,6 +63,26 @@
   margin-top: 8px;
 }
 
+.footer {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: 16px;
+  padding-bottom: 48px;
+}
+
+.footerLink {
+  color: var(--text-primary);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: color;
+
+  &:hover {
+    color: var(--text-muted);
+  }
+}
+
 .modeSwitchLink {
   color: var(--text-primary);
   font-weight: 500;
