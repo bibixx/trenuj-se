@@ -16,7 +16,7 @@
     "noFallthroughCasesInSwitch": true,
     "forceConsistentCasingInFileNames": true,
     "noPropertyAccessFromIndexSignature": true,
-    "types": ["node", "@cloudflare/workers-types"]
+    "types": ["node"]
   },
-  "include": ["drizzle.config.ts", "server/**/*.ts", "server/**/*.d.ts", "db/**/*.ts", "shared/**/*.ts", "vitest.config.ts"]
+  "include": ["drizzle.config.ts", "server/**/*.ts", "db/**/*.ts", "shared/**/*.ts", "vitest.config.ts"]
 }

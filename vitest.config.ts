@@ -7,7 +7,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: ["server/**/*.ts"],
-      exclude: ["server/mcp/resources/**", "server/lib/supabase.ts", "server/lib/og-image.ts", "server/lib/og-meta.ts", "server/worker.ts"],
+      exclude: ["server/mcp/resources/**", "server/lib/supabase.ts"],
       thresholds: {
         statements: 90,
         branches: 80,
