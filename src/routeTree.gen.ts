@@ -9,12 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SettingsRouteImport } from './routes/settings'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AppRouteImport } from './routes/_app'
+import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ShareShareIdRouteImport } from './routes/share.$shareId'
 import { Route as OauthConsentRouteImport } from './routes/oauth.consent'
 import { Route as DevDesignSystemRouteImport } from './routes/dev/design-system'
+import { Route as AppSignupRouteImport } from './routes/_app/signup'
+import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppLoginRouteImport } from './routes/_app/login'
 import { Route as DevDesignSystemIndexRouteImport } from './routes/dev/design-system/index'
+import { Route as DevDesignSystemTooltipRouteImport } from './routes/dev/design-system/tooltip'
 import { Route as DevDesignSystemTokensRouteImport } from './routes/dev/design-system/tokens'
 import { Route as DevDesignSystemToastsRouteImport } from './routes/dev/design-system/toasts'
 import { Route as DevDesignSystemPrimitivesRouteImport } from './routes/dev/design-system/primitives'
@@ -24,15 +28,14 @@ import { Route as DevDesignSystemCrossfadeRouteImport } from './routes/dev/desig
 import { Route as DevDesignSystemCompositesRouteImport } from './routes/dev/design-system/composites'
 import { Route as DevDesignSystemColorsRouteImport } from './routes/dev/design-system/colors'
 
-const SettingsRoute = SettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AppRoute,
 } as any)
 const ShareShareIdRoute = ShareShareIdRouteImport.update({
   id: '/share/$shareId',
@@ -49,9 +52,29 @@ const DevDesignSystemRoute = DevDesignSystemRouteImport.update({
   path: '/dev/design-system',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppSignupRoute = AppSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSettingsRoute = AppSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLoginRoute = AppLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AppRoute,
+} as any)
 const DevDesignSystemIndexRoute = DevDesignSystemIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => DevDesignSystemRoute,
+} as any)
+const DevDesignSystemTooltipRoute = DevDesignSystemTooltipRouteImport.update({
+  id: '/tooltip',
+  path: '/tooltip',
   getParentRoute: () => DevDesignSystemRoute,
 } as any)
 const DevDesignSystemTokensRoute = DevDesignSystemTokensRouteImport.update({
@@ -99,8 +122,10 @@ const DevDesignSystemColorsRoute = DevDesignSystemColorsRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/settings': typeof SettingsRoute
+  '/': typeof AppIndexRoute
+  '/login': typeof AppLoginRoute
+  '/settings': typeof AppSettingsRoute
+  '/signup': typeof AppSignupRoute
   '/dev/design-system': typeof DevDesignSystemRouteWithChildren
   '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
@@ -112,13 +137,16 @@ export interface FileRoutesByFullPath {
   '/dev/design-system/primitives': typeof DevDesignSystemPrimitivesRoute
   '/dev/design-system/toasts': typeof DevDesignSystemToastsRoute
   '/dev/design-system/tokens': typeof DevDesignSystemTokensRoute
+  '/dev/design-system/tooltip': typeof DevDesignSystemTooltipRoute
   '/dev/design-system/': typeof DevDesignSystemIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/settings': typeof SettingsRoute
+  '/login': typeof AppLoginRoute
+  '/settings': typeof AppSettingsRoute
+  '/signup': typeof AppSignupRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
+  '/': typeof AppIndexRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
   '/dev/design-system/crossfade': typeof DevDesignSystemCrossfadeRoute
@@ -127,15 +155,19 @@ export interface FileRoutesByTo {
   '/dev/design-system/primitives': typeof DevDesignSystemPrimitivesRoute
   '/dev/design-system/toasts': typeof DevDesignSystemToastsRoute
   '/dev/design-system/tokens': typeof DevDesignSystemTokensRoute
+  '/dev/design-system/tooltip': typeof DevDesignSystemTooltipRoute
   '/dev/design-system': typeof DevDesignSystemIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/settings': typeof SettingsRoute
+  '/_app': typeof AppRouteWithChildren
+  '/_app/login': typeof AppLoginRoute
+  '/_app/settings': typeof AppSettingsRoute
+  '/_app/signup': typeof AppSignupRoute
   '/dev/design-system': typeof DevDesignSystemRouteWithChildren
   '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
+  '/_app/': typeof AppIndexRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
   '/dev/design-system/crossfade': typeof DevDesignSystemCrossfadeRoute
@@ -144,13 +176,16 @@ export interface FileRoutesById {
   '/dev/design-system/primitives': typeof DevDesignSystemPrimitivesRoute
   '/dev/design-system/toasts': typeof DevDesignSystemToastsRoute
   '/dev/design-system/tokens': typeof DevDesignSystemTokensRoute
+  '/dev/design-system/tooltip': typeof DevDesignSystemTooltipRoute
   '/dev/design-system/': typeof DevDesignSystemIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/login'
     | '/settings'
+    | '/signup'
     | '/dev/design-system'
     | '/oauth/consent'
     | '/share/$shareId'
@@ -162,13 +197,16 @@ export interface FileRouteTypes {
     | '/dev/design-system/primitives'
     | '/dev/design-system/toasts'
     | '/dev/design-system/tokens'
+    | '/dev/design-system/tooltip'
     | '/dev/design-system/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
+    | '/login'
     | '/settings'
+    | '/signup'
     | '/oauth/consent'
     | '/share/$shareId'
+    | '/'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
     | '/dev/design-system/crossfade'
@@ -177,14 +215,18 @@ export interface FileRouteTypes {
     | '/dev/design-system/primitives'
     | '/dev/design-system/toasts'
     | '/dev/design-system/tokens'
+    | '/dev/design-system/tooltip'
     | '/dev/design-system'
   id:
     | '__root__'
-    | '/'
-    | '/settings'
+    | '/_app'
+    | '/_app/login'
+    | '/_app/settings'
+    | '/_app/signup'
     | '/dev/design-system'
     | '/oauth/consent'
     | '/share/$shareId'
+    | '/_app/'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
     | '/dev/design-system/crossfade'
@@ -193,12 +235,12 @@ export interface FileRouteTypes {
     | '/dev/design-system/primitives'
     | '/dev/design-system/toasts'
     | '/dev/design-system/tokens'
+    | '/dev/design-system/tooltip'
     | '/dev/design-system/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  SettingsRoute: typeof SettingsRoute
+  AppRoute: typeof AppRouteWithChildren
   DevDesignSystemRoute: typeof DevDesignSystemRouteWithChildren
   OauthConsentRoute: typeof OauthConsentRoute
   ShareShareIdRoute: typeof ShareShareIdRoute
@@ -206,19 +248,19 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/settings': {
-      id: '/settings'
-      path: '/settings'
-      fullPath: '/settings'
-      preLoaderRoute: typeof SettingsRouteImport
+    '/_app': {
+      id: '/_app'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AppRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/_app/': {
+      id: '/_app/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
     }
     '/share/$shareId': {
       id: '/share/$shareId'
@@ -241,11 +283,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevDesignSystemRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/signup': {
+      id: '/_app/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof AppSignupRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/settings': {
+      id: '/_app/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/login': {
+      id: '/_app/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof AppLoginRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/dev/design-system/': {
       id: '/dev/design-system/'
       path: '/'
       fullPath: '/dev/design-system/'
       preLoaderRoute: typeof DevDesignSystemIndexRouteImport
+      parentRoute: typeof DevDesignSystemRoute
+    }
+    '/dev/design-system/tooltip': {
+      id: '/dev/design-system/tooltip'
+      path: '/tooltip'
+      fullPath: '/dev/design-system/tooltip'
+      preLoaderRoute: typeof DevDesignSystemTooltipRouteImport
       parentRoute: typeof DevDesignSystemRoute
     }
     '/dev/design-system/tokens': {
@@ -307,6 +377,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AppRouteChildren {
+  AppLoginRoute: typeof AppLoginRoute
+  AppSettingsRoute: typeof AppSettingsRoute
+  AppSignupRoute: typeof AppSignupRoute
+  AppIndexRoute: typeof AppIndexRoute
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppLoginRoute: AppLoginRoute,
+  AppSettingsRoute: AppSettingsRoute,
+  AppSignupRoute: AppSignupRoute,
+  AppIndexRoute: AppIndexRoute,
+}
+
+const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
+
 interface DevDesignSystemRouteChildren {
   DevDesignSystemColorsRoute: typeof DevDesignSystemColorsRoute
   DevDesignSystemCompositesRoute: typeof DevDesignSystemCompositesRoute
@@ -316,6 +402,7 @@ interface DevDesignSystemRouteChildren {
   DevDesignSystemPrimitivesRoute: typeof DevDesignSystemPrimitivesRoute
   DevDesignSystemToastsRoute: typeof DevDesignSystemToastsRoute
   DevDesignSystemTokensRoute: typeof DevDesignSystemTokensRoute
+  DevDesignSystemTooltipRoute: typeof DevDesignSystemTooltipRoute
   DevDesignSystemIndexRoute: typeof DevDesignSystemIndexRoute
 }
 
@@ -328,6 +415,7 @@ const DevDesignSystemRouteChildren: DevDesignSystemRouteChildren = {
   DevDesignSystemPrimitivesRoute: DevDesignSystemPrimitivesRoute,
   DevDesignSystemToastsRoute: DevDesignSystemToastsRoute,
   DevDesignSystemTokensRoute: DevDesignSystemTokensRoute,
+  DevDesignSystemTooltipRoute: DevDesignSystemTooltipRoute,
   DevDesignSystemIndexRoute: DevDesignSystemIndexRoute,
 }
 
@@ -336,8 +424,7 @@ const DevDesignSystemRouteWithChildren = DevDesignSystemRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  SettingsRoute: SettingsRoute,
+  AppRoute: AppRouteWithChildren,
   DevDesignSystemRoute: DevDesignSystemRouteWithChildren,
   OauthConsentRoute: OauthConsentRoute,
   ShareShareIdRoute: ShareShareIdRoute,

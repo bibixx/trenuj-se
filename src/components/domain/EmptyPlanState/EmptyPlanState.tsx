@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { Toast } from "@base-ui-components/react/toast";
-import { IconCopy } from "@tabler/icons-react";
+import { IconCopy, IconHistory } from "@tabler/icons-react";
 import { useState, useCallback } from "react";
 import { Card } from "../../primitives/Card/Card.tsx";
 import { Button } from "../../primitives/Button/Button.tsx";
@@ -25,9 +25,10 @@ const DESCRIPTIONS: Record<Tab, string> = {
 
 interface EmptyPlanStateProps {
   className?: string;
+  onPastPlansClick?: () => void;
 }
 
-export function EmptyPlanState({ className }: EmptyPlanStateProps) {
+export function EmptyPlanState({ className, onPastPlansClick }: EmptyPlanStateProps) {
   const [tab, setTab] = useState<Tab>("create");
   const toastManager = Toast.useToastManager();
 
@@ -47,6 +48,13 @@ export function EmptyPlanState({ className }: EmptyPlanStateProps) {
     <div className={clsx(styles.root, className)}>
       <Card className={styles.card}>
         <h2 className={styles.heading}>No active plan yet</h2>
+
+        {onPastPlansClick && (
+          <Button variant="ghost" size="sm" onClick={onPastPlansClick}>
+            <IconHistory size={14} />
+            View past plans
+          </Button>
+        )}
 
         <ToggleGroup.Root value={[tab]} onValueChange={handleTabChange} className={styles.toggleGroup} aria-label="Getting started">
           {TABS.map((t) => (

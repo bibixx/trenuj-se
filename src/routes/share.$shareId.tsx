@@ -3,7 +3,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
 import { Badge } from "../components/primitives/Badge/Badge.tsx";
 import { Card } from "../components/primitives/Card/Card.tsx";
-import { ScrollAreaComponent as ScrollArea } from "../components/primitives/ScrollArea/ScrollArea.tsx";
+import { PageLayout } from "../components/composites/PageLayout/PageLayout.tsx";
 import { PlanHeader } from "../components/composites/PlanHeader/PlanHeader.tsx";
 import { PlanNote } from "../components/composites/PlanNote/PlanNote.tsx";
 import { SessionList } from "../components/composites/SessionList/SessionList.tsx";
@@ -83,56 +83,47 @@ function SharedPlanView() {
   // --- Loading state ---
   if (isLoading || !plan) {
     return (
-      <ScrollArea.Root className={styles.scroll}>
-        <ScrollArea.Viewport>
-          <ScrollArea.Content className={styles.root}>
-            <SharedPlanSkeleton />
-          </ScrollArea.Content>
-        </ScrollArea.Viewport>
-      </ScrollArea.Root>
+      <PageLayout>
+        <SharedPlanSkeleton />
+      </PageLayout>
     );
   }
 
   // --- Main view ---
   return (
-    <ScrollArea.Root className={styles.scroll}>
-      <ScrollArea.Viewport fadeout={{ sizeTop: 32, sizeBottom: 40 }}>
-        <ScrollArea.Content className={styles.root} style={{ minWidth: undefined }}>
-          <PlanHeader.Root className={styles.header}>
-            <PlanHeader.Name>{plan.name}</PlanHeader.Name>
-            {plan.goal && <PlanHeader.Goal>{plan.goal}</PlanHeader.Goal>}
-          </PlanHeader.Root>
+    <PageLayout>
+      <PlanHeader.Root className={styles.header}>
+        <PlanHeader.Name>{plan.name}</PlanHeader.Name>
+        {plan.goal && <PlanHeader.Goal>{plan.goal}</PlanHeader.Goal>}
+      </PlanHeader.Root>
 
-          {weeks.length > 0 && (
+      {weeks.length > 0 && (
+        <>
+          <WeekNavigation totalWeeks={weeks.length} currentWeek={currentWeek} onWeekChange={setWeek} />
+
+          {week && (
             <>
-              <WeekNavigation totalWeeks={weeks.length} currentWeek={currentWeek} onWeekChange={setWeek} />
+              <WeekSummary.Root>
+                <WeekSummary.Header>
+                  {weekPhase && <Badge variant="phase">{weekPhase.name}</Badge>}
+                  <WeekSummary.DateRange>{getWeekDateRange(week)}</WeekSummary.DateRange>
+                </WeekSummary.Header>
+                {weekPhase?.description && <WeekSummary.Label>{weekPhase.description}</WeekSummary.Label>}
+                {workouts != null && (
+                  <WeekSummary.Stats>
+                    <WeekSummary.Progress value={completionProgress} />
+                  </WeekSummary.Stats>
+                )}
+              </WeekSummary.Root>
 
-              {week && (
-                <>
-                  <WeekSummary.Root>
-                    <WeekSummary.Header>
-                      {weekPhase && <Badge variant="phase">{weekPhase.name}</Badge>}
-                      <WeekSummary.DateRange>{getWeekDateRange(week)}</WeekSummary.DateRange>
-                    </WeekSummary.Header>
-                    {weekPhase?.description && <WeekSummary.Label>{weekPhase.description}</WeekSummary.Label>}
-                    {workouts != null && (
-                      <WeekSummary.Stats>
-                        <WeekSummary.Progress value={completionProgress} />
-                      </WeekSummary.Stats>
-                    )}
-                  </WeekSummary.Root>
+              {weekNote && <PlanNote note={weekNote} renderContent={(c) => <Markdown>{c}</Markdown>} />}
 
-                  {weekNote && <PlanNote note={weekNote} renderContent={(c) => <Markdown>{c}</Markdown>} />}
-
-                  {workouts != null && <SessionList key={currentWeek} workouts={weekWorkouts} labels={labels} readOnly />}
-                </>
-              )}
+              {workouts != null && <SessionList key={currentWeek} workouts={weekWorkouts} labels={labels} readOnly />}
             </>
           )}
-        </ScrollArea.Content>
-      </ScrollArea.Viewport>
-      <ScrollArea.Scrollbar />
-    </ScrollArea.Root>
+        </>
+      )}
+    </PageLayout>
   );
 }
 

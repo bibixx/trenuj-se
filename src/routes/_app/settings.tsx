@@ -1,23 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
-import { IconArrowLeft } from "@tabler/icons-react";
-import { Badge } from "../components/primitives/Badge/Badge.tsx";
-import { Button } from "../components/primitives/Button/Button.tsx";
-import { ScrollAreaComponent as ScrollArea } from "../components/primitives/ScrollArea/ScrollArea.tsx";
-import { Card } from "../components/primitives/Card/Card.tsx";
-import { Dialog } from "../components/primitives/Dialog/Dialog.tsx";
-import { Input } from "../components/primitives/Input/Input.tsx";
-import { ToggleGroup } from "../components/primitives/ToggleGroup/ToggleGroup.tsx";
-import { apiFetch } from "../lib/api.ts";
-import { useTheme } from "../lib/theme.ts";
-import type { ThemePreference } from "../lib/theme.ts";
+import { Badge } from "../../components/primitives/Badge/Badge.tsx";
+import { Button } from "../../components/primitives/Button/Button.tsx";
+import { Card } from "../../components/primitives/Card/Card.tsx";
+import { Dialog } from "../../components/primitives/Dialog/Dialog.tsx";
+import { Input } from "../../components/primitives/Input/Input.tsx";
+import { ToggleGroup } from "../../components/primitives/ToggleGroup/ToggleGroup.tsx";
+import { PageLayout } from "../../components/composites/PageLayout/PageLayout.tsx";
+import { apiFetch } from "../../lib/api.ts";
+import { useTheme } from "../../lib/theme.ts";
+import type { ThemePreference } from "../../lib/theme.ts";
 import type { User } from "@supabase/supabase-js";
-import { useAuth } from "../lib/auth.ts";
-import { profileKeys, profileQueryOptions } from "../lib/queries/profile.ts";
-import { queryClient } from "../lib/query-client.ts";
-import { supabase } from "../lib/supabase.ts";
-import type { Profile } from "../lib/types.ts";
+import { useAuth } from "../../lib/auth.ts";
+import { profileKeys, profileQueryOptions } from "../../lib/queries/profile.ts";
+import { queryClient } from "../../lib/query-client.ts";
+import { supabase } from "../../lib/supabase.ts";
+import type { Profile } from "../../lib/types.ts";
 import styles from "./settings.module.css";
 
 interface SettingsSearch {
@@ -25,7 +24,7 @@ interface SettingsSearch {
   message?: string;
 }
 
-export const Route = createFileRoute("/settings")({
+export const Route = createFileRoute("/_app/settings")({
   component: SettingsPage,
   validateSearch: (search: Record<string, unknown>): SettingsSearch => ({
     strava: (search.strava as string) ?? undefined,
@@ -43,25 +42,15 @@ function SettingsPage() {
   });
 
   return (
-    <ScrollArea.Root className={styles.scroll}>
-      <ScrollArea.Viewport fadeout={{ sizeTop: 32, sizeBottom: 40 }}>
-        <ScrollArea.Content className={styles.root}>
-          <header className={styles.header}>
-            <Link to="/" className={styles.backLink} title="Back to plan">
-              <IconArrowLeft size={18} />
-            </Link>
-            <h1 className={styles.heading}>Settings</h1>
-          </header>
+    <PageLayout>
+      <h1 className={styles.heading}>Settings</h1>
 
-          <div className={styles.grid}>
-            <AccountCard user={user} />
-            <AppearanceCard />
-            <StravaCard profile={profile ?? null} stravaParam={stravaParam} />
-          </div>
-        </ScrollArea.Content>
-      </ScrollArea.Viewport>
-      <ScrollArea.Scrollbar />
-    </ScrollArea.Root>
+      <div className={styles.grid}>
+        <AccountCard user={user} />
+        <AppearanceCard />
+        <StravaCard profile={profile ?? null} stravaParam={stravaParam} />
+      </div>
+    </PageLayout>
   );
 }
 
