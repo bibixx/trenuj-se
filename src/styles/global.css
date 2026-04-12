@@ -97,3 +97,10 @@ kbd,
 samp {
   font-family: var(--font-mono);
 }
+
+/* View transitions — simple cross-fade */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--motion-timing-fast);
+  animation-timing-function: var(--motion-function);
+}

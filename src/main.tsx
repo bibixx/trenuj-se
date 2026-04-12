@@ -30,6 +30,7 @@ whatInput.ignoreKeys([
 const router = createRouter({
   routeTree,
   context: { queryClient },
+  defaultViewTransition: true,
 });
 
 declare module "@tanstack/react-router" {
