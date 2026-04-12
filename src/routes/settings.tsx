@@ -12,6 +12,7 @@ import { ToggleGroup } from "../components/primitives/ToggleGroup/ToggleGroup.ts
 import { apiFetch } from "../lib/api.ts";
 import { useTheme } from "../lib/theme.ts";
 import type { ThemePreference } from "../lib/theme.ts";
+import type { User } from "@supabase/supabase-js";
 import { useAuth } from "../lib/auth.ts";
 import { profileKeys, profileQueryOptions } from "../lib/queries/profile.ts";
 import { queryClient } from "../lib/query-client.ts";
@@ -53,9 +54,8 @@ function SettingsPage() {
           </header>
 
           <div className={styles.grid}>
-            <AccountCard email={user?.email} />
+            <AccountCard user={user} />
             <AppearanceCard />
-            {user?.app_metadata.provider === "email" && <PasswordCard />}
             <StravaCard profile={profile ?? null} stravaParam={stravaParam} />
           </div>
         </ScrollArea.Content>
@@ -67,7 +67,57 @@ function SettingsPage() {
 
 // --- Account Card ---
 
-function AccountCard({ email }: { email: string | undefined }) {
+function AccountCard({ user }: { user: User | null }) {
+  const meta = user?.user_metadata ?? {};
+  const isEmailProvider = user?.app_metadata.provider === "email";
+
+  const [name, setName] = useState(meta.full_name ?? meta.name ?? "");
+  const [newPassword, setNewPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleProfileSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setLoading(true);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { full_name: name },
+      });
+      if (updateError) throw updateError;
+      setSuccess("Profile updated");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update profile");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePasswordSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+
+    if (newPassword.length < 6) {
+      setError("Password must be at least 6 characters");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+      setSuccess("Password updated");
+      setNewPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update password");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
@@ -77,10 +127,34 @@ function AccountCard({ email }: { email: string | undefined }) {
       <div className={styles.cardHeader}>
         <div className={styles.cardHeaderInfo}>
           <span className={styles.cardMeta}>Account</span>
-          <h2 className={styles.cardTitle}>Email</h2>
+          <h2 className={styles.cardTitle}>Profile</h2>
         </div>
       </div>
-      <Input label="Email address" value={email ?? ""} readOnly />
+
+      <form onSubmit={handleProfileSubmit} className={styles.form}>
+        <Input label="Email address" value={user?.email ?? ""} readOnly />
+        <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
+        <div className={styles.buttonRow}>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Saving…" : "Save"}
+          </Button>
+        </div>
+      </form>
+
+      {isEmailProvider && (
+        <form onSubmit={handlePasswordSubmit} className={styles.form}>
+          <Input label="New password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
+          <div className={styles.buttonRow}>
+            <Button type="submit" disabled={loading}>
+              {loading ? "Updating…" : "Update password"}
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {error && <p className={styles.error}>{error}</p>}
+      {success && <p className={styles.success}>{success}</p>}
+
       <div className={styles.buttonRow}>
         <Button variant="destructive" onClick={handleLogout}>
           Log out
@@ -110,66 +184,6 @@ function AppearanceCard() {
           <ToggleGroup.Item value="light">Light</ToggleGroup.Item>
         </ToggleGroup.Root>
       </div>
-    </Card>
-  );
-}
-
-// --- Password Card ---
-
-function PasswordCard() {
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError(null);
-    setSuccess(false);
-
-    if (newPassword.length < 6) {
-      setError("Password must be at least 6 characters");
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setError("Passwords do not match");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-      if (updateError) throw updateError;
-      setSuccess(true);
-      setNewPassword("");
-      setConfirmPassword("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update password");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <Card className={styles.card}>
-      <div className={styles.cardHeader}>
-        <div className={styles.cardHeaderInfo}>
-          <span className={styles.cardMeta}>Password</span>
-          <h2 className={styles.cardTitle}>Change password</h2>
-        </div>
-      </div>
-      <form onSubmit={handleSubmit} className={styles.form}>
-        <Input label="New password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
-        <Input label="Confirm new password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" />
-        {error && <p className={styles.error}>{error}</p>}
-        {success && <p className={styles.success}>Password updated</p>}
-        <div className={styles.buttonRow}>
-          <Button type="submit" disabled={loading}>
-            {loading ? "Updating…" : "Update password"}
-          </Button>
-        </div>
-      </form>
     </Card>
   );
 }

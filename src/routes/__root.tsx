@@ -37,6 +37,10 @@ function RootLayout() {
   }
 
   if (!user && !isPublic) {
+    // Preserve /signup path, normalize everything else to /login
+    if (location.pathname !== "/signup" && location.pathname !== "/login") {
+      history.replaceState(null, "", "/login");
+    }
     return (
       <ToastProvider>
         <LoginPage />

@@ -3,7 +3,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 4px;
   border-radius: var(--radius);
   line-height: var(--leading-tight);
   cursor: pointer;
@@ -21,6 +21,23 @@
   }
 }
 
+/* Icon */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  & > svg {
+    width: 1em;
+    height: 1em;
+  }
+}
+
+.iconOnly {
+  padding: 0;
+}
+
 /* Sizes */
 .default {
   height: 36px;
@@ -32,6 +49,18 @@
 
   &:active:not(:disabled) {
     transform: scale(0.99);
+  }
+
+  & .icon {
+    font-size: 18px;
+  }
+
+  &.iconOnly {
+    width: 36px;
+  }
+
+  &.hasIcon {
+    padding-left: 12px;
   }
 }
 
@@ -47,6 +76,18 @@
 
   &:active:not(:disabled) {
     transform: scale(0.99);
+  }
+
+  & .icon {
+    font-size: 14px;
+  }
+
+  &.iconOnly {
+    width: 28px;
+  }
+
+  &.hasIcon {
+    padding-left: 8px;
   }
 }
 

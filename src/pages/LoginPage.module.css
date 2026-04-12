@@ -49,4 +49,22 @@
 
 .googleButton {
   width: 100%;
+
+  & [class*="icon"] {
+    opacity: 0.6;
+  }
+}
+
+.modeSwitch {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 8px;
+}
+
+.modeSwitchButton {
+  color: var(--text-primary);
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }

@@ -14,19 +14,24 @@ interface ButtonProps {
   disabled?: boolean;
   onClick?: () => void;
   className?: string;
+  icon?: ReactNode;
   children?: ReactNode;
 }
 
-export function Button({ variant = "primary", size = "default", className, children, onClick, ...props }: ButtonProps) {
+export function Button({ variant = "primary", size = "default", className, icon, children, onClick, ...props }: ButtonProps) {
+  const hasIcon = icon != null;
+  const iconOnly = hasIcon && children == null;
+
   return (
     <BaseButton
-      className={clsx(styles.button, styles[variant], styles[size], className)}
+      className={clsx(styles.button, styles[variant], styles[size], iconOnly && styles.iconOnly, hasIcon && !iconOnly && styles.hasIcon, className)}
       onClick={() => {
         triggerHaptic();
         onClick?.();
       }}
       {...props}
     >
+      {hasIcon && <span className={styles.icon}>{icon}</span>}
       {children}
     </BaseButton>
   );

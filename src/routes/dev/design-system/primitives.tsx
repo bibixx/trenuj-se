@@ -1,3 +1,4 @@
+import { IconDotsVertical, IconFilter, IconPencil, IconPlus, IconSettings, IconTrash, IconX } from "@tabler/icons-react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "../../../components/primitives/Button/Button.tsx";
@@ -41,6 +42,34 @@ function PrimitivesSection() {
         <Button variant="secondary" size="sm">
           Small Secondary
         </Button>
+      </div>
+      <div className={styles.row}>
+        <Button variant="primary" icon={<IconPlus />}>
+          Add Workout
+        </Button>
+        <Button variant="secondary" icon={<IconSettings />}>
+          Settings
+        </Button>
+        <Button variant="ghost" icon={<IconFilter />}>
+          Filter
+        </Button>
+        <Button variant="destructive" icon={<IconTrash />}>
+          Delete
+        </Button>
+      </div>
+      <div className={styles.row}>
+        <Button variant="primary" icon={<IconPlus />} size="sm">
+          Add
+        </Button>
+        <Button variant="secondary" icon={<IconPencil />} size="sm">
+          Edit
+        </Button>
+      </div>
+      <div className={styles.row}>
+        <Button variant="primary" icon={<IconPlus />} />
+        <Button variant="secondary" icon={<IconSettings />} />
+        <Button variant="ghost" icon={<IconDotsVertical />} />
+        <Button variant="ghost" icon={<IconX />} size="sm" />
       </div>
       <div className={styles.row}>
         <Button variant="primary" disabled>
