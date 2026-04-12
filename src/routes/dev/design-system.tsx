@@ -5,6 +5,8 @@ import { ToggleGroup } from "../../components/primitives/ToggleGroup/ToggleGroup
 import { useTheme } from "../../lib/theme.ts";
 import type { ThemePreference } from "../../lib/theme.ts";
 import styles from "./design-system.module.css";
+import { IconChartBar } from "@tabler/icons-react";
+import { Button } from "../../components/primitives/Button/Button.tsx";
 
 export const Route = createFileRoute("/dev/design-system")({
   component: DesignSystemLayout,
@@ -19,6 +21,7 @@ const SECTIONS = [
   { label: "Colors", to: "/dev/design-system/colors" },
   { label: "Toasts", to: "/dev/design-system/toasts" },
   { label: "Crossfade", to: "/dev/design-system/crossfade" },
+  { label: "Tooltip", to: "/dev/design-system/tooltip" },
 ] as const;
 
 function DesignSystemLayout() {
@@ -32,7 +35,11 @@ function DesignSystemLayout() {
             <ScrollArea.Viewport className={styles.sidebarViewport} fadeout={{ sizeTop: 64, sizeBottom: 0, sizeLeft: 64, sizeRight: 64, direction: "both" }}>
               <ScrollArea.Content className={styles.sidebarContent}>
                 <div className={styles.sidebarHeader}>
-                  <h2 className={styles.sidebarTitle}>Design System</h2>
+                  <div>
+                    <Button size="sm" className={styles.sidebarHeaderName} variant="ghost" render={<Link to="/" />} icon={<IconChartBar />}>
+                      trenuj.se
+                    </Button>
+                  </div>
                   <ToggleGroup.Root value={[preference]} onValueChange={(v) => v.length > 0 && setTheme(v[0] as ThemePreference)} aria-label="Theme preview">
                     <ToggleGroup.Item value="system">System</ToggleGroup.Item>
                     <ToggleGroup.Item value="dark">Dark</ToggleGroup.Item>

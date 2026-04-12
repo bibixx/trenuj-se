@@ -24,7 +24,7 @@
 }
 
 .sidebarContent {
-  padding: 20px 12px;
+  padding: 12px;
 }
 
 .sidebarHeader {
@@ -34,13 +34,37 @@
   margin-bottom: 8px;
 }
 
-.sidebarTitle {
-  composes: typography-sm from global;
-  font-weight: var(--weight-bold);
-  color: var(--text-primary);
-  padding: 8px 10px 0;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+.sidebarHeaderName {
+  && {
+    font-weight: 700;
+    color: oklch(var(--accent-base) / 0.66);
+    white-space: nowrap;
+    padding-left: 8px;
+    padding-right: 8px;
+
+    svg {
+      stroke: oklch(var(--accent-base));
+      opacity: 0.66;
+    }
+
+    &:hover:not(:disabled) {
+      color: oklch(var(--accent-base) / 1);
+
+      svg {
+        stroke: oklch(var(--accent-base));
+        opacity: 1;
+      }
+    }
+
+    &:active:not(:disabled) {
+      color: oklch(var(--accent-base) / 0.8);
+
+      svg {
+        stroke: oklch(var(--accent-base));
+        opacity: 0.8;
+      }
+    }
+  }
 }
 
 .navItem {
