@@ -29,6 +29,13 @@
       "when": 1775551952208,
       "tag": "0003_amazing_joshua_kane",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1775999023728,
+      "tag": "0004_magenta_gabe_jones",
+      "breakpoints": true
     }
   ]
 }

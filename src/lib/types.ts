@@ -109,6 +109,7 @@ export interface PlanShare {
 export interface Profile {
   id: string;
   stravaAthleteId: number | null;
+  isPremium: boolean;
   createdAt: string;
   updatedAt: string;
 }

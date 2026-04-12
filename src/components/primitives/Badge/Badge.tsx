@@ -2,7 +2,7 @@ import clsx from "clsx";
 import type { CSSProperties, ReactNode } from "react";
 import styles from "./Badge.module.css";
 
-type BadgeVariant = "default" | "phase" | "optional" | "status";
+type BadgeVariant = "default" | "phase" | "optional" | "status" | "premium";
 
 interface BadgeProps {
   children: ReactNode;

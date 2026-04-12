@@ -9,7 +9,7 @@ function Root({ children, className, ...props }: HTMLAttributes<HTMLElement>) {
   return (
     <header className={clsx(styles.root, className)} {...props}>
       <div className={styles.brand}>
-        <Button className={styles.name} variant="ghost" render={<Link to="/" />} icon={<IconChartBar />}>
+        <Button className={styles.name} variant="ghost" nativeButton={false} render={<Link to="/" />} icon={<IconChartBar />}>
           trenuj.se
         </Button>
       </div>

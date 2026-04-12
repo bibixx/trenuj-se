@@ -124,7 +124,7 @@ function PlanView() {
         </Tooltip>
       )}
       <Tooltip label="Settings">
-        <Button icon={<IconSettings />} variant="ghost" render={<Link to="/settings" />} />
+        <Button icon={<IconSettings />} variant="ghost" nativeButton={false} render={<Link to="/settings" />} />
       </Tooltip>
     </Tooltip.Provider>
   );

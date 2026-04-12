@@ -36,7 +36,7 @@ function DesignSystemLayout() {
               <ScrollArea.Content className={styles.sidebarContent}>
                 <div className={styles.sidebarHeader}>
                   <div>
-                    <Button size="sm" className={styles.sidebarHeaderName} variant="ghost" render={<Link to="/" />} icon={<IconChartBar />}>
+                    <Button size="sm" className={styles.sidebarHeaderName} variant="ghost" nativeButton={false} render={<Link to="/" />} icon={<IconChartBar />}>
                       trenuj.se
                     </Button>
                   </div>

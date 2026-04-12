@@ -32,3 +32,11 @@
   background: oklch(var(--workout-tint-lightness) var(--workout-tint-chroma) var(--hue, 90));
   color: oklch(var(--workout-accent-lightness) var(--workout-accent-chroma) var(--hue, 90));
 }
+
+.premium {
+  background: oklch(var(--workout-tint-lightness) var(--workout-tint-chroma) 45);
+  color: oklch(var(--workout-accent-lightness) var(--workout-accent-chroma) 45);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: var(--weight-medium);
+}
