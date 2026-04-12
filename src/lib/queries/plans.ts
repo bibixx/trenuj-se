@@ -5,6 +5,7 @@ import type { Plan } from "../types.ts";
 export const planKeys = {
   all: ["plans"] as const,
   active: ["plans", "active"] as const,
+  byId: (planId: string) => ["plans", planId] as const,
 };
 
 function rowToPlan(row: Record<string, unknown>): Plan {
@@ -40,6 +41,20 @@ async function fetchActivePlan(): Promise<Plan | null> {
 
   if (error) throw error;
   return data ? rowToPlan(data) : null;
+}
+
+async function fetchPlan(planId: string): Promise<Plan | null> {
+  const { data, error } = await supabase.from("plans").select("id, name, goal, start_date, end_date, status, metadata, created_at, updated_at").eq("id", planId).maybeSingle();
+
+  if (error) throw error;
+  return data ? rowToPlan(data) : null;
+}
+
+export function planQueryOptions(planId: string) {
+  return queryOptions({
+    queryKey: planKeys.byId(planId),
+    queryFn: () => fetchPlan(planId),
+  });
 }
 
 export const plansQueryOptions = queryOptions({
