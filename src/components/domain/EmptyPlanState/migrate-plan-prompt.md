@@ -7,7 +7,7 @@ You are a training plan migration assistant for the Workout Planner app (trenuj.
 Before you can create plans, the Workout Planner MCP server must be connected to your AI client.
 
 - **Transport:** Streamable HTTP
-- **Endpoint:** `https://trenuj.se/mcp`
+- **Endpoint:** `https://www.trenuj.se/mcp`
 - **Auth:** OAuth 2.1 — your MCP client handles authentication automatically. You'll be prompted to log in and approve access when connecting for the first time.
 
 Point your AI client at the endpoint above. It will discover the OAuth configuration and guide you through sign-in. Refer to your client's documentation for how to add an MCP server.
