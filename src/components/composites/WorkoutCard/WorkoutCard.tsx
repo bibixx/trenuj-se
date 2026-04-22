@@ -1,15 +1,17 @@
 import { Collapsible } from "@base-ui-components/react/collapsible";
 import clsx from "clsx";
-import { IconTriangleInvertedFilled } from "@tabler/icons-react";
-import { type CSSProperties, useCallback, useState } from "react";
+import { IconDownload, IconTriangleInvertedFilled } from "@tabler/icons-react";
+import { type CSSProperties, useCallback, useMemo, useState } from "react";
 import { triggerHaptic } from "tactus";
 import { Badge } from "../../primitives/Badge/Badge.tsx";
+import { Button } from "../../primitives/Button/Button.tsx";
 import { Checkbox } from "../../primitives/Checkbox/Checkbox.tsx";
 import { StravaPill } from "../../domain/StravaPill/StravaPill.tsx";
 import { WorkoutTypeIcon } from "../../domain/WorkoutTypeIcon/WorkoutTypeIcon.tsx";
 import type { Workout } from "../../../lib/types.ts";
 import { getUiVariant, isCheckable } from "../../../lib/types.ts";
 import { resolveHue } from "../../../lib/color.ts";
+import { buildWorkoutFile } from "../../../lib/workout-file.ts";
 import styles from "./WorkoutCard.module.css";
 
 interface WorkoutCardProps {
@@ -52,8 +54,21 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
   const editorial = variant === "note";
   const isCompleted = workout.status === "completed";
   const isOptional = variant === "optional";
-  const hasContent = !!(workout.description || workout.trainerNotes || workout.completionNotes);
+  const workoutFile = useMemo(() => buildWorkoutFile(workout), [workout]);
+  const hasContent = !!(workout.description || workout.trainerNotes || workout.completionNotes) || workoutFile !== null;
   const expandable = !editorial && hasContent;
+
+  const handleDownload = useCallback(() => {
+    if (!workoutFile) return;
+    const url = URL.createObjectURL(workoutFile.blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = workoutFile.filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, [workoutFile]);
 
   const [expanded, setExpanded] = useState(defaultExpanded || editorial);
   const handleOpenChange = useCallback((open: boolean) => {
@@ -110,6 +125,13 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
                 <div className={styles.completionNotes}>
                   <span className={styles.completionLabel}>Completion Notes</span>
                   {renderDescription ? renderDescription(workout.completionNotes) : workout.completionNotes}
+                </div>
+              )}
+              {workoutFile && (
+                <div className={styles.actions}>
+                  <Button variant="secondary" size="sm" icon={<IconDownload size={16} />} onClick={handleDownload}>
+                    Save to Apple Watch
+                  </Button>
                 </div>
               )}
             </div>

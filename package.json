@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",
+    "@bibixx/workoutkit": "0.1.2",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
     "@modelcontextprotocol/sdk": "^1.29.0",

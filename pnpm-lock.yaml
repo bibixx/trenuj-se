@@ -11,6 +11,9 @@ importers:
       '@base-ui-components/react':
         specifier: 1.0.0-rc.0
         version: 1.0.0-rc.0(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@bibixx/workoutkit':
+        specifier: 0.1.2
+        version: 0.1.2
       '@fontsource-variable/jetbrains-mono':
         specifier: ^5.2.8
         version: 5.2.8
@@ -676,6 +679,10 @@ packages:
 
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
+    engines: {node: '>=18'}
+
+  '@bibixx/workoutkit@0.1.2':
+    resolution: {integrity: sha512-unarC68gA0VHxK3keDsU2DlvfEHpRAagX6B7yJOImSoZOykG+Pbdf0CfijEEGD8MITqDPe1IAi19oh3FiQGeVQ==}
     engines: {node: '>=18'}
 
   '@cloudflare/kv-asset-handler@0.4.2':
@@ -5061,6 +5068,8 @@ snapshots:
       '@types/react': 19.2.14
 
   '@bcoe/v8-coverage@1.0.2': {}
+
+  '@bibixx/workoutkit@0.1.2': {}
 
   '@cloudflare/kv-asset-handler@0.4.2': {}
 

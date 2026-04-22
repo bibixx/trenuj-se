@@ -207,6 +207,14 @@
   align-items: center;
 }
 
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 12px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
 /* Debug info */
 .debug {
   border-top: 1px dashed var(--border-subtle);
