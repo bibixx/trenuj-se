@@ -42,7 +42,7 @@ const workoutInputSchema = workoutLabelRefSchema.extend({
   execution: executionSchema
     .optional()
     .describe(
-      "Structured machine-readable workout definition. Fill this in whenever the workout can be represented precisely with the supported block + alert model — it powers Apple Watch export (.workout files), structured views, and analytics. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known.",
+      "Structured machine-readable workout definition. IMPORTANT: this is execution schema version 2. Use `alert`, not `cue`. Supported blocks: `warmup`, `cooldown`, `steady`, `rest`, `free`, `interval`, `repeat`. Each step/phase may have `displayName` and at most one alert (`heartRateZone`, `heartRateRange`, `paceRange`, `paceThreshold`, `powerRange`, `powerThreshold`, `cadenceRange`, `cadenceThreshold`). Unsupported here: `strength`, `note`, `lap-button`, `poolLengthMeters`, `displayHints`, and `appleWatch.alerts`. Fill this in whenever the workout can be represented precisely with that model — it powers Apple Watch export (.workout files), structured views, and analytics. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known.",
     ),
   metadata: z.unknown().optional().describe("Arbitrary key-value data."),
 });
@@ -79,7 +79,7 @@ const updateWorkoutSchema = z
       .nullable()
       .optional()
       .describe(
-        "Structured machine-readable workout definition. Add or update this whenever the workout can be represented precisely with the supported block + alert model — it powers Apple Watch export (.workout files) and structured views. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known. Set to null to clear.",
+        "Structured machine-readable workout definition. IMPORTANT: this is execution schema version 2. Use `alert`, not `cue`. Supported blocks: `warmup`, `cooldown`, `steady`, `rest`, `free`, `interval`, `repeat`. Each step/phase may have `displayName` and at most one alert (`heartRateZone`, `heartRateRange`, `paceRange`, `paceThreshold`, `powerRange`, `powerThreshold`, `cadenceRange`, `cadenceThreshold`). Unsupported here: `strength`, `note`, `lap-button`, `poolLengthMeters`, `displayHints`, and `appleWatch.alerts`. Add or update this whenever the workout can be represented precisely with that model — it powers Apple Watch export (.workout files) and structured views. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known. Set to null to clear.",
       ),
     metadata: z.unknown().nullable().optional().describe("Arbitrary key-value data. Set to null to clear."),
   })

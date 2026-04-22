@@ -130,7 +130,7 @@ const alertSchema = z.union([
 
 const stepFields = {
   displayName: z.string().trim().min(1).optional(),
-  alert: alertSchema.optional(),
+  alert: alertSchema.describe("Single WorkoutKit-compatible alert for this step or phase. Use this field instead of the legacy `cue` object.").optional(),
 } satisfies Record<string, z.ZodTypeAny>;
 
 const intervalPhaseSchema = z.object({
@@ -164,11 +164,13 @@ export const appleWatchExecutionSchema = z.object({
   location: z.enum(["indoor", "outdoor"]).optional(),
 });
 
-export const executionSchema: z.ZodType<WorkoutExecution> = z.object({
-  version: z.literal(2),
-  structure: z.array(executionBlockSchema).min(1),
-  appleWatch: appleWatchExecutionSchema.optional(),
-});
+export const executionSchema: z.ZodType<WorkoutExecution> = z
+  .object({
+    version: z.literal(2).describe("Execution schema version. Must be 2."),
+    structure: z.array(executionBlockSchema).min(1),
+    appleWatch: appleWatchExecutionSchema.optional(),
+  })
+  .describe("Workout execution schema v2. Use `alert`, not `cue`. Supported block types: warmup, cooldown, steady, rest, free, interval, repeat.");
 
 /**
  * Validates workout execution at the boundary. Returns null if input is null/undefined

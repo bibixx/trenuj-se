@@ -261,7 +261,7 @@ Workouts support optional metadata and execution fields:
 
 - `metadata.optional` — mark a workout as optional (`true`/`false`)
 - `metadata.ui.variant` — display variant: `standard`, `rest`, or `note`
-- `execution` — structured machine-facing data (for workout builders, Apple Watch export). Supported block types: `warmup`, `cooldown`, `steady`, `rest`, `free`, `interval`, `repeat`. Each step/phase may carry one `alert` (heart rate, pace, power, or cadence). Only populate if you have precise, supported targets.
+- `execution` — structured machine-facing data (for workout builders, Apple Watch export). Use **version 2**. Supported block types: `warmup`, `cooldown`, `steady`, `rest`, `free`, `interval`, `repeat`. Each step/phase may carry one `alert` (heart rate, pace, power, or cadence). Use `alert`, **not** `cue`. Do not use `strength`, `note`, `lap-button`, `poolLengthMeters`, `displayHints`, or `appleWatch.alerts` here. Only populate if you have precise, supported targets.
 
 ### Key Tools Reference
 
