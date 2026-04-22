@@ -42,7 +42,7 @@ const workoutInputSchema = workoutLabelRefSchema.extend({
   execution: executionSchema
     .optional()
     .describe(
-      "Structured machine-readable workout definition. Fill this in for every non-rest workout — it powers Apple Watch export (.workout files), structured views, and analytics. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known.",
+      "Structured machine-readable workout definition. Fill this in whenever the workout can be represented precisely with the supported block + alert model — it powers Apple Watch export (.workout files), structured views, and analytics. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known.",
     ),
   metadata: z.unknown().optional().describe("Arbitrary key-value data."),
 });
@@ -79,7 +79,7 @@ const updateWorkoutSchema = z
       .nullable()
       .optional()
       .describe(
-        "Structured machine-readable workout definition. If the existing workout has no execution, add one whenever you touch the workout — it powers Apple Watch export (.workout files) and structured views. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known. Set to null to clear.",
+        "Structured machine-readable workout definition. Add or update this whenever the workout can be represented precisely with the supported block + alert model — it powers Apple Watch export (.workout files) and structured views. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known. Set to null to clear.",
       ),
     metadata: z.unknown().nullable().optional().describe("Arbitrary key-value data. Set to null to clear."),
   })

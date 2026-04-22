@@ -43,6 +43,13 @@
       "when": 1777219200000,
       "tag": "0005_migrate_pace_units",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1777226400000,
+      "tag": "0006_migrate_execution_alerts",
+      "breakpoints": true
     }
   ]
 }

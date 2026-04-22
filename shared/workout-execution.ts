@@ -1,7 +1,4 @@
-export const EXECUTION_GOALS = ["endurance", "recovery", "tempo", "threshold", "vo2max", "speed", "strength", "mobility", "technique", "race"] as const;
-export type ExecutionGoal = (typeof EXECUTION_GOALS)[number];
-
-export const TARGET_TYPES = ["time", "distance", "open", "lap-button"] as const;
+export const TARGET_TYPES = ["time", "distance", "open"] as const;
 export type TargetType = (typeof TARGET_TYPES)[number];
 
 export type DurationTarget = {
@@ -18,23 +15,7 @@ export type OpenTarget = {
   type: "open";
 };
 
-export type LapButtonTarget = {
-  type: "lap-button";
-};
-
-export type BlockTarget = DurationTarget | DistanceTarget | OpenTarget | LapButtonTarget;
-
-export const INTENSITY_KINDS = ["easy", "steady", "moderate", "hard", "max", "recovery", "custom"] as const;
-export type IntensityKind = (typeof INTENSITY_KINDS)[number];
-
-export type Intensity =
-  | { kind: "easy" }
-  | { kind: "steady" }
-  | { kind: "moderate" }
-  | { kind: "hard" }
-  | { kind: "max" }
-  | { kind: "recovery" }
-  | { kind: "custom"; label: string };
+export type BlockTarget = DurationTarget | DistanceTarget | OpenTarget;
 
 export const PACE_UNITS = ["min/km", "min/mi", "km/h", "mph"] as const;
 export type PaceUnit = (typeof PACE_UNITS)[number];
@@ -45,145 +26,147 @@ export type PaceTimeUnit = (typeof PACE_TIME_UNITS)[number];
 export const PACE_SPEED_UNITS = ["km/h", "mph"] as const;
 export type PaceSpeedUnit = (typeof PACE_SPEED_UNITS)[number];
 
-export type PaceTimeCue = {
+export const ALERT_METRICS = ["current", "average"] as const;
+export type AlertMetric = (typeof ALERT_METRICS)[number];
+
+export type HeartRateZoneAlert = {
+  type: "heartRateZone";
+  zone: 1 | 2 | 3 | 4 | 5;
+};
+
+export type HeartRateRangeAlert = {
+  type: "heartRateRange";
+  min: number;
+  max: number;
+};
+
+export type PaceRangeTimeAlert = {
+  type: "paceRange";
   unit: PaceTimeUnit;
-  min?: string;
-  max?: string;
-  label?: string;
+  min: string;
+  max: string;
+  metric?: AlertMetric;
 };
 
-export type PaceSpeedCue = {
+export type PaceRangeSpeedAlert = {
+  type: "paceRange";
   unit: PaceSpeedUnit;
-  min?: number;
-  max?: number;
-  label?: string;
+  min: number;
+  max: number;
+  metric?: AlertMetric;
 };
 
-export type PaceCue = PaceTimeCue | PaceSpeedCue;
-
-export type HrCue = {
-  zone?: 1 | 2 | 3 | 4 | 5;
-  min?: number;
-  max?: number;
+export type PaceThresholdTimeAlert = {
+  type: "paceThreshold";
+  unit: PaceTimeUnit;
+  threshold: string;
+  metric?: AlertMetric;
 };
 
-export type PowerCue = {
-  min?: number;
-  max?: number;
-  ftpPercentMin?: number;
-  ftpPercentMax?: number;
+export type PaceThresholdSpeedAlert = {
+  type: "paceThreshold";
+  unit: PaceSpeedUnit;
+  threshold: number;
+  metric?: AlertMetric;
 };
 
-export type CadenceCue = {
-  min?: number;
-  max?: number;
+export type PowerRangeAlert = {
+  type: "powerRange";
+  min: number;
+  max: number;
+  metric?: AlertMetric;
 };
 
-export type Cue = {
-  intensity?: Intensity;
-  pace?: PaceCue;
-  heartRate?: HrCue;
-  power?: PowerCue;
-  cadence?: CadenceCue;
-  notes?: string;
+export type PowerThresholdAlert = {
+  type: "powerThreshold";
+  threshold: number;
+  metric?: AlertMetric;
 };
 
-export type BaseBlock = {
-  title?: string;
-  notes?: string;
-  cue?: Cue;
+export type CadenceRangeAlert = {
+  type: "cadenceRange";
+  min: number;
+  max: number;
 };
 
-export type WarmupBlock = BaseBlock & {
+export type CadenceThresholdAlert = {
+  type: "cadenceThreshold";
+  threshold: number;
+};
+
+export type WorkoutAlert =
+  | HeartRateZoneAlert
+  | HeartRateRangeAlert
+  | PaceRangeTimeAlert
+  | PaceRangeSpeedAlert
+  | PaceThresholdTimeAlert
+  | PaceThresholdSpeedAlert
+  | PowerRangeAlert
+  | PowerThresholdAlert
+  | CadenceRangeAlert
+  | CadenceThresholdAlert;
+
+export type StepFields = {
+  displayName?: string;
+  alert?: WorkoutAlert;
+};
+
+export type WarmupBlock = StepFields & {
   type: "warmup";
   target: BlockTarget;
 };
 
-export type CooldownBlock = BaseBlock & {
+export type CooldownBlock = StepFields & {
   type: "cooldown";
   target: BlockTarget;
 };
 
-export type SteadyBlock = BaseBlock & {
+export type SteadyBlock = StepFields & {
   type: "steady";
   target: BlockTarget;
 };
 
-export type RestBlock = BaseBlock & {
+export type RestBlock = StepFields & {
   type: "rest";
   target: BlockTarget;
 };
 
-export type FreeBlock = BaseBlock & {
+export type FreeBlock = StepFields & {
   type: "free";
   target: BlockTarget;
 };
 
-export type NoteBlock = {
-  type: "note";
-  text: string;
+export type IntervalPhase = StepFields & {
+  target: BlockTarget;
 };
 
-export type IntervalBlock = BaseBlock & {
+export type IntervalBlock = {
   type: "interval";
-  work: {
-    target: BlockTarget;
-    cue?: Cue;
-  };
-  recovery?: {
-    target: BlockTarget;
-    cue?: Cue;
-  };
+  work: IntervalPhase;
+  recovery?: IntervalPhase;
   repetitions: number;
 };
 
-export type RepeatBlock = BaseBlock & {
+export type RepeatBlock = {
   type: "repeat";
   repetitions: number;
   blocks: ExecutionBlock[];
 };
 
-export type StrengthBlock = BaseBlock & {
-  type: "strength";
-  exercises: Array<{
-    name: string;
-    reps?: number;
-    durationSec?: number;
-    weightKg?: number;
-    notes?: string;
-  }>;
-  sets?: number;
-  restSeconds?: number;
-};
+export type StepBlock = WarmupBlock | CooldownBlock | SteadyBlock | RestBlock | FreeBlock;
 
-export type ExecutionBlock = WarmupBlock | CooldownBlock | SteadyBlock | RestBlock | FreeBlock | NoteBlock | IntervalBlock | RepeatBlock | StrengthBlock;
+export type ExecutionBlock = StepBlock | IntervalBlock | RepeatBlock;
 
 export const APPLE_WATCH_ACTIVITY_TYPES = ["running", "walking", "cycling", "swimming", "hiking", "functional-strength-training", "other"] as const;
 export type AppleWatchActivityType = (typeof APPLE_WATCH_ACTIVITY_TYPES)[number];
 
-export const APPLE_WATCH_METRICS = ["time", "distance", "heart-rate", "pace", "power", "cadence"] as const;
-export type AppleWatchMetric = (typeof APPLE_WATCH_METRICS)[number];
-
 export type AppleWatchExecution = {
   activityType: AppleWatchActivityType;
   location?: "indoor" | "outdoor";
-  poolLengthMeters?: number;
-  alerts?: {
-    audio?: boolean;
-    haptics?: boolean;
-  };
-  displayHints?: {
-    primaryMetric?: AppleWatchMetric;
-    secondaryMetric?: AppleWatchMetric;
-  };
 };
 
 export type WorkoutExecution = {
-  version: 1;
-  summary?: {
-    goal?: ExecutionGoal;
-    notes?: string;
-  };
+  version: 2;
   structure: ExecutionBlock[];
   appleWatch?: AppleWatchExecution;
 };

@@ -165,7 +165,7 @@ describe("MCP Workout Tools", () => {
         {
           workoutId: VALID_WORKOUT_ID,
           execution: {
-            version: 1,
+            version: 2,
             structure: [{ type: "interval", repetitions: 3, work: { target: { type: "time", seconds: 60 } } }],
           },
         },
@@ -291,7 +291,7 @@ describe("MCP Workout Tools", () => {
               description: "Easy aerobic run",
               sortOrder: 0,
               execution: {
-                version: 1,
+                version: 2,
                 structure: [{ type: "not-a-real-block", target: { type: "time", seconds: 60 } }],
               },
             },
@@ -308,7 +308,7 @@ describe("MCP Workout Tools", () => {
     expect(rejected).toBe(true);
   });
 
-  test("add_workouts accepts a full execution with nested repeat + pace range + HR zone", async () => {
+  test("add_workouts accepts a full execution with nested repeat + pace-range alerts", async () => {
     setMockSupabase(
       createMockSupabase({
         auth: mockAuth(),
@@ -358,7 +358,7 @@ describe("MCP Workout Tools", () => {
               description: "Tempo intervals",
               sortOrder: 0,
               execution: {
-                version: 1,
+                version: 2,
                 structure: [
                   { type: "warmup", target: { type: "time", seconds: 600 } },
                   {
@@ -370,10 +370,7 @@ describe("MCP Workout Tools", () => {
                         repetitions: 3,
                         work: {
                           target: { type: "distance", meters: 1000 },
-                          cue: {
-                            pace: { unit: "min/km", min: "4:50", max: "5:10" },
-                            heartRate: { zone: 4 },
-                          },
+                          alert: { type: "paceRange", unit: "min/km", min: "4:50", max: "5:10" },
                         },
                         recovery: { target: { type: "time", seconds: 90 } },
                       },
@@ -393,7 +390,7 @@ describe("MCP Workout Tools", () => {
     expect(error).toBeNull();
   });
 
-  test("add_workouts rejects a pace cue where unit and bound types disagree", async () => {
+  test("add_workouts rejects an invalid pace alert where unit and threshold type disagree", async () => {
     setMockSupabase(
       createMockSupabase({
         auth: mockAuth(),
@@ -418,12 +415,12 @@ describe("MCP Workout Tools", () => {
               description: "Tempo intervals",
               sortOrder: 0,
               execution: {
-                version: 1,
+                version: 2,
                 structure: [
                   {
                     type: "steady",
                     target: { type: "time", seconds: 600 },
-                    cue: { pace: { unit: "km/h", min: "4:50" } },
+                    alert: { type: "paceThreshold", unit: "km/h", threshold: "4:50" },
                   },
                 ],
               },
