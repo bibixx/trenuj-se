@@ -28,9 +28,24 @@ describe("errorPayload", () => {
 
     const result = errorPayload(zodError!);
     expect(result.code).toBe("VALIDATION_ERROR");
-    expect(result.message).toBe("Request validation failed");
+    expect(result.message).toBe("Request validation failed: Invalid input: expected string, received number");
     expect(Array.isArray((result as Record<string, unknown>).details)).toBe(true);
     expect(((result as Record<string, unknown>).details as unknown[]).length).toBeGreaterThan(0);
+  });
+
+  test("ZodError summary includes a readable path when available", () => {
+    let zodError: ZodError;
+    try {
+      z.object({ execution: z.object({ structure: z.array(z.object({ alert: z.object({ zone: z.number() }) })) }) }).parse({
+        execution: { structure: [{ alert: { zone: "two" } }] },
+      });
+    } catch (e) {
+      zodError = e as ZodError;
+    }
+
+    const result = errorPayload(zodError!);
+    expect(result.code).toBe("VALIDATION_ERROR");
+    expect(result.message).toBe("Request validation failed: execution.structure[0].alert.zone Invalid input: expected number, received string");
   });
 
   test("Regular Error → returns { code: INTERNAL_ERROR, message: error.message }", () => {

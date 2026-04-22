@@ -177,6 +177,26 @@ describe("MCP Workout Tools", () => {
     expect(error).toBeNull();
   });
 
+  test("update_workout surfaces a helpful execution validation message", async () => {
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "update_workout",
+        {
+          workoutId: VALID_WORKOUT_ID,
+          execution: {
+            version: 2,
+            structure: [{ type: "steady", target: { type: "time", seconds: 600 }, cue: { notes: "Keep it easy" } }],
+          },
+        },
+        {},
+      ),
+    );
+
+    expect(JSON.stringify(parsed)).toContain("cue is not allowed; use alert");
+  });
+
   test("get_workouts can filter by labelKey and returns inline labels", async () => {
     setMockSupabase(
       createMockSupabase({

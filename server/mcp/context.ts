@@ -23,6 +23,30 @@ export class AppError extends Error {
   }
 }
 
+function formatIssuePath(path: PropertyKey[]) {
+  return path
+    .map((segment, index) => {
+      if (typeof segment === "number") {
+        return `[${segment}]`;
+      }
+
+      const key = String(segment);
+      const prefix = index === 0 ? "" : ".";
+      return /^[A-Za-z_][A-Za-z0-9_]*$/.test(key) ? `${prefix}${key}` : `${prefix}[${JSON.stringify(key)}]`;
+    })
+    .join("");
+}
+
+function summarizeZodError(error: ZodError) {
+  const [firstIssue] = error.issues;
+  if (!firstIssue) {
+    return "Request validation failed";
+  }
+
+  const path = formatIssuePath(firstIssue.path);
+  return path ? `Request validation failed: ${path} ${firstIssue.message}` : `Request validation failed: ${firstIssue.message}`;
+}
+
 export function errorPayload(error: unknown) {
   if (error instanceof AppError) {
     return {
@@ -34,7 +58,7 @@ export function errorPayload(error: unknown) {
   if (error instanceof ZodError) {
     return {
       code: "VALIDATION_ERROR",
-      message: "Request validation failed",
+      message: summarizeZodError(error),
       details: error.issues,
     };
   }

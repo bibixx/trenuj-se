@@ -14,6 +14,15 @@ function executionWithAlert(alert: unknown) {
   };
 }
 
+function expectSchemaIssue(result: ReturnType<typeof executionSchema.safeParse>, path: Array<string | number>, message: string) {
+  expect(result.success).toBe(false);
+  if (result.success) {
+    throw new Error("Expected executionSchema.safeParse to fail");
+  }
+
+  expect(result.error.issues).toEqual(expect.arrayContaining([expect.objectContaining({ path, message })]));
+}
+
 describe("executionSchema — heart-rate alerts", () => {
   it("accepts heartRateZone alerts", () => {
     const result = executionSchema.safeParse(executionWithAlert({ type: "heartRateZone", zone: 2 }));
@@ -131,19 +140,67 @@ describe("executionSchema — overall shape", () => {
     expect(result.success).toBe(true);
   });
 
-  it("rejects lap-button targets", () => {
+  it("rejects lap-button targets with a helpful target-type message", () => {
     const result = executionSchema.safeParse({
       version: 2,
       structure: [{ type: "steady", target: { type: "lap-button" } }],
     });
 
-    expect(result.success).toBe(false);
+    expectSchemaIssue(result, ["structure", 0, "target", "type"], "type must be one of time, distance, open");
   });
 
-  it("rejects legacy version 1 payloads", () => {
+  it("rejects cue fields with a helpful message", () => {
     const result = executionSchema.safeParse({
-      version: 1,
+      version: 2,
+      structure: [
+        {
+          type: "steady",
+          target: { type: "time", seconds: 600 },
+          cue: { notes: "Keep it relaxed" },
+        },
+      ],
+    });
+
+    expectSchemaIssue(result, ["structure", 0, "cue"], "cue is not allowed; use alert");
+  });
+
+  it("rejects appleWatch.alerts with a helpful message", () => {
+    const result = executionSchema.safeParse({
+      version: 2,
       structure: [{ type: "steady", target: { type: "time", seconds: 600 } }],
+      appleWatch: {
+        activityType: "running",
+        location: "outdoor",
+        alerts: { haptics: true },
+      },
+    });
+
+    expectSchemaIssue(result, ["appleWatch", "alerts"], "alerts is not allowed");
+  });
+
+  it("rejects unsupported block types with a helpful message", () => {
+    const result = executionSchema.safeParse({
+      version: 2,
+      structure: [{ type: "note", text: "Hydrate" }],
+    });
+
+    expectSchemaIssue(result, ["structure", 0, "type"], "type must be one of warmup, cooldown, steady, rest, free, interval, repeat");
+  });
+
+  it("rejects unsupported root keys instead of silently accepting them", () => {
+    const result = executionSchema.safeParse({
+      version: 2,
+      structure: [{ type: "steady", target: { type: "time", seconds: 600 } }],
+      summary: { goal: "easy" },
+    });
+
+    expectSchemaIssue(result, ["summary"], "summary is not allowed");
+  });
+
+  it("rejects unknown step keys instead of stripping them", () => {
+    const result = executionSchema.safeParse({
+      version: 2,
+      structure: [{ type: "steady", target: { type: "time", seconds: 600 }, notes: "do not allow" }],
     });
 
     expect(result.success).toBe(false);
