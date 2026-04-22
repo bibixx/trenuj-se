@@ -12,6 +12,8 @@ import { registerActivityTools } from "./tools/activities";
 import { registerIconTools } from "./tools/icons";
 import type { AppBindings } from "../lib/supabase";
 
+const AUTH_ERROR_DESCRIPTION = "Missing or invalid access token";
+
 function buildServer(ctx: McpContext) {
   const server = new McpServer(
     {
@@ -74,18 +76,16 @@ export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
     const status = payload.code === "AUTH_ERROR" ? 401 : 500;
 
     if (status === 401) {
-      const message = payload.message;
       const response = c.json(
         {
-          ...payload,
           error: "invalid_token",
-          error_description: message,
+          error_description: AUTH_ERROR_DESCRIPTION,
         },
         401,
       );
       response.headers.set(
         "WWW-Authenticate",
-        `Bearer realm="OAuth", resource_metadata="${getProtectedResourceMetadataUrl(c.env, "/mcp")}", error="invalid_token", error_description="${escapeAuthHeaderValue(message)}"`,
+        `Bearer realm="OAuth", resource_metadata="${getProtectedResourceMetadataUrl(c.env, "/mcp")}", error="invalid_token", error_description="${escapeAuthHeaderValue(AUTH_ERROR_DESCRIPTION)}"`,
       );
       return response;
     }

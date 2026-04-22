@@ -3,7 +3,7 @@ import app from "../../server/index.ts";
 import { MOCK_ENV } from "../helpers/mock-env.ts";
 
 const protectedResourceMetadataUrl = `${MOCK_ENV.PUBLIC_APP_URL}/.well-known/oauth-protected-resource/mcp`;
-const authChallenge = `Bearer realm="OAuth", resource_metadata="${protectedResourceMetadataUrl}", error="invalid_token", error_description="Invalid or missing access token"`;
+const authChallenge = `Bearer realm="OAuth", resource_metadata="${protectedResourceMetadataUrl}", error="invalid_token", error_description="Missing or invalid access token"`;
 
 describe("MCP route registration", () => {
   test("POST /mcp returns auth error plus OAuth challenge when unauthenticated", async () => {
@@ -12,10 +12,8 @@ describe("MCP route registration", () => {
     expect(res.status).toBe(401);
     expect(res.headers.get("www-authenticate")).toBe(authChallenge);
     expect(await res.json()).toEqual({
-      code: "AUTH_ERROR",
-      message: "Invalid or missing access token",
       error: "invalid_token",
-      error_description: "Invalid or missing access token",
+      error_description: "Missing or invalid access token",
     });
   });
 
@@ -25,10 +23,8 @@ describe("MCP route registration", () => {
     expect(res.status).toBe(401);
     expect(res.headers.get("www-authenticate")).toBe(authChallenge);
     expect(await res.json()).toEqual({
-      code: "AUTH_ERROR",
-      message: "Invalid or missing access token",
       error: "invalid_token",
-      error_description: "Invalid or missing access token",
+      error_description: "Missing or invalid access token",
     });
   });
 

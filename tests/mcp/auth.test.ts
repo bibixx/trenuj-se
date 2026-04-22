@@ -5,6 +5,7 @@ import { MOCK_ENV, MOCK_USER_ID } from "../helpers/mock-env.ts";
 import { mcpInitialize, parseMcpResponse } from "../helpers/mcp.ts";
 
 const protectedResourceMetadataUrl = `${MOCK_ENV.PUBLIC_APP_URL}/.well-known/oauth-protected-resource/mcp`;
+const authChallenge = `Bearer realm="OAuth", resource_metadata="${protectedResourceMetadataUrl}", error="invalid_token", error_description="Missing or invalid access token"`;
 
 describe("MCP OAuth Authentication", () => {
   afterEach(() => {
@@ -14,14 +15,11 @@ describe("MCP OAuth Authentication", () => {
   test("missing Authorization header → 401", async () => {
     const response = await mcpInitialize({ token: false });
     expect(response.status).toBe(401);
-    expect(response.headers.get("www-authenticate")).toBe(
-      `Bearer realm="OAuth", resource_metadata="${protectedResourceMetadataUrl}", error="invalid_token", error_description="Invalid or missing access token"`,
-    );
-
-    const body = await response.json();
-    expect(body.code).toBe("AUTH_ERROR");
-    expect(body.error).toBe("invalid_token");
-    expect(body.error_description).toBe("Invalid or missing access token");
+    expect(response.headers.get("www-authenticate")).toBe(authChallenge);
+    expect(await response.json()).toEqual({
+      error: "invalid_token",
+      error_description: "Missing or invalid access token",
+    });
   });
 
   test("malformed Authorization header (no Bearer prefix) → 401", async () => {
@@ -40,12 +38,11 @@ describe("MCP OAuth Authentication", () => {
 
     const response = await mcpInitialize({ token: "invalid-jwt-token" });
     expect(response.status).toBe(401);
-
-    const body = await response.json();
-    expect(body.code).toBe("AUTH_ERROR");
-    expect(body.message).toBe("Invalid or expired access token");
-    expect(body.error).toBe("invalid_token");
-    expect(body.error_description).toBe("Invalid or expired access token");
+    expect(response.headers.get("www-authenticate")).toBe(authChallenge);
+    expect(await response.json()).toEqual({
+      error: "invalid_token",
+      error_description: "Missing or invalid access token",
+    });
   });
 
   test("expired token (getUser returns error) → 401", async () => {
