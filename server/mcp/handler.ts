@@ -12,8 +12,6 @@ import { registerActivityTools } from "./tools/activities";
 import { registerIconTools } from "./tools/icons";
 import type { AppBindings } from "../lib/supabase";
 
-const AUTH_ERROR_DESCRIPTION = "Missing or invalid access token";
-
 function buildServer(ctx: McpContext) {
   const server = new McpServer(
     {
@@ -57,15 +55,6 @@ function buildServer(ctx: McpContext) {
   return server;
 }
 
-function escapeAuthHeaderValue(value: string) {
-  return value.replace(/["\\]/g, "\\$&");
-}
-
-function getMcpResourcePath(pathname: string) {
-  const normalizedPath = pathname.replace(/\/+$/, "");
-  return normalizedPath === "/mcp2" ? "/mcp2" : "/mcp";
-}
-
 export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
   try {
     const auth = await authenticateMcpRequest(c);
@@ -79,23 +68,12 @@ export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
   } catch (error) {
     const payload = errorPayload(error);
     const status = payload.code === "AUTH_ERROR" ? 401 : 500;
+    const response = c.json(payload, status);
 
     if (status === 401) {
-      const resourcePath = getMcpResourcePath(new URL(c.req.url).pathname);
-      const response = c.json(
-        {
-          error: "invalid_token",
-          error_description: AUTH_ERROR_DESCRIPTION,
-        },
-        401,
-      );
-      response.headers.set(
-        "WWW-Authenticate",
-        `Bearer realm="OAuth", resource_metadata="${getProtectedResourceMetadataUrl(c.env, resourcePath)}", error="invalid_token", error_description="${escapeAuthHeaderValue(AUTH_ERROR_DESCRIPTION)}"`,
-      );
-      return response;
+      response.headers.set("WWW-Authenticate", `Bearer resource_metadata="${getProtectedResourceMetadataUrl(c.env, "/mcp")}"`);
     }
 
-    return c.json(payload, status);
+    return response;
   }
 }
