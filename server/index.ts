@@ -15,5 +15,7 @@ app.route("/api/shares", shareRoutes);
 app.route("/api/strava", stravaRoutes);
 app.all("/mcp", handleMcpRequest);
 app.all("/mcp/", handleMcpRequest);
+app.all("/mcp2", handleMcpRequest);
+app.all("/mcp2/", handleMcpRequest);
 
 export default app;

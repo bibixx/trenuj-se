@@ -61,6 +61,11 @@ function escapeAuthHeaderValue(value: string) {
   return value.replace(/["\\]/g, "\\$&");
 }
 
+function getMcpResourcePath(pathname: string) {
+  const normalizedPath = pathname.replace(/\/+$/, "");
+  return normalizedPath === "/mcp2" ? "/mcp2" : "/mcp";
+}
+
 export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
   try {
     const auth = await authenticateMcpRequest(c);
@@ -76,6 +81,7 @@ export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
     const status = payload.code === "AUTH_ERROR" ? 401 : 500;
 
     if (status === 401) {
+      const resourcePath = getMcpResourcePath(new URL(c.req.url).pathname);
       const response = c.json(
         {
           error: "invalid_token",
@@ -85,7 +91,7 @@ export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
       );
       response.headers.set(
         "WWW-Authenticate",
-        `Bearer realm="OAuth", resource_metadata="${getProtectedResourceMetadataUrl(c.env, "/mcp")}", error="invalid_token", error_description="${escapeAuthHeaderValue(AUTH_ERROR_DESCRIPTION)}"`,
+        `Bearer realm="OAuth", resource_metadata="${getProtectedResourceMetadataUrl(c.env, resourcePath)}", error="invalid_token", error_description="${escapeAuthHeaderValue(AUTH_ERROR_DESCRIPTION)}"`,
       );
       return response;
     }
