@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import { z } from "zod";
 import { Button } from "../components/primitives/Button/Button.tsx";
 import { Card } from "../components/primitives/Card/Card.tsx";
+import { buildReturnTo } from "../lib/auth-redirect.ts";
 import { useAuth } from "../lib/auth.ts";
 import { supabase } from "../lib/supabase.ts";
 import styles from "./oauth.consent.module.css";
@@ -132,7 +133,7 @@ function OAuthConsentPage() {
   }
 
   if (!user) {
-    return <Navigate to="/login" />;
+    return <Navigate to="/login" search={{ returnTo: buildReturnTo(window.location.pathname, window.location.search, window.location.hash) }} />;
   }
 
   if (loading) {

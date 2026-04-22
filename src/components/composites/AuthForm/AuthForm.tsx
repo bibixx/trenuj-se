@@ -1,21 +1,22 @@
 import { IconBrandGoogleFilled } from "@tabler/icons-react";
 import { type FormEvent, useState } from "react";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import { Button } from "../../primitives/Button/Button.tsx";
 import { Card } from "../../primitives/Card/Card.tsx";
 import { Input } from "../../primitives/Input/Input.tsx";
 import { PageLayout } from "../PageLayout/PageLayout.tsx";
+import { getPostAuthRedirect } from "../../../lib/auth-redirect.ts";
 import { supabase } from "../../../lib/supabase.ts";
 import styles from "./AuthForm.module.css";
 
 interface AuthFormProps {
   mode: "login" | "signup";
+  initialEmail?: string;
+  returnTo?: string;
 }
 
-export function AuthForm({ mode }: AuthFormProps) {
+export function AuthForm({ mode, initialEmail, returnTo }: AuthFormProps) {
   const isSignUp = mode === "signup";
-  const navigate = useNavigate();
-  const { email: initialEmail } = useSearch({ strict: false }) as { email?: string };
 
   const [email, setEmail] = useState(initialEmail ?? "");
   const [password, setPassword] = useState("");
@@ -48,12 +49,12 @@ export function AuthForm({ mode }: AuthFormProps) {
       }
     }
 
-    setLoading(false);
-    navigate({ to: "/" });
+    window.location.assign(getPostAuthRedirect(returnTo));
   }
 
   async function handleGoogleSignIn() {
-    const { error: authError } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    const redirectTo = new URL(getPostAuthRedirect(returnTo), window.location.origin).toString();
+    const { error: authError } = await supabase.auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
     if (authError) {
       setError(authError.message);
     }
@@ -81,7 +82,7 @@ export function AuthForm({ mode }: AuthFormProps) {
           </Button>
           <p className={styles.modeSwitch}>
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-            <Link to={switchTo} search={{ email: email || undefined }} viewTransition={false} className={styles.modeSwitchLink}>
+            <Link to={switchTo} search={{ email: email || undefined, returnTo }} viewTransition={false} className={styles.modeSwitchLink}>
               {isSignUp ? "Sign in" : "Sign up"}
             </Link>
           </p>
