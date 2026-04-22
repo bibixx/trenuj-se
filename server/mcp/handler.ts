@@ -3,6 +3,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import type { Context } from "hono";
 import { trainingGuideMarkdown } from "./resources/training-guide";
 import { authenticateMcpRequest, errorPayload, type McpContext } from "./context";
+import { getProtectedResourceMetadataUrl } from "./oauth";
 import { registerPlanTools } from "./tools/plans";
 import { registerWorkoutTools } from "./tools/workouts";
 import { registerNoteTools } from "./tools/notes";
@@ -67,6 +68,12 @@ export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
   } catch (error) {
     const payload = errorPayload(error);
     const status = payload.code === "AUTH_ERROR" ? 401 : 500;
-    return c.json(payload, status);
+    const response = c.json(payload, status);
+
+    if (status === 401) {
+      response.headers.set("WWW-Authenticate", `Bearer resource_metadata="${getProtectedResourceMetadataUrl(c.env, "/mcp")}"`);
+    }
+
+    return response;
   }
 }
