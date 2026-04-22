@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { AppError, assertSingleTarget, resolvePlanId, toolError, toolSuccess, type McpContext, validateWorkoutExecution, validateWorkoutMetadata } from "../context";
+import { AppError, assertSingleTarget, resolvePlanId, toolError, toolSuccess, type McpContext, validateWorkoutMetadata } from "../context";
+import { executionSchema } from "../../../shared/workout-execution-schema";
 
 const workoutStatusSchema = z.enum(["planned", "completed", "skipped"]);
 const labelKeySchema = z
@@ -38,7 +39,11 @@ const workoutInputSchema = workoutLabelRefSchema.extend({
   targetDistanceM: z.number().int().positive().optional().describe("Planned distance in meters."),
   phaseId: z.string().uuid().optional().describe("Phase UUID to assign the workout to."),
   sortOrder: z.number().int().describe("Display order within a day (lower values appear first)."),
-  execution: z.unknown().optional().describe("Structured machine-readable workout definition. See the training-plan-guide resource for the schema."),
+  execution: executionSchema
+    .optional()
+    .describe(
+      "Structured machine-readable workout definition. Fill this in for every non-rest workout — it powers Apple Watch export (.workout files), structured views, and analytics. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known.",
+    ),
   metadata: z.unknown().optional().describe("Arbitrary key-value data."),
 });
 
@@ -70,7 +75,12 @@ const updateWorkoutSchema = z
     status: workoutStatusSchema.optional().describe("Workout status: 'planned', 'completed', or 'skipped'."),
     completionNotes: z.string().trim().min(1).nullable().optional().describe("Athlete notes on how the workout went. Set to null to clear."),
     trainerNotes: z.string().trim().min(1).nullable().optional().describe("Coach/AI notes about the workout. Set to null to clear."),
-    execution: z.unknown().nullable().optional().describe("Structured machine-readable workout definition. Set to null to clear. See the training-plan-guide resource."),
+    execution: executionSchema
+      .nullable()
+      .optional()
+      .describe(
+        "Structured machine-readable workout definition. If the existing workout has no execution, add one whenever you touch the workout — it powers Apple Watch export (.workout files) and structured views. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known. Set to null to clear.",
+      ),
     metadata: z.unknown().nullable().optional().describe("Arbitrary key-value data. Set to null to clear."),
   })
   .superRefine((value, issueContext) => {
@@ -164,7 +174,7 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
             const parsed = workoutInputSchema.parse(workout);
             const label = await resolveWorkoutLabel(ctx, plan.id, parsed);
             const metadata = validateWorkoutMetadata(parsed.metadata);
-            const execution = validateWorkoutExecution(parsed.execution);
+            const execution = parsed.execution ?? null;
             const { data, error } = await ctx.supabase
               .from("workouts")
               .insert({
@@ -245,7 +255,7 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
           status: params.status,
           completion_notes: params.completionNotes,
           trainer_notes: params.trainerNotes,
-          execution: params.execution === undefined ? undefined : validateWorkoutExecution(params.execution),
+          execution: params.execution === undefined ? undefined : (params.execution ?? null),
           metadata: params.metadata === undefined ? undefined : validateWorkoutMetadata(params.metadata),
         };
         const cleanedPatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));

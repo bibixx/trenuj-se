@@ -36,15 +36,30 @@ export type Intensity =
   | { kind: "recovery" }
   | { kind: "custom"; label: string };
 
-export const PACE_UNITS = ["min/km", "min/mi", "speed-kmh", "speed-mph"] as const;
+export const PACE_UNITS = ["min/km", "min/mi", "km/h", "mph"] as const;
 export type PaceUnit = (typeof PACE_UNITS)[number];
 
-export type PaceCue = {
-  unit: PaceUnit;
+export const PACE_TIME_UNITS = ["min/km", "min/mi"] as const;
+export type PaceTimeUnit = (typeof PACE_TIME_UNITS)[number];
+
+export const PACE_SPEED_UNITS = ["km/h", "mph"] as const;
+export type PaceSpeedUnit = (typeof PACE_SPEED_UNITS)[number];
+
+export type PaceTimeCue = {
+  unit: PaceTimeUnit;
+  min?: string;
+  max?: string;
+  label?: string;
+};
+
+export type PaceSpeedCue = {
+  unit: PaceSpeedUnit;
   min?: number;
   max?: number;
   label?: string;
 };
+
+export type PaceCue = PaceTimeCue | PaceSpeedCue;
 
 export type HrCue = {
   zone?: 1 | 2 | 3 | 4 | 5;

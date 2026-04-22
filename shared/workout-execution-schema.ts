@@ -1,5 +1,20 @@
 import { z } from "zod";
-import { APPLE_WATCH_ACTIVITY_TYPES, APPLE_WATCH_METRICS, EXECUTION_GOALS, PACE_UNITS, type WorkoutExecution } from "./workout-execution";
+import { APPLE_WATCH_ACTIVITY_TYPES, APPLE_WATCH_METRICS, EXECUTION_GOALS, PACE_SPEED_UNITS, PACE_TIME_UNITS, type WorkoutExecution } from "./workout-execution";
+
+const PACE_TIME_PATTERN = /^\d{1,2}:\d{2}$/;
+
+function paceTimeToSeconds(value: string): number {
+  const parts = value.split(":");
+  return Number(parts[0]) * 60 + Number(parts[1]);
+}
+
+const paceTimeString = z
+  .string()
+  .regex(PACE_TIME_PATTERN, "Pace must be in M:SS format (e.g. '4:50')")
+  .refine((value) => {
+    const parts = value.split(":");
+    return Number(parts[1]) < 60;
+  }, "Pace seconds must be < 60");
 
 const intensitySchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("easy") }),
@@ -22,25 +37,46 @@ const cueSchema = z
   .object({
     intensity: intensitySchema.optional(),
     pace: z
-      .object({
-        unit: z.enum(PACE_UNITS),
-        min: z.number().positive().optional(),
-        max: z.number().positive().optional(),
-        label: z.string().trim().min(1).optional(),
-      })
-      .superRefine((value, issueContext) => {
-        if (value.min != null && value.max != null && value.min > value.max) {
-          issueContext.addIssue({ code: "custom", message: "pace.min must be <= pace.max" });
-        }
-      })
+      .discriminatedUnion("unit", [
+        z
+          .object({
+            unit: z.enum(PACE_TIME_UNITS).describe("Time-per-distance pace. Use mm:ss strings for min/max."),
+            min: paceTimeString.optional().describe("Faster bound as M:SS per unit, e.g. '4:50'."),
+            max: paceTimeString.optional().describe("Slower bound as M:SS per unit, e.g. '5:10'."),
+            label: z.string().trim().min(1).optional(),
+          })
+          .superRefine((value, issueContext) => {
+            if (value.min != null && value.max != null && paceTimeToSeconds(value.min) > paceTimeToSeconds(value.max)) {
+              issueContext.addIssue({ code: "custom", message: "pace.min must be <= pace.max (faster pace ≤ slower pace)" });
+            }
+          }),
+        z
+          .object({
+            unit: z.enum(PACE_SPEED_UNITS).describe("Speed unit. Use positive numbers for min/max."),
+            min: z.number().positive().optional().describe("Lower speed bound."),
+            max: z.number().positive().optional().describe("Upper speed bound."),
+            label: z.string().trim().min(1).optional(),
+          })
+          .superRefine((value, issueContext) => {
+            if (value.min != null && value.max != null && value.min > value.max) {
+              issueContext.addIssue({ code: "custom", message: "pace.min must be <= pace.max" });
+            }
+          }),
+      ])
       .optional(),
     heartRate: z
       .object({
-        zone: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)]).optional(),
-        min: z.number().int().positive().optional(),
-        max: z.number().int().positive().optional(),
+        zone: z
+          .union([z.literal(1), z.literal(2), z.literal(3), z.literal(4), z.literal(5)])
+          .optional()
+          .describe("Preferred form when the plan uses standardized zones (Z1–Z5). Use this unless the athlete has a bespoke range."),
+        min: z.number().int().positive().optional().describe("Integer BPM. Use only when `zone` is insufficient — e.g. custom zones or a narrow window within a zone."),
+        max: z.number().int().positive().optional().describe("Integer BPM. Use only when `zone` is insufficient — e.g. custom zones or a narrow window within a zone."),
       })
       .superRefine((value, issueContext) => {
+        if (value.zone == null && value.min == null && value.max == null) {
+          issueContext.addIssue({ code: "custom", message: "heartRate must include at least one of zone, min, or max" });
+        }
         if (value.min != null && value.max != null && value.min > value.max) {
           issueContext.addIssue({ code: "custom", message: "heartRate.min must be <= heartRate.max" });
         }

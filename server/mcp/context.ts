@@ -3,7 +3,6 @@ import type { Context } from "hono";
 import { z, ZodError } from "zod";
 import { STRAVA_SPORT_TYPES } from "../../shared/activity";
 import { knownMetadataSchemas } from "../../shared/workout-metadata";
-import { executionSchema } from "../../shared/workout-execution-schema";
 import { createServerSupabase, type AppBindings } from "../lib/supabase";
 
 export type McpContext = {
@@ -143,7 +142,6 @@ export const labelMetadataSchema = z.record(z.string(), z.unknown());
 
 // Re-export shared schemas for existing server consumers
 export { knownMetadataSchemas } from "../../shared/workout-metadata";
-export { executionSchema } from "../../shared/workout-execution-schema";
 
 export function validateLabelMetadata(metadata: unknown) {
   if (metadata == null) {
@@ -151,14 +149,6 @@ export function validateLabelMetadata(metadata: unknown) {
   }
 
   return labelMetadataSchema.parse(metadata);
-}
-
-export function validateWorkoutExecution(execution: unknown) {
-  if (execution == null) {
-    return null;
-  }
-
-  return executionSchema.parse(execution);
 }
 
 export function validateWorkoutMetadata(metadata: unknown) {

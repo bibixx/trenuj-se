@@ -266,6 +266,221 @@ describe("MCP Workout Tools", () => {
     expect(parsed.error ?? parsed.result).toBeDefined();
   });
 
+  test("add_workouts rejects execution with an unknown block type (schema is wired on the tool input)", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: {
+          plans: { select: { data: MOCK_PLAN, error: null } },
+          labels: { select: { data: [MOCK_LABEL], error: null } },
+          label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
+        },
+      }),
+    );
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "add_workouts",
+        {
+          planId: VALID_PLAN_ID,
+          workouts: [
+            {
+              date: "2024-03-01",
+              labelKey: "easy-run",
+              title: "Easy Run",
+              description: "Easy aerobic run",
+              sortOrder: 0,
+              execution: {
+                version: 1,
+                structure: [{ type: "not-a-real-block", target: { type: "time", seconds: 60 } }],
+              },
+            },
+          ],
+        },
+        {},
+      ),
+    );
+
+    // Input schema validation rejects the call at the MCP layer (JSON-RPC error)
+    // or inside the tool handler (content[0] with isError). Either is acceptable —
+    // what matters is that no workout gets inserted.
+    const rejected = Boolean(parsed.error) || Boolean((parsed.result as { isError?: boolean } | undefined)?.isError);
+    expect(rejected).toBe(true);
+  });
+
+  test("add_workouts accepts a full execution with nested repeat + pace range + HR zone", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: {
+          plans: { select: { data: MOCK_PLAN, error: null } },
+          labels: { select: { data: [MOCK_LABEL], error: null } },
+          label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
+          workouts: {
+            insert: {
+              data: {
+                id: MOCK_WORKOUT_ID,
+                plan_id: MOCK_PLAN_ID,
+                phase_id: null,
+                label_id: "label-1",
+                date: "2024-03-01",
+                title: "Tempo Run",
+                description: "Tempo intervals",
+                target_duration_min: 60,
+                target_distance_m: null,
+                sort_order: 0,
+                status: "planned",
+                completion_notes: null,
+                trainer_notes: null,
+                activity_id: null,
+                execution: null,
+                metadata: null,
+                created_at: "2024-01-01T00:00:00Z",
+                updated_at: "2024-01-01T00:00:00Z",
+              },
+              error: null,
+            },
+          },
+        },
+      }),
+    );
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "add_workouts",
+        {
+          planId: VALID_PLAN_ID,
+          workouts: [
+            {
+              date: "2024-03-01",
+              labelKey: "easy-run",
+              title: "Tempo Run",
+              description: "Tempo intervals",
+              sortOrder: 0,
+              execution: {
+                version: 1,
+                structure: [
+                  { type: "warmup", target: { type: "time", seconds: 600 } },
+                  {
+                    type: "repeat",
+                    repetitions: 2,
+                    blocks: [
+                      {
+                        type: "interval",
+                        repetitions: 3,
+                        work: {
+                          target: { type: "distance", meters: 1000 },
+                          cue: {
+                            pace: { unit: "min/km", min: "4:50", max: "5:10" },
+                            heartRate: { zone: 4 },
+                          },
+                        },
+                        recovery: { target: { type: "time", seconds: 90 } },
+                      },
+                    ],
+                  },
+                  { type: "cooldown", target: { type: "time", seconds: 600 } },
+                ],
+              },
+            },
+          ],
+        },
+        {},
+      ),
+    );
+    const error = extractToolError(parsed);
+
+    expect(error).toBeNull();
+  });
+
+  test("add_workouts rejects a pace cue where unit and bound types disagree", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: {
+          plans: { select: { data: MOCK_PLAN, error: null } },
+          labels: { select: { data: [MOCK_LABEL], error: null } },
+          label_activity_sports: { select: { data: [], error: null } },
+        },
+      }),
+    );
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "add_workouts",
+        {
+          planId: VALID_PLAN_ID,
+          workouts: [
+            {
+              date: "2024-03-01",
+              labelKey: "easy-run",
+              title: "Tempo Run",
+              description: "Tempo intervals",
+              sortOrder: 0,
+              execution: {
+                version: 1,
+                structure: [
+                  {
+                    type: "steady",
+                    target: { type: "time", seconds: 600 },
+                    cue: { pace: { unit: "km/h", min: "4:50" } },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+        {},
+      ),
+    );
+
+    const rejected = Boolean(parsed.error) || Boolean((parsed.result as { isError?: boolean } | undefined)?.isError);
+    expect(rejected).toBe(true);
+  });
+
+  test("update_workout accepts execution: null to clear", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: {
+          workouts: {
+            select: { data: { id: VALID_WORKOUT_ID, plan_id: MOCK_PLAN_ID, label_id: "label-1" }, error: null },
+            update: {
+              data: {
+                id: VALID_WORKOUT_ID,
+                plan_id: MOCK_PLAN_ID,
+                phase_id: null,
+                label_id: "label-1",
+                date: "2024-03-01",
+                title: "Easy Run",
+                description: "Easy aerobic run",
+                target_duration_min: 60,
+                target_distance_m: null,
+                sort_order: 0,
+                status: "planned",
+                completion_notes: null,
+                trainer_notes: null,
+                activity_id: null,
+                execution: null,
+                metadata: null,
+                created_at: "2024-01-01T00:00:00Z",
+                updated_at: "2024-01-01T00:00:00Z",
+              },
+              error: null,
+            },
+          },
+          labels: { select: { data: [MOCK_LABEL], error: null } },
+          label_activity_sports: { select: { data: [], error: null } },
+        },
+      }),
+    );
+
+    const parsed = await parseMcpResponse(await mcpCallTool("update_workout", { workoutId: VALID_WORKOUT_ID, execution: null }, {}));
+    const error = extractToolError(parsed);
+
+    expect(error).toBeNull();
+  });
+
   test("link_activity returns conflict when the activity is already linked elsewhere", async () => {
     setMockSupabase(
       createMockSupabase({
