@@ -55,6 +55,10 @@ function buildServer(ctx: McpContext) {
   return server;
 }
 
+function escapeAuthHeaderValue(value: string) {
+  return value.replace(/["\\]/g, "\\$&");
+}
+
 export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
   try {
     const auth = await authenticateMcpRequest(c);
@@ -68,12 +72,24 @@ export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
   } catch (error) {
     const payload = errorPayload(error);
     const status = payload.code === "AUTH_ERROR" ? 401 : 500;
-    const response = c.json(payload, status);
 
     if (status === 401) {
-      response.headers.set("WWW-Authenticate", `Bearer resource_metadata="${getProtectedResourceMetadataUrl(c.env, "/mcp")}"`);
+      const message = payload.message;
+      const response = c.json(
+        {
+          ...payload,
+          error: "invalid_token",
+          error_description: message,
+        },
+        401,
+      );
+      response.headers.set(
+        "WWW-Authenticate",
+        `Bearer realm="OAuth", resource_metadata="${getProtectedResourceMetadataUrl(c.env, "/mcp")}", error="invalid_token", error_description="${escapeAuthHeaderValue(message)}"`,
+      );
+      return response;
     }
 
-    return response;
+    return c.json(payload, status);
   }
 }
