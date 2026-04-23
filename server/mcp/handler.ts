@@ -2,8 +2,10 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Context } from "hono";
 import { trainingGuideMarkdown } from "./resources/training-guide";
-import { authenticateMcpRequest, errorPayload, type McpContext } from "./context";
+import { authenticateMcpRequest, createMcpContext, errorPayload, type McpContext } from "./context";
 import { getProtectedResourceMetadataUrl } from "./oauth";
+import { createServerSupabase } from "../lib/supabase";
+import { authenticateMcpConnectorToken } from "../lib/mcp-connector-tokens";
 import { registerPlanTools } from "./tools/plans";
 import { registerWorkoutTools } from "./tools/workouts";
 import { registerNoteTools } from "./tools/notes";
@@ -55,9 +57,13 @@ function buildServer(ctx: McpContext) {
   return server;
 }
 
-export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
+async function handleAuthenticatedMcpRequest(
+  c: Context<{ Bindings: AppBindings }>,
+  authenticate: (c: Context<{ Bindings: AppBindings }>) => Promise<McpContext>,
+  options: { challengeResourcePath?: string } = {},
+) {
   try {
-    const auth = await authenticateMcpRequest(c);
+    const auth = await authenticate(c);
     const server = buildServer(auth);
     const transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
@@ -70,10 +76,29 @@ export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
     const status = payload.code === "AUTH_ERROR" ? 401 : 500;
     const response = c.json(payload, status);
 
-    if (status === 401) {
-      response.headers.set("WWW-Authenticate", `Bearer resource_metadata="${getProtectedResourceMetadataUrl(c.env, "/mcp")}"`);
+    if (status === 401 && options.challengeResourcePath) {
+      response.headers.set("WWW-Authenticate", `Bearer resource_metadata="${getProtectedResourceMetadataUrl(c.env, options.challengeResourcePath)}"`);
     }
 
     return response;
   }
+}
+
+export async function handleMcpRequest(c: Context<{ Bindings: AppBindings }>) {
+  return handleAuthenticatedMcpRequest(c, authenticateMcpRequest, { challengeResourcePath: "/mcp" });
+}
+
+export async function handleClaudeMcpRequest(c: Context<{ Bindings: AppBindings }>) {
+  return handleAuthenticatedMcpRequest(c, async (requestContext) => {
+    const connectorToken = requestContext.req.param("connectorToken");
+
+    if (!connectorToken) {
+      throw new Error("Missing connector token");
+    }
+
+    const supabase = createServerSupabase(requestContext);
+    const userId = await authenticateMcpConnectorToken(supabase, connectorToken);
+
+    return createMcpContext(requestContext, userId, supabase);
+  });
 }

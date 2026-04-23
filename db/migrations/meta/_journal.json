@@ -50,6 +50,13 @@
       "when": 1777226400000,
       "tag": "0006_migrate_execution_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1776961486786,
+      "tag": "0007_add-mcp-connector-tokens",
+      "breakpoints": true
     }
   ]
 }

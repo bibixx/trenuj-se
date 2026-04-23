@@ -1,6 +1,6 @@
 {
-  "id": "8fb05685-fcb5-4cc0-9449-76a4a54e5091",
-  "prevId": "f5554c20-5559-4001-a1c2-9bac46ce30c8",
+  "id": "439377a3-7f49-4e0b-85dd-91a80d7fbd1e",
+  "prevId": "8fb05685-fcb5-4cc0-9449-76a4a54e5091",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -375,6 +375,110 @@
           "value": "\"labels\".\"hue\" >= 0 and \"labels\".\"hue\" < 360"
         }
       },
+      "isRLSEnabled": false
+    },
+    "public.mcp_connector_tokens": {
+      "name": "mcp_connector_tokens",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_used_at": {
+          "name": "last_used_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "revoked_at": {
+          "name": "revoked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "mcp_connector_tokens_hash_unique": {
+          "name": "mcp_connector_tokens_hash_unique",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "mcp_connector_tokens_user_created": {
+          "name": "mcp_connector_tokens_user_created",
+          "columns": [
+            {
+              "expression": "user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "mcp_connector_tokens_user_id_profiles_id_fk": {
+          "name": "mcp_connector_tokens_user_id_profiles_id_fk",
+          "tableFrom": "mcp_connector_tokens",
+          "tableTo": "profiles",
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
       "isRLSEnabled": false
     },
     "public.phases": {

@@ -232,6 +232,22 @@ export const planShares = pgTable(
   (table) => [index("plan_shares_plan").on(table.planId)],
 );
 
+export const mcpConnectorTokens = pgTable(
+  "mcp_connector_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("mcp_connector_tokens_hash_unique").on(table.tokenHash), index("mcp_connector_tokens_user_created").on(table.userId, table.createdAt)],
+);
+
 export const streamTokens = pgTable(
   "stream_tokens",
   {
@@ -258,5 +274,6 @@ export const tables = {
   workouts,
   planNotes,
   planShares,
+  mcpConnectorTokens,
   streamTokens,
 };

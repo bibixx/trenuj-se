@@ -100,6 +100,14 @@ export async function hashToken(token: string) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+export function createMcpContext(c: Context<{ Bindings: AppBindings }>, userId: string, supabase: SupabaseClient = createServerSupabase(c)): McpContext {
+  return {
+    supabase,
+    userId,
+    bindings: c.env,
+  };
+}
+
 export async function authenticateMcpRequest(c: Context<{ Bindings: AppBindings }>): Promise<McpContext> {
   const authorization = c.req.header("authorization");
 
@@ -116,11 +124,7 @@ export async function authenticateMcpRequest(c: Context<{ Bindings: AppBindings 
     throw new AppError("AUTH_ERROR", "Invalid or expired access token");
   }
 
-  return {
-    supabase,
-    userId: data.user.id,
-    bindings: c.env,
-  };
+  return createMcpContext(c, data.user.id, supabase);
 }
 
 export async function resolvePlanId(ctx: McpContext, planId?: string) {

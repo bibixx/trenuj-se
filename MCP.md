@@ -6,7 +6,8 @@ You have access to a training plan MCP server. Use it to manage the athlete's pl
 
 - **Transport:** Streamable HTTP
 - **Endpoint:** `{SERVER_URL}/mcp`
-- **Auth:** OAuth 2.1 — MCP clients that support OAuth will handle authentication automatically. On first connection, you'll be prompted to log in and approve access.
+- **Auth:** OAuth 2.1 by default — MCP clients that support OAuth will handle authentication automatically. On first connection, you'll be prompted to log in and approve access.
+- **Claude fallback endpoint:** `{SERVER_URL}/mcp/claude/{CONNECTOR_TOKEN}` — pre-authenticated URL for Claude surfaces that currently fail the OAuth bootstrap.
 
 The user will provide you with the server URL. If they haven't, ask for it before proceeding.
 
@@ -16,7 +17,7 @@ Pick the section matching your environment. Replace `{SERVER_URL}` with the actu
 
 ### Claude Desktop
 
-Write to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+If Claude Desktop's OAuth flow works for you, use the normal OAuth endpoint:
 
 ```json
 {
@@ -29,16 +30,37 @@ Write to `~/Library/Application Support/Claude/claude_desktop_config.json` (macO
 }
 ```
 
-Then restart Claude Desktop. You'll be prompted to authorize access on first use.
+If Claude fails during OAuth bootstrap, mint a connector token first (see **Claude fallback token flow** below) and use the pre-authenticated URL instead:
+
+```json
+{
+  "mcpServers": {
+    "workout-planner": {
+      "type": "streamableHttp",
+      "url": "{SERVER_URL}/mcp/claude/{CONNECTOR_TOKEN}"
+    }
+  }
+}
+```
+
+Then restart Claude Desktop.
 
 ### Claude Code (CLI)
 
-Run:
+OAuth path:
 
 ```bash
 claude mcp add workout-planner \
   --transport streamable-http \
   "{SERVER_URL}/mcp"
+```
+
+Fallback token path:
+
+```bash
+claude mcp add workout-planner \
+  --transport streamable-http \
+  "{SERVER_URL}/mcp/claude/{CONNECTOR_TOKEN}"
 ```
 
 ### VS Code (GitHub Copilot)
@@ -54,6 +76,37 @@ Create `.vscode/mcp.json` in the workspace. Requires `chat.mcp.enabled: true` in
     }
   }
 }
+```
+
+### Claude fallback token flow
+
+Use this when Claude reaches `POST /mcp` but never continues into OAuth discovery.
+
+1. Create a connector token with an authenticated app session:
+
+   ```bash
+   curl -X POST "{SERVER_URL}/api/mcp/connector-tokens" \
+     -H "Authorization: Bearer {SESSION_JWT}" \
+     -H "Content-Type: application/json" \
+     -d '{"name":"Claude Desktop"}'
+   ```
+
+2. Copy the returned `connectorUrl` or `rawToken`.
+3. Configure Claude to use `{SERVER_URL}/mcp/claude/{CONNECTOR_TOKEN}`.
+4. Treat that URL like a secret. If it leaks, revoke the token and mint a new one.
+
+You can inspect existing tokens with:
+
+```bash
+curl "{SERVER_URL}/api/mcp/connector-tokens" \
+  -H "Authorization: Bearer {SESSION_JWT}"
+```
+
+And revoke one with:
+
+```bash
+curl -X DELETE "{SERVER_URL}/api/mcp/connector-tokens/{TOKEN_ID}" \
+  -H "Authorization: Bearer {SESSION_JWT}"
 ```
 
 ---

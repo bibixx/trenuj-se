@@ -81,4 +81,31 @@ describe("MCP OAuth Authentication", () => {
     expect(rpc.result).toBeDefined();
     expect(rpc.error).toBeUndefined();
   });
+
+  test("valid Claude connector token → successful initialization without OAuth lookup", async () => {
+    const mock = createMockSupabase({
+      tables: {
+        mcp_connector_tokens: {
+          select: {
+            data: { id: "connector-token-id", user_id: MOCK_USER_ID },
+            error: null,
+          },
+          update: {
+            data: null,
+            error: null,
+          },
+        },
+      },
+    });
+
+    setMockSupabase(mock);
+
+    const response = await mcpInitialize({ token: false, path: "/mcp/claude/valid-connector-token" });
+    expect(response.status).toBe(200);
+    expect(mock.auth.getUser).not.toHaveBeenCalled();
+
+    const rpc = await parseMcpResponse(response);
+    expect(rpc.result).toBeDefined();
+    expect(rpc.error).toBeUndefined();
+  });
 });
