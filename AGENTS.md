@@ -138,6 +138,13 @@ All inputs are validated with Zod schemas. Define the schema inline in the tool/
 - **OxFmt**: 180 char line width, double quotes, semicolons, trailing commas everywhere. Run `pnpm format`.
 - **OxLint**: TypeScript plugin enabled. Custom rule: `process` usage is forbidden in `server/` and `functions/` files (Workers runtime has no `process` global). Run `pnpm lint`.
 - **No `any`**: `typescript/no-explicit-any` is enabled as an error. Use `unknown` and narrow the type instead.
+- For CSS transitions with multiple properties, put timing on `transition` and list properties separately:
+
+  ```css
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: color, background, box-shadow;
+  ```
+
 - Ignores: `dist/`, `.wrangler/`.
 
 ## Common tasks
