@@ -14,7 +14,7 @@ import { Markdown } from "../components/markdown/Markdown/Markdown.tsx";
 import { shareQueryOptions, ShareNotFoundError } from "../lib/queries/shares.ts";
 import { getUiVariant, isCheckable, type Phase, type Workout } from "../lib/types.ts";
 import type { PlanWeek } from "../lib/week-utils.ts";
-import { getPlanWeeks, getCurrentWeekIndex, getWeekDateRange, getWorkoutsForWeek, matchesPlanWeek } from "../lib/week-utils.ts";
+import { getPlanWeeks, getCurrentWeekIndex, getTodayWeekIndex, getWeekDateRange, getWorkoutsForWeek, matchesPlanWeek } from "../lib/week-utils.ts";
 import styles from "./share.$shareId.module.css";
 
 interface SearchParams {
@@ -47,8 +47,9 @@ function SharedPlanView() {
   // --- Derived state ---
   const weeks = useMemo(() => (plan ? getPlanWeeks(plan.startDate, plan.endDate) : []), [plan]);
 
-  const currentWeek = weekParam ?? getCurrentWeekIndex(weeks);
-  const week = weeks[currentWeek - 1] ?? null;
+  const currentWeek = getTodayWeekIndex(weeks);
+  const selectedWeek = weekParam ?? getCurrentWeekIndex(weeks);
+  const week = weeks[selectedWeek - 1] ?? null;
 
   const weekWorkouts = useMemo(() => (week && workouts ? getWorkoutsForWeek(workouts, week) : []), [workouts, week]);
 
@@ -99,7 +100,7 @@ function SharedPlanView() {
 
       {weeks.length > 0 && (
         <>
-          <WeekNavigation totalWeeks={weeks.length} currentWeek={currentWeek} onWeekChange={setWeek} />
+          <WeekNavigation totalWeeks={weeks.length} selectedWeek={selectedWeek} currentWeek={currentWeek} onWeekChange={setWeek} />
 
           {week && (
             <>
@@ -118,7 +119,7 @@ function SharedPlanView() {
 
               {weekNote && <PlanNote note={weekNote} renderContent={(c) => <Markdown>{c}</Markdown>} />}
 
-              {workouts != null && <SessionList key={currentWeek} workouts={weekWorkouts} labels={labels} readOnly />}
+              {workouts != null && <SessionList key={selectedWeek} workouts={weekWorkouts} labels={labels} readOnly />}
             </>
           )}
         </>

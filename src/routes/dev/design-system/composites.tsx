@@ -14,14 +14,14 @@ export const Route = createFileRoute("/dev/design-system/composites")({
 });
 
 function CompositesSection() {
-  const [currentWeek, setCurrentWeek] = useState(8);
+  const [selectedWeek, setSelectedWeek] = useState(8);
 
   return (
     <div className={styles.section}>
       <h1 className={styles.sectionTitle}>Key Composites</h1>
 
       <h2 className={styles.subTitle}>Week Navigation</h2>
-      <WeekNavigation totalWeeks={20} currentWeek={currentWeek} onWeekChange={setCurrentWeek} />
+      <WeekNavigation totalWeeks={20} selectedWeek={selectedWeek} currentWeek={8} onWeekChange={setSelectedWeek} />
 
       <h2 className={styles.subTitle}>Week Summary</h2>
       <WeekSummary.Root>

@@ -2,6 +2,7 @@
   background: var(--bg-card);
   box-shadow: var(--border-shine);
   border-radius: var(--radius);
+  --week-accent: var(--accent);
 }
 
 .scrollRoot {
@@ -29,9 +30,9 @@
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  transition:
-    color var(--motion-timing-fast) var(--motion-function),
-    background var(--motion-timing-fast) var(--motion-function);
+  box-shadow: 0 0 0 1px transparent inset;
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: color, background, box-shadow;
   scroll-margin-inline: 72px;
 
   &:hover {
@@ -50,15 +51,37 @@
 .active {
   background: var(--bg-hover);
   font-weight: var(--weight-semibold);
-  color: var(--success);
+  color: var(--text-primary);
 
   &:hover {
+    color: var(--text-primary);
     background: var(--bg-hover);
-    color: var(--success);
   }
 
   &::after {
     height: 8px;
+  }
+}
+
+.current {
+  background: color-mix(in oklab, var(--week-accent) 10%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--week-accent) 30%, transparent) inset;
+  color: color-mix(in oklab, var(--week-accent) 75%, transparent);
+
+  &:hover {
+    background: color-mix(in oklab, var(--week-accent) 15%, transparent);
+    color: color-mix(in oklab, var(--week-accent) 90%, transparent);
+  }
+}
+
+.current.active {
+  color: var(--week-accent);
+  background: color-mix(in oklab, var(--week-accent) 20%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--week-accent) 80%, transparent) inset;
+
+  &:hover {
+    background: color-mix(in oklab, var(--week-accent) 30%, transparent);
+    color: var(--week-accent);
   }
 }
 
@@ -68,12 +91,17 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--success);
+  background: var(--text-secondary);
   transform: translateX(-50%);
-  transition: inset-inline-start var(--motion-timing-fast) var(--motion-function);
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: inset-inline-start, background;
   pointer-events: none;
 }
 
 .dotNoTransition {
   transition: none !important;
+}
+
+.dotCurrent {
+  background: var(--week-accent);
 }

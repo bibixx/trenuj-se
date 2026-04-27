@@ -22,7 +22,7 @@ import { labelsQueryOptions } from "../../lib/queries/labels.ts";
 import { phasesQueryOptions } from "../../lib/queries/phases.ts";
 import { workoutsQueryOptions, useToggleCompletion } from "../../lib/queries/workouts.ts";
 import { planNotesQueryOptions } from "../../lib/queries/plan-notes.ts";
-import { getPlanWeeks, getCurrentWeekIndex, getWeekDateRange, getWorkoutsForWeek, matchesPlanWeek } from "../../lib/week-utils.ts";
+import { getPlanWeeks, getCurrentWeekIndex, getTodayWeekIndex, getWeekDateRange, getWorkoutsForWeek, matchesPlanWeek } from "../../lib/week-utils.ts";
 import { getUiVariant, isCheckable, type Phase, type Workout } from "../../lib/types.ts";
 import type { PlanWeek } from "../../lib/week-utils.ts";
 import styles from "./index.module.css";
@@ -95,8 +95,9 @@ function PlanView() {
   // --- Derived state ---
   const weeks = useMemo(() => (plan ? getPlanWeeks(plan.startDate, plan.endDate) : []), [plan]);
 
-  const currentWeek = weekParam ?? getCurrentWeekIndex(weeks);
-  const week = weeks[currentWeek - 1] ?? null;
+  const currentWeek = getTodayWeekIndex(weeks);
+  const selectedWeek = weekParam ?? getCurrentWeekIndex(weeks);
+  const week = weeks[selectedWeek - 1] ?? null;
 
   const weekWorkouts = useMemo(() => (week ? getWorkoutsForWeek(workouts, week) : []), [workouts, week]);
 
@@ -164,7 +165,7 @@ function PlanView() {
 
       {weeks.length > 0 && (
         <>
-          <WeekNavigation totalWeeks={weeks.length} currentWeek={currentWeek} onWeekChange={setWeek} />
+          <WeekNavigation totalWeeks={weeks.length} selectedWeek={selectedWeek} currentWeek={currentWeek} onWeekChange={setWeek} />
 
           {week && (
             <>
@@ -182,9 +183,10 @@ function PlanView() {
               {weekNote && <PlanNote note={weekNote} renderContent={(c) => <Markdown>{c}</Markdown>} />}
 
               <SessionList
-                key={currentWeek}
+                key={selectedWeek}
                 workouts={weekWorkouts}
                 labels={labels}
+                dateRange={week}
                 onToggleComplete={isArchived ? undefined : (id, completed) => toggleCompletion.mutate({ workoutId: id, completed })}
                 readOnly={isArchived}
                 debug={debug}

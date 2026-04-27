@@ -8,6 +8,13 @@ export interface PlanWeek {
   endDate: string;
 }
 
+export type DateRange = Pick<PlanWeek, "startDate" | "endDate">;
+
+export interface WorkoutDateGroup {
+  date: string;
+  workouts: Workout[];
+}
+
 /**
  * Split a plan's date range into ISO weeks (Mon–Sun).
  * If endDate is null, generates weeks up to current date + 2 weeks.
@@ -65,6 +72,13 @@ export function getCurrentWeekIndex(weeks: PlanWeek[]): number {
   return weeks[weeks.length - 1]!.week;
 }
 
+/** Returns the 1-based week index that contains today, or null when today is outside the plan. */
+export function getTodayWeekIndex(weeks: PlanWeek[]): number | null {
+  const today = toDateString(new Date());
+  const week = weeks.find((w) => today >= w.startDate && today <= w.endDate);
+  return week?.week ?? null;
+}
+
 const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** Format a week's date range as "Apr 7 – Apr 13". */
@@ -102,6 +116,20 @@ export function matchesPlanWeek(metadata: PlanNoteMetadata | null | undefined, w
   return false;
 }
 
+/** Return all date strings in a range, inclusive. */
+export function getDatesInRange(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const current = new Date(startDate);
+  const end = new Date(endDate);
+
+  while (current <= end) {
+    dates.push(toDateString(current));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+
+  return dates;
+}
+
 /** Check if a date string (YYYY-MM-DD) is today. */
 export function isToday(dateStr: string): boolean {
   return dateStr === toDateString(new Date());
@@ -119,6 +147,17 @@ export function groupWorkoutsByDate(workouts: Workout[]): Map<string, Workout[]>
     }
   }
   return map;
+}
+
+/** Build display-ready workout groups. If a range is provided, include empty groups for missing days. */
+export function getWorkoutDateGroups(workouts: Workout[], range?: DateRange | null): WorkoutDateGroup[] {
+  const grouped = groupWorkoutsByDate(workouts);
+
+  if (!range) {
+    return Array.from(grouped.entries()).map(([date, dayWorkouts]) => ({ date, workouts: dayWorkouts }));
+  }
+
+  return getDatesInRange(range.startDate, range.endDate).map((date) => ({ date, workouts: grouped.get(date) ?? [] }));
 }
 
 /** Filter workouts to those within a given week's date range. */
