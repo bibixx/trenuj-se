@@ -96,31 +96,63 @@ describe("MCP Plan Tools", () => {
     expect(result?.result.summary.totalWorkouts).toBe(2);
   });
 
-  test("set_labels replaces labels and warns when activitySports are missing", async () => {
-    setMockSupabase(
-      createMockSupabase({
-        auth: mockAuth(),
-        tables: {
-          plans: { select: { data: MOCK_PLAN, error: null } },
-          labels: {
-            delete: { data: null, error: null },
-            insert: {
-              data: [
-                { id: "label-1", key: "mobility", label: "Mobility", hue: 40, icon: null, metadata: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
-              ],
-              error: null,
+  test("set_labels syncs labels by key, preserves existing ids, and warns when activitySports are missing", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: { select: { data: MOCK_PLAN, error: null } },
+        labels: {
+          select: {
+            data: [
+              { id: "label-1", key: "easy-run", label: "Easy Run", hue: 120, icon: null, metadata: null, created_at: "2024-01-01T00:00:00Z", updated_at: "2024-01-01T00:00:00Z" },
+            ],
+            error: null,
+          },
+          update: {
+            data: {
+              id: "label-1",
+              key: "easy-run",
+              label: "Easy Run",
+              hue: 120,
+              icon: null,
+              metadata: null,
+              created_at: "2024-01-01T00:00:00Z",
+              updated_at: "2024-01-02T00:00:00Z",
             },
+            error: null,
+          },
+          insert: {
+            data: {
+              id: "label-2",
+              key: "mobility",
+              label: "Mobility",
+              hue: 40,
+              icon: null,
+              metadata: null,
+              created_at: "2024-01-01T00:00:00Z",
+              updated_at: "2024-01-01T00:00:00Z",
+            },
+            error: null,
           },
         },
-      }),
-    );
+        label_activity_sports: {
+          select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null },
+          delete: { data: null, error: null },
+          insert: { data: null, error: null },
+        },
+      },
+    });
+    setMockSupabase(mock);
 
     const parsed = await parseMcpResponse(
       await mcpCallTool(
         "set_labels",
         {
           planId: VALID_PLAN_ID,
-          labels: [{ key: "mobility", label: "Mobility", hue: 40, activitySports: [] }],
+          labels: [
+            { key: "easy-run", label: "Easy Run", hue: 120, activitySports: ["Run"] },
+            { key: "mobility", label: "Mobility", hue: 40, activitySports: [] },
+          ],
         },
         {},
       ),
@@ -130,6 +162,17 @@ describe("MCP Plan Tools", () => {
     expect(result?.result).toEqual([
       {
         id: "label-1",
+        key: "easy-run",
+        label: "Easy Run",
+        hue: 120,
+        icon: null,
+        metadata: null,
+        created_at: "2024-01-01T00:00:00Z",
+        updated_at: "2024-01-02T00:00:00Z",
+        activitySports: ["Run"],
+      },
+      {
+        id: "label-2",
         key: "mobility",
         label: "Mobility",
         hue: 40,
@@ -140,7 +183,88 @@ describe("MCP Plan Tools", () => {
         activitySports: [],
       },
     ]);
+    expect(mock.calls.filter((call) => call.table === "labels" && call.operation === "delete")).toHaveLength(0);
     expect(result?.warnings).toContain("Label 'mobility' has no activitySports; automatic activity matching may require manual linking.");
+  });
+
+  test("add_label creates one label without replacing existing labels", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: { select: { data: MOCK_PLAN, error: null } },
+        labels: {
+          select: { data: null, error: null },
+          insert: {
+            data: {
+              id: "label-2",
+              key: "mobility",
+              label: "Mobility",
+              hue: 40,
+              icon: null,
+              metadata: null,
+              created_at: "2024-01-01T00:00:00Z",
+              updated_at: "2024-01-01T00:00:00Z",
+            },
+            error: null,
+          },
+        },
+        label_activity_sports: {
+          delete: { data: null, error: null },
+          insert: { data: null, error: null },
+        },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "add_label",
+        {
+          planId: VALID_PLAN_ID,
+          key: "mobility",
+          label: "Mobility",
+          hue: 40,
+          activitySports: ["Run"],
+        },
+        {},
+      ),
+    );
+    const result = extractToolResult(parsed);
+
+    expect(result?.result).toEqual({
+      id: "label-2",
+      key: "mobility",
+      label: "Mobility",
+      hue: 40,
+      icon: null,
+      metadata: null,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      activitySports: ["Run"],
+    });
+    expect(mock.calls.filter((call) => call.table === "labels" && call.operation === "delete")).toHaveLength(0);
+    expect(mock.calls.filter((call) => call.table === "labels" && call.operation === "update")).toHaveLength(0);
+    expect(mock.calls.filter((call) => call.table === "labels" && call.operation === "insert")).toHaveLength(1);
+  });
+
+  test("set_labels rejects duplicate label keys", async () => {
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "set_labels",
+        {
+          planId: VALID_PLAN_ID,
+          labels: [
+            { key: "mobility", label: "Mobility", hue: 40, activitySports: [] },
+            { key: "mobility", label: "Mobility 2", hue: 41, activitySports: [] },
+          ],
+        },
+        {},
+      ),
+    );
+
+    expect(JSON.stringify(parsed)).toContain("Duplicate label key(s): mobility");
   });
 
   test("update_label updates label fields and activitySports", async () => {

@@ -89,6 +89,29 @@ const updateWorkoutSchema = z
     }
   });
 
+type UpdateWorkoutParams = z.infer<typeof updateWorkoutSchema>;
+
+const batchUpdateWorkoutsSchema = z
+  .object({
+    updates: z.array(updateWorkoutSchema).min(1).max(100).describe("Workout updates to apply. Each item uses the same fields as update_workout and requires workoutId."),
+  })
+  .superRefine((value, issueContext) => {
+    const seen = new Set<string>();
+    const duplicateIds = new Set<string>();
+
+    for (const update of value.updates) {
+      if (seen.has(update.workoutId)) {
+        duplicateIds.add(update.workoutId);
+      } else {
+        seen.add(update.workoutId);
+      }
+    }
+
+    if (duplicateIds.size > 0) {
+      issueContext.addIssue({ code: "custom", path: ["updates"], message: `Duplicate workoutId(s): ${[...duplicateIds].join(", ")}` });
+    }
+  });
+
 async function getPlanLabels(ctx: McpContext, planId: string) {
   const [{ data: labels, error: labelsError }, { data: activitySports, error: activitySportsError }] = await Promise.all([
     ctx.supabase
@@ -150,6 +173,59 @@ async function attachLabels(ctx: McpContext, planId: string, workouts: Array<Rec
 
 const workoutSelect =
   "id, plan_id, phase_id, label_id, date, title, description, target_duration_min, target_distance_m, sort_order, status, completion_notes, trainer_notes, activity_id, execution, metadata, created_at, updated_at";
+
+function serializeWorkoutUpdateError(error: unknown) {
+  if (error instanceof z.ZodError) {
+    return error.issues;
+  }
+
+  if (error instanceof AppError) {
+    return { code: error.code, message: error.message };
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return String(error);
+}
+
+async function applyWorkoutUpdate(ctx: McpContext, params: UpdateWorkoutParams) {
+  const { data: existingWorkout, error: existingError } = await ctx.supabase
+    .from("workouts")
+    .select("id, plan_id, label_id")
+    .eq("id", params.workoutId)
+    .eq("user_id", ctx.userId)
+    .maybeSingle();
+  if (existingError) throw new AppError("INTERNAL_ERROR", existingError.message);
+  if (!existingWorkout) throw new AppError("NOT_FOUND", "Workout not found");
+
+  const nextLabel = params.labelId || params.labelKey ? await resolveWorkoutLabel(ctx, existingWorkout.plan_id, params) : null;
+  const patch = {
+    date: params.date,
+    label_id: nextLabel?.id,
+    title: params.title,
+    description: params.description,
+    target_duration_min: params.targetDurationMin,
+    target_distance_m: params.targetDistanceM,
+    phase_id: params.phaseId,
+    sort_order: params.sortOrder,
+    status: params.status,
+    completion_notes: params.completionNotes,
+    trainer_notes: params.trainerNotes,
+    execution: params.execution === undefined ? undefined : (params.execution ?? null),
+    metadata: params.metadata === undefined ? undefined : validateWorkoutMetadata(params.metadata),
+  };
+  const cleanedPatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+
+  const { data, error } = await ctx.supabase.from("workouts").update(cleanedPatch).eq("id", params.workoutId).eq("user_id", ctx.userId).select(workoutSelect).maybeSingle();
+
+  if (error) throw new AppError("INTERNAL_ERROR", error.message);
+  if (!data) throw new AppError("NOT_FOUND", "Workout not found");
+  const [withLabel] = await attachLabels(ctx, existingWorkout.plan_id, [data]);
+  const warnings = withLabel?.label ? buildMissingActivitySportWarnings(withLabel.label) : [];
+  return { workout: withLabel, warnings };
+}
 
 export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
   server.registerTool(
@@ -233,40 +309,49 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
     async (input) => {
       try {
         const params = updateWorkoutSchema.parse(input);
-        const { data: existingWorkout, error: existingError } = await ctx.supabase
-          .from("workouts")
-          .select("id, plan_id, label_id")
-          .eq("id", params.workoutId)
-          .eq("user_id", ctx.userId)
-          .maybeSingle();
-        if (existingError) throw new AppError("INTERNAL_ERROR", existingError.message);
-        if (!existingWorkout) throw new AppError("NOT_FOUND", "Workout not found");
+        const { workout, warnings } = await applyWorkoutUpdate(ctx, params);
+        return toolSuccess(workout, warnings);
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
 
-        const nextLabel = params.labelId || params.labelKey ? await resolveWorkoutLabel(ctx, existingWorkout.plan_id, params) : null;
-        const patch = {
-          date: params.date,
-          label_id: nextLabel?.id,
-          title: params.title,
-          description: params.description,
-          target_duration_min: params.targetDurationMin,
-          target_distance_m: params.targetDistanceM,
-          phase_id: params.phaseId,
-          sort_order: params.sortOrder,
-          status: params.status,
-          completion_notes: params.completionNotes,
-          trainer_notes: params.trainerNotes,
-          execution: params.execution === undefined ? undefined : (params.execution ?? null),
-          metadata: params.metadata === undefined ? undefined : validateWorkoutMetadata(params.metadata),
-        };
-        const cleanedPatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+  server.registerTool(
+    "batch_update_workouts",
+    {
+      title: "Batch Update Workouts",
+      description:
+        "Update multiple workouts in one call. Each update uses the same fields as update_workout; omitted fields stay unchanged and fields set to null are cleared. Returns partial failures when individual updates cannot be applied.",
+      inputSchema: batchUpdateWorkoutsSchema,
+      annotations: { idempotentHint: true },
+    },
+    async (input) => {
+      try {
+        const params = batchUpdateWorkoutsSchema.parse(input);
+        const updated: unknown[] = [];
+        const failed: Array<{ index: number; workoutId: string; errors: unknown }> = [];
+        const warnings: string[] = [];
 
-        const { data, error } = await ctx.supabase.from("workouts").update(cleanedPatch).eq("id", params.workoutId).eq("user_id", ctx.userId).select(workoutSelect).maybeSingle();
+        for (const [index, update] of params.updates.entries()) {
+          try {
+            const { workout, warnings: updateWarnings } = await applyWorkoutUpdate(ctx, update);
+            updated.push(workout);
+            warnings.push(...updateWarnings);
+          } catch (error) {
+            failed.push({ index, workoutId: update.workoutId, errors: serializeWorkoutUpdateError(error) });
+          }
+        }
 
-        if (error) throw new AppError("INTERNAL_ERROR", error.message);
-        if (!data) throw new AppError("NOT_FOUND", "Workout not found");
-        const [withLabel] = await attachLabels(ctx, existingWorkout.plan_id, [data]);
-        const warnings = withLabel?.label ? buildMissingActivitySportWarnings(withLabel.label) : [];
-        return toolSuccess(withLabel, warnings);
+        if (updated.length === 0) {
+          throw new AppError("VALIDATION_ERROR", "No workouts were updated", failed);
+        }
+
+        if (failed.length > 0) {
+          warnings.push(`${failed.length} workout(s) failed validation or update`);
+        }
+
+        return toolSuccess({ updated, failed }, [...new Set(warnings)]);
       } catch (error) {
         return toolError(error);
       }

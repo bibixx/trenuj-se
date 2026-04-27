@@ -51,9 +51,15 @@ const labelSchema = z.object({
   activitySports: z.array(activitySportSchema).default([]).describe("Strava sport types for auto-matching imported activities (e.g. ['Run', 'TrailRun'])."),
 });
 
+const createLabelSchema = labelSchema.extend({
+  planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+});
+
 const setLabelsSchema = z.object({
   planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
-  labels: z.array(labelSchema).describe("Full set of labels. Replaces all existing labels for the plan."),
+  labels: z
+    .array(labelSchema)
+    .describe("Full desired label set. Existing labels with matching keys are updated in place so their IDs are preserved; labels omitted here are deleted."),
 });
 
 const updateLabelSchema = z.object({
@@ -172,7 +178,22 @@ async function getLabelsForPlan(ctx: McpContext, planId: string) {
   }));
 }
 
-async function findLabelByKey(ctx: McpContext, planId: string, key: string) {
+function findDuplicateStrings(values: string[]) {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+
+  for (const value of values) {
+    if (seen.has(value)) {
+      duplicates.add(value);
+    } else {
+      seen.add(value);
+    }
+  }
+
+  return [...duplicates];
+}
+
+async function findOptionalLabelByKey(ctx: McpContext, planId: string, key: string) {
   const { data, error } = await ctx.supabase
     .from("labels")
     .select("id, key, label, hue, icon, metadata, created_at, updated_at")
@@ -182,6 +203,11 @@ async function findLabelByKey(ctx: McpContext, planId: string, key: string) {
     .maybeSingle();
 
   if (error) throw new AppError("INTERNAL_ERROR", error.message);
+  return data;
+}
+
+async function findLabelByKey(ctx: McpContext, planId: string, key: string) {
+  const data = await findOptionalLabelByKey(ctx, planId, key);
   if (!data) throw new AppError("NOT_FOUND", "Label not found");
   return data;
 }
@@ -385,61 +411,120 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
     "set_labels",
     {
       title: "Set Labels",
-      description: "Replace all labels for the active plan, or for a specific plan when planId is provided.",
+      description:
+        "Synchronize the full label set for the active plan, or for a specific plan when planId is provided. Existing labels with the same key keep their IDs; labels omitted from this full set are deleted and workouts using them become unlabeled.",
       inputSchema: setLabelsSchema,
-      annotations: { idempotentHint: false },
+      annotations: { idempotentHint: false, destructiveHint: true },
     },
     async (input) => {
       try {
         const params = setLabelsSchema.parse(input);
+        const duplicateKeys = findDuplicateStrings(params.labels.map((label) => label.key));
+        if (duplicateKeys.length > 0) {
+          throw new AppError("VALIDATION_ERROR", `Duplicate label key(s): ${duplicateKeys.join(", ")}`);
+        }
+
         const plan = await resolvePlanId(ctx, params.planId);
         const parsedLabels = params.labels.map((label) => ({ ...label, metadata: validateLabelMetadata(label.metadata) }));
         const warnings = collectMissingActivitySportWarnings(parsedLabels.map((label) => ({ key: label.key, activitySports: label.activitySports })));
+        const currentLabels = await getLabelsForPlan(ctx, plan.id);
+        const existingByKey = new Map(currentLabels.map((label) => [label.key, label]));
+        const desiredKeys = new Set(parsedLabels.map((label) => label.key));
+        const savedLabels = [];
 
-        const { error: deleteError } = await ctx.supabase.from("labels").delete().eq("plan_id", plan.id).eq("user_id", ctx.userId);
-        if (deleteError) throw new AppError("INTERNAL_ERROR", deleteError.message);
+        for (const label of parsedLabels) {
+          const existingLabel = existingByKey.get(label.key);
 
-        if (parsedLabels.length === 0) {
-          return toolSuccess([], warnings);
+          if (existingLabel) {
+            const { data, error } = await ctx.supabase
+              .from("labels")
+              .update({ label: label.label, hue: label.hue, icon: label.icon ?? null, metadata: label.metadata })
+              .eq("id", existingLabel.id)
+              .eq("user_id", ctx.userId)
+              .select("id, key, label, hue, icon, metadata, created_at, updated_at")
+              .maybeSingle();
+
+            if (error) throw new AppError("INTERNAL_ERROR", error.message);
+            if (!data) throw new AppError("NOT_FOUND", `Label '${label.key}' not found`);
+
+            await replaceLabelActivitySports(ctx, data.id, label.activitySports);
+            savedLabels.push({ ...data, activitySports: label.activitySports });
+          } else {
+            const { data, error } = await ctx.supabase
+              .from("labels")
+              .insert({
+                plan_id: plan.id,
+                user_id: ctx.userId,
+                key: label.key,
+                label: label.label,
+                hue: label.hue,
+                icon: label.icon ?? null,
+                metadata: label.metadata,
+              })
+              .select("id, key, label, hue, icon, metadata, created_at, updated_at")
+              .single();
+
+            if (error || !data) throw new AppError("INTERNAL_ERROR", error?.message ?? `Failed to create label '${label.key}'`);
+
+            await replaceLabelActivitySports(ctx, data.id, label.activitySports);
+            savedLabels.push({ ...data, activitySports: label.activitySports });
+          }
         }
 
-        const { data: insertedLabels, error: labelsError } = await ctx.supabase
-          .from("labels")
-          .insert(
-            parsedLabels.map((label) => ({
-              plan_id: plan.id,
-              user_id: ctx.userId,
-              key: label.key,
-              label: label.label,
-              hue: label.hue,
-              icon: label.icon ?? null,
-              metadata: label.metadata,
-            })),
-          )
-          .select("id, key, label, hue, icon, metadata, created_at, updated_at")
-          .order("label", { ascending: true });
+        const labelIdsToDelete = currentLabels.filter((label) => !desiredKeys.has(label.key)).map((label) => label.id);
+        if (labelIdsToDelete.length > 0) {
+          const { error: deleteError } = await ctx.supabase.from("labels").delete().in("id", labelIdsToDelete).eq("user_id", ctx.userId);
+          if (deleteError) throw new AppError("INTERNAL_ERROR", deleteError.message);
+        }
 
-        if (labelsError) throw new AppError("INTERNAL_ERROR", labelsError.message);
-
-        const insertedLabelRows = insertedLabels ?? [];
-        const insertedByKey = new Map(insertedLabelRows.map((label) => [label.key, label]));
-        const activitySportRows = parsedLabels.flatMap((label) =>
-          label.activitySports
-            .map((activitySport) => ({ label_id: insertedByKey.get(label.key)?.id, user_id: ctx.userId, activity_sport: activitySport }))
-            .filter((row) => row.label_id != null),
+        return toolSuccess(
+          savedLabels.sort((left, right) => left.label.localeCompare(right.label)),
+          warnings,
         );
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
 
-        if (activitySportRows.length > 0) {
-          const { error: activitySportsError } = await ctx.supabase.from("label_activity_sports").insert(activitySportRows);
-          if (activitySportsError) throw new AppError("INTERNAL_ERROR", activitySportsError.message);
+  server.registerTool(
+    "add_label",
+    {
+      title: "Add Label",
+      description: "Add one label to the active plan, or to a specific plan when planId is provided. Existing labels and workout label assignments are left unchanged.",
+      inputSchema: createLabelSchema,
+      annotations: { idempotentHint: false },
+    },
+    async (input) => {
+      try {
+        const params = createLabelSchema.parse(input);
+        const plan = await resolvePlanId(ctx, params.planId);
+        const existingLabel = await findOptionalLabelByKey(ctx, plan.id, params.key);
+        if (existingLabel) {
+          throw new AppError("CONFLICT", `Label '${params.key}' already exists`);
         }
 
-        const labels = insertedLabelRows.map((label) => ({
-          ...label,
-          activitySports: parsedLabels.find((candidate) => candidate.key === label.key)?.activitySports ?? [],
-        }));
+        const metadata = validateLabelMetadata(params.metadata);
+        const { data, error } = await ctx.supabase
+          .from("labels")
+          .insert({
+            plan_id: plan.id,
+            user_id: ctx.userId,
+            key: params.key,
+            label: params.label,
+            hue: params.hue,
+            icon: params.icon ?? null,
+            metadata,
+          })
+          .select("id, key, label, hue, icon, metadata, created_at, updated_at")
+          .single();
 
-        return toolSuccess(labels, warnings);
+        if (error || !data) throw new AppError("INTERNAL_ERROR", error?.message ?? "Failed to add label");
+
+        await replaceLabelActivitySports(ctx, data.id, params.activitySports);
+        const warnings = collectMissingActivitySportWarnings([{ key: params.key, activitySports: params.activitySports }]);
+
+        return toolSuccess({ ...data, activitySports: params.activitySports }, warnings);
       } catch (error) {
         return toolError(error);
       }

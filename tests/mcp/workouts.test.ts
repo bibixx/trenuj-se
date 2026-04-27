@@ -6,6 +6,7 @@ import { extractToolError, extractToolResult, mcpCallTool, parseMcpResponse, res
 
 const VALID_PLAN_ID = "a0000000-0000-4000-8000-000000000010";
 const VALID_WORKOUT_ID = "a0000000-0000-4000-8000-000000000030";
+const VALID_WORKOUT_ID_2 = "a0000000-0000-4000-8000-000000000031";
 
 const MOCK_PLAN = {
   id: MOCK_PLAN_ID,
@@ -496,6 +497,88 @@ describe("MCP Workout Tools", () => {
     const error = extractToolError(parsed);
 
     expect(error).toBeNull();
+  });
+
+  test("batch_update_workouts updates multiple workouts, resolves labelKey, and records partial failures", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workouts: {
+          select: { data: { id: VALID_WORKOUT_ID, plan_id: MOCK_PLAN_ID, label_id: null }, error: null },
+          update: {
+            data: {
+              id: VALID_WORKOUT_ID,
+              plan_id: MOCK_PLAN_ID,
+              phase_id: null,
+              label_id: "label-1",
+              date: "2024-03-01",
+              title: "Easy Run",
+              description: "Easy aerobic run",
+              target_duration_min: 60,
+              target_distance_m: null,
+              sort_order: 0,
+              status: "planned",
+              completion_notes: null,
+              trainer_notes: null,
+              activity_id: null,
+              execution: null,
+              metadata: null,
+              created_at: "2024-01-01T00:00:00Z",
+              updated_at: "2024-01-02T00:00:00Z",
+            },
+            error: null,
+          },
+        },
+        labels: { select: { data: [MOCK_LABEL], error: null } },
+        label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "batch_update_workouts",
+        {
+          updates: [
+            { workoutId: VALID_WORKOUT_ID, labelKey: "easy-run" },
+            { workoutId: VALID_WORKOUT_ID_2, status: "skipped", completionNotes: "Sick" },
+            { workoutId: "a0000000-0000-4000-8000-000000000099", labelKey: "missing-label" },
+          ],
+        },
+        {},
+      ),
+    );
+    const result = extractToolResult(parsed);
+
+    expect(result?.result.updated).toHaveLength(2);
+    expect(result?.result.updated[0].label.key).toBe("easy-run");
+    expect(result?.result.failed).toEqual([
+      { index: 2, workoutId: "a0000000-0000-4000-8000-000000000099", errors: { code: "NOT_FOUND", message: "Label 'missing-label' not found" } },
+    ]);
+    expect(result?.warnings).toContain("1 workout(s) failed validation or update");
+
+    const updateCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "update");
+    expect(updateCalls[0]?.args[0]).toEqual(expect.objectContaining({ label_id: "label-1" }));
+    expect(updateCalls).toHaveLength(2);
+  });
+
+  test("batch_update_workouts rejects duplicate workout IDs", async () => {
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "batch_update_workouts",
+        {
+          updates: [
+            { workoutId: VALID_WORKOUT_ID, title: "One" },
+            { workoutId: VALID_WORKOUT_ID, title: "Two" },
+          ],
+        },
+        {},
+      ),
+    );
+
+    expect(JSON.stringify(parsed)).toContain(`Duplicate workoutId(s): ${VALID_WORKOUT_ID}`);
   });
 
   test("link_activity returns conflict when the activity is already linked elsewhere", async () => {
