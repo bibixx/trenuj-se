@@ -28,9 +28,44 @@ const MOCK_LABEL = {
   hue: 120,
   icon: null,
   metadata: null,
+  plan_id: MOCK_PLAN_ID,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
 };
+
+const MOCK_LABEL_RUN = {
+  ...MOCK_LABEL,
+  label_activity_sports: [{ activity_sport: "Run" }],
+};
+
+const MOCK_LABEL_NO_SPORTS = {
+  ...MOCK_LABEL,
+  label_activity_sports: [],
+};
+
+function buildExistingWorkout(overrides: Record<string, unknown> = {}) {
+  return {
+    id: VALID_WORKOUT_ID,
+    plan_id: MOCK_PLAN_ID,
+    phase_id: null,
+    label_id: null,
+    date: "2024-03-01",
+    title: "Existing",
+    description: "Existing description",
+    target_duration_min: 45,
+    target_distance_m: null,
+    sort_order: 0,
+    status: "planned",
+    completion_notes: null,
+    trainer_notes: null,
+    activity_id: null,
+    execution: null,
+    metadata: null,
+    created_at: "2024-01-01T00:00:00Z",
+    updated_at: "2024-01-01T00:00:00Z",
+    ...overrides,
+  };
+}
 
 function mockAuth() {
   return {
@@ -48,8 +83,7 @@ describe("MCP Workout Tools", () => {
         auth: mockAuth(),
         tables: {
           plans: { select: { data: MOCK_PLAN, error: null } },
-          labels: { select: { data: [MOCK_LABEL], error: null } },
-          label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
+          labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
           workouts: {
             insert: {
               data: {
@@ -109,8 +143,7 @@ describe("MCP Workout Tools", () => {
         auth: mockAuth(),
         tables: {
           plans: { select: { data: MOCK_PLAN, error: null } },
-          labels: { select: { data: [MOCK_LABEL], error: null } },
-          label_activity_sports: { select: { data: [], error: null } },
+          labels: { select: { data: [MOCK_LABEL_NO_SPORTS], error: null } },
           workouts: {
             insert: {
               data: {
@@ -157,7 +190,16 @@ describe("MCP Workout Tools", () => {
 
   test("update_workout validates execution payloads", async () => {
     setMockSupabase(
-      createMockSupabase({ auth: mockAuth(), tables: { workouts: { select: { data: { id: VALID_WORKOUT_ID, plan_id: MOCK_PLAN_ID, label_id: "label-1" }, error: null } } } }),
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: {
+          workouts: {
+            select: { data: [buildExistingWorkout({ label_id: "label-1" })], error: null },
+            upsert: { data: [buildExistingWorkout({ label_id: "label-1" })], error: null },
+          },
+          labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+        },
+      }),
     );
 
     const parsed = await parseMcpResponse(
@@ -204,8 +246,7 @@ describe("MCP Workout Tools", () => {
         auth: mockAuth(),
         tables: {
           plans: { select: { data: MOCK_PLAN, error: null } },
-          labels: { select: { data: [MOCK_LABEL], error: null } },
-          label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
+          labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
           workouts: {
             select: {
               data: [
@@ -335,8 +376,7 @@ describe("MCP Workout Tools", () => {
         auth: mockAuth(),
         tables: {
           plans: { select: { data: MOCK_PLAN, error: null } },
-          labels: { select: { data: [MOCK_LABEL], error: null } },
-          label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
+          labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
           workouts: {
             insert: {
               data: {
@@ -462,33 +502,10 @@ describe("MCP Workout Tools", () => {
         auth: mockAuth(),
         tables: {
           workouts: {
-            select: { data: { id: VALID_WORKOUT_ID, plan_id: MOCK_PLAN_ID, label_id: "label-1" }, error: null },
-            update: {
-              data: {
-                id: VALID_WORKOUT_ID,
-                plan_id: MOCK_PLAN_ID,
-                phase_id: null,
-                label_id: "label-1",
-                date: "2024-03-01",
-                title: "Easy Run",
-                description: "Easy aerobic run",
-                target_duration_min: 60,
-                target_distance_m: null,
-                sort_order: 0,
-                status: "planned",
-                completion_notes: null,
-                trainer_notes: null,
-                activity_id: null,
-                execution: null,
-                metadata: null,
-                created_at: "2024-01-01T00:00:00Z",
-                updated_at: "2024-01-01T00:00:00Z",
-              },
-              error: null,
-            },
+            select: { data: [buildExistingWorkout({ label_id: "label-1", execution: { version: 2, structure: [] } })], error: null },
+            upsert: { data: [buildExistingWorkout({ label_id: "label-1", execution: null })], error: null },
           },
-          labels: { select: { data: [MOCK_LABEL], error: null } },
-          label_activity_sports: { select: { data: [], error: null } },
+          labels: { select: { data: [MOCK_LABEL_NO_SPORTS], error: null } },
         },
       }),
     );
@@ -500,37 +517,28 @@ describe("MCP Workout Tools", () => {
   });
 
   test("batch_update_workouts updates multiple workouts, resolves labelKey, and records partial failures", async () => {
+    const BOGUS_WORKOUT_ID = "a0000000-0000-4000-8000-000000000099";
     const mock = createMockSupabase({
       auth: mockAuth(),
       tables: {
         workouts: {
-          select: { data: { id: VALID_WORKOUT_ID, plan_id: MOCK_PLAN_ID, label_id: null }, error: null },
-          update: {
-            data: {
-              id: VALID_WORKOUT_ID,
-              plan_id: MOCK_PLAN_ID,
-              phase_id: null,
-              label_id: "label-1",
-              date: "2024-03-01",
-              title: "Easy Run",
-              description: "Easy aerobic run",
-              target_duration_min: 60,
-              target_distance_m: null,
-              sort_order: 0,
-              status: "planned",
-              completion_notes: null,
-              trainer_notes: null,
-              activity_id: null,
-              execution: null,
-              metadata: null,
-              created_at: "2024-01-01T00:00:00Z",
-              updated_at: "2024-01-02T00:00:00Z",
-            },
+          select: {
+            data: [
+              buildExistingWorkout({ id: VALID_WORKOUT_ID, label_id: null }),
+              buildExistingWorkout({ id: VALID_WORKOUT_ID_2, label_id: null }),
+              buildExistingWorkout({ id: BOGUS_WORKOUT_ID, label_id: null }),
+            ],
+            error: null,
+          },
+          upsert: {
+            data: [
+              buildExistingWorkout({ id: VALID_WORKOUT_ID, label_id: "label-1" }),
+              buildExistingWorkout({ id: VALID_WORKOUT_ID_2, status: "skipped", completion_notes: "Sick" }),
+            ],
             error: null,
           },
         },
-        labels: { select: { data: [MOCK_LABEL], error: null } },
-        label_activity_sports: { select: { data: [{ label_id: "label-1", activity_sport: "Run" }], error: null } },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
       },
     });
     setMockSupabase(mock);
@@ -542,7 +550,7 @@ describe("MCP Workout Tools", () => {
           updates: [
             { workoutId: VALID_WORKOUT_ID, labelKey: "easy-run" },
             { workoutId: VALID_WORKOUT_ID_2, status: "skipped", completionNotes: "Sick" },
-            { workoutId: "a0000000-0000-4000-8000-000000000099", labelKey: "missing-label" },
+            { workoutId: BOGUS_WORKOUT_ID, labelKey: "missing-label" },
           ],
         },
         {},
@@ -552,14 +560,17 @@ describe("MCP Workout Tools", () => {
 
     expect(result?.result.updated).toHaveLength(2);
     expect(result?.result.updated[0].label.key).toBe("easy-run");
-    expect(result?.result.failed).toEqual([
-      { index: 2, workoutId: "a0000000-0000-4000-8000-000000000099", errors: { code: "NOT_FOUND", message: "Label 'missing-label' not found" } },
-    ]);
+    expect(result?.result.failed).toEqual([{ index: 2, workoutId: BOGUS_WORKOUT_ID, errors: { code: "NOT_FOUND", message: "Label 'missing-label' not found" } }]);
     expect(result?.warnings).toContain("1 workout(s) failed validation or update");
 
+    const upsertCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "upsert");
+    expect(upsertCalls).toHaveLength(1);
     const updateCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "update");
-    expect(updateCalls[0]?.args[0]).toEqual(expect.objectContaining({ label_id: "label-1" }));
-    expect(updateCalls).toHaveLength(2);
+    expect(updateCalls).toHaveLength(0);
+    const upsertPayload = upsertCalls[0]?.args[0] as Array<Record<string, unknown>>;
+    expect(upsertPayload).toHaveLength(2);
+    expect(upsertPayload[0]).toEqual(expect.objectContaining({ id: VALID_WORKOUT_ID, label_id: "label-1" }));
+    expect(upsertPayload[1]).toEqual(expect.objectContaining({ id: VALID_WORKOUT_ID_2, status: "skipped", completion_notes: "Sick" }));
   });
 
   test("batch_update_workouts rejects duplicate workout IDs", async () => {
@@ -579,6 +590,320 @@ describe("MCP Workout Tools", () => {
     );
 
     expect(JSON.stringify(parsed)).toContain(`Duplicate workoutId(s): ${VALID_WORKOUT_ID}`);
+  });
+
+  test("batch_update_workouts uses a single upsert regardless of batch size", async () => {
+    const ids = [
+      "a0000000-0000-4000-8000-000000000040",
+      "a0000000-0000-4000-8000-000000000041",
+      "a0000000-0000-4000-8000-000000000042",
+      "a0000000-0000-4000-8000-000000000043",
+      "a0000000-0000-4000-8000-000000000044",
+    ];
+    const existing = ids.map((id) => buildExistingWorkout({ id, label_id: null }));
+    const upserted = ids.map((id) => buildExistingWorkout({ id, title: "Renamed" }));
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workouts: {
+          select: { data: existing, error: null },
+          upsert: { data: upserted, error: null },
+        },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    await parseMcpResponse(
+      await mcpCallTool(
+        "batch_update_workouts",
+        {
+          updates: ids.map((workoutId) => ({ workoutId, title: "Renamed" })),
+        },
+        {},
+      ),
+    );
+
+    const upsertCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "upsert");
+    const updateCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "update");
+    expect(upsertCalls).toHaveLength(1);
+    expect(updateCalls).toHaveLength(0);
+  });
+
+  test("batch_update_workouts merges patches over existing rows", async () => {
+    const existing = buildExistingWorkout({
+      id: VALID_WORKOUT_ID,
+      title: "Original Title",
+      description: "Foo",
+      execution: { version: 2, structure: [] },
+      target_duration_min: 90,
+    });
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workouts: {
+          select: { data: [existing], error: null },
+          upsert: { data: [{ ...existing, execution: null }], error: null },
+        },
+        labels: { select: { data: [], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    await parseMcpResponse(await mcpCallTool("batch_update_workouts", { updates: [{ workoutId: VALID_WORKOUT_ID, execution: null }] }, {}));
+
+    const upsertCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "upsert");
+    const payload = upsertCalls[0]?.args[0] as Array<Record<string, unknown>>;
+    expect(payload).toHaveLength(1);
+    expect(payload[0]).toEqual(
+      expect.objectContaining({
+        id: VALID_WORKOUT_ID,
+        title: "Original Title",
+        description: "Foo",
+        target_duration_min: 90,
+        execution: null,
+      }),
+    );
+  });
+
+  test("batch_update_workouts handles cross-plan batches", async () => {
+    const PLAN_A = MOCK_PLAN_ID;
+    const PLAN_B = "a0000000-0000-4000-8000-000000000020";
+    const LABEL_A = { ...MOCK_LABEL_RUN, id: "label-a", key: "easy-a", plan_id: PLAN_A };
+    const LABEL_B = { ...MOCK_LABEL_RUN, id: "label-b", key: "easy-b", plan_id: PLAN_B };
+
+    const existingA = buildExistingWorkout({ id: VALID_WORKOUT_ID, plan_id: PLAN_A, label_id: null });
+    const existingB = buildExistingWorkout({ id: VALID_WORKOUT_ID_2, plan_id: PLAN_B, label_id: null });
+
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workouts: {
+          select: { data: [existingA, existingB], error: null },
+          upsert: {
+            data: [
+              { ...existingA, label_id: "label-a" },
+              { ...existingB, label_id: "label-b" },
+            ],
+            error: null,
+          },
+        },
+        labels: { select: { data: [LABEL_A, LABEL_B], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "batch_update_workouts",
+        {
+          updates: [
+            { workoutId: VALID_WORKOUT_ID, labelKey: "easy-a" },
+            { workoutId: VALID_WORKOUT_ID_2, labelKey: "easy-b" },
+          ],
+        },
+        {},
+      ),
+    );
+    const result = extractToolResult(parsed);
+
+    expect(result?.result.updated).toHaveLength(2);
+    expect(result?.result.updated[0].label.id).toBe("label-a");
+    expect(result?.result.updated[1].label.id).toBe("label-b");
+
+    const labelsSelectCalls = mock.calls.filter((call) => call.table === "labels" && call.operation === "select");
+    expect(labelsSelectCalls).toHaveLength(1);
+  });
+
+  test("batch_update_workouts records NOT_FOUND for missing workoutId without aborting", async () => {
+    const MISSING_ID = "a0000000-0000-4000-8000-000000000077";
+    const existing = [buildExistingWorkout({ id: VALID_WORKOUT_ID, label_id: null }), buildExistingWorkout({ id: VALID_WORKOUT_ID_2, label_id: null })];
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workouts: {
+          select: { data: existing, error: null },
+          upsert: { data: existing.map((row) => ({ ...row, title: "Renamed" })), error: null },
+        },
+        labels: { select: { data: [], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "batch_update_workouts",
+        {
+          updates: [
+            { workoutId: VALID_WORKOUT_ID, title: "Renamed" },
+            { workoutId: VALID_WORKOUT_ID_2, title: "Renamed" },
+            { workoutId: MISSING_ID, title: "Renamed" },
+          ],
+        },
+        {},
+      ),
+    );
+    const result = extractToolResult(parsed);
+
+    expect(result?.result.updated).toHaveLength(2);
+    expect(result?.result.failed).toEqual([{ index: 2, workoutId: MISSING_ID, errors: { code: "NOT_FOUND", message: "Workout not found" } }]);
+
+    const upsertCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "upsert");
+    const payload = upsertCalls[0]?.args[0] as Array<Record<string, unknown>>;
+    expect(payload).toHaveLength(2);
+  });
+
+  test("batch_update_workouts preserves existing label_id when no label change requested", async () => {
+    const existing = buildExistingWorkout({ id: VALID_WORKOUT_ID, label_id: "label-1" });
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workouts: {
+          select: { data: [existing], error: null },
+          upsert: { data: [{ ...existing, status: "skipped" }], error: null },
+        },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    await parseMcpResponse(await mcpCallTool("batch_update_workouts", { updates: [{ workoutId: VALID_WORKOUT_ID, status: "skipped" }] }, {}));
+
+    const upsertCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "upsert");
+    const payload = upsertCalls[0]?.args[0] as Array<Record<string, unknown>>;
+    expect(payload[0]).toEqual(expect.objectContaining({ label_id: "label-1", status: "skipped" }));
+  });
+
+  test("batch_update_workouts returns hydrated label from cache without an extra fetch", async () => {
+    const existing = buildExistingWorkout({ id: VALID_WORKOUT_ID, label_id: null });
+    const upserted = { ...existing, label_id: "label-1" };
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workouts: {
+          select: { data: [existing], error: null },
+          upsert: { data: [upserted], error: null },
+        },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("batch_update_workouts", { updates: [{ workoutId: VALID_WORKOUT_ID, labelKey: "easy-run" }] }, {}));
+    const result = extractToolResult(parsed);
+
+    expect(result?.result.updated[0].label).toEqual(
+      expect.objectContaining({
+        id: "label-1",
+        key: "easy-run",
+        activitySports: ["Run"],
+      }),
+    );
+
+    const labelsSelectCalls = mock.calls.filter((call) => call.table === "labels" && call.operation === "select");
+    expect(labelsSelectCalls).toHaveLength(1);
+  });
+
+  test("update_workout routes through the bulk upsert path", async () => {
+    const existing = buildExistingWorkout({ id: VALID_WORKOUT_ID, label_id: "label-1" });
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workouts: {
+          select: { data: [existing], error: null },
+          upsert: { data: [{ ...existing, title: "New Title" }], error: null },
+        },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    await parseMcpResponse(await mcpCallTool("update_workout", { workoutId: VALID_WORKOUT_ID, title: "New Title" }, {}));
+
+    const upsertCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "upsert");
+    const updateCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "update");
+    expect(upsertCalls).toHaveLength(1);
+    expect(updateCalls).toHaveLength(0);
+  });
+
+  test("update_workout returns NOT_FOUND for missing workoutId", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: {
+          workouts: { select: { data: [], error: null } },
+          labels: { select: { data: [], error: null } },
+        },
+      }),
+    );
+
+    const parsed = await parseMcpResponse(await mcpCallTool("update_workout", { workoutId: VALID_WORKOUT_ID, title: "New" }, {}));
+    const error = extractToolError(parsed);
+
+    expect(error).toEqual({ code: "NOT_FOUND", message: "Workout not found" });
+  });
+
+  test("update_workout returns NOT_FOUND for missing labelKey", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: {
+          workouts: { select: { data: [buildExistingWorkout({ id: VALID_WORKOUT_ID, label_id: null })], error: null } },
+          labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+        },
+      }),
+    );
+
+    const parsed = await parseMcpResponse(await mcpCallTool("update_workout", { workoutId: VALID_WORKOUT_ID, labelKey: "missing-label" }, {}));
+    const error = extractToolError(parsed);
+
+    expect(error).toEqual({ code: "NOT_FOUND", message: "Label 'missing-label' not found" });
+  });
+
+  test("update_workout clears multiple nullable fields together", async () => {
+    const existing = buildExistingWorkout({
+      id: VALID_WORKOUT_ID,
+      label_id: "label-1",
+      description: "Old desc",
+      trainer_notes: "Coach note",
+      execution: { version: 2, structure: [] },
+    });
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workouts: {
+          select: { data: [existing], error: null },
+          upsert: { data: [{ ...existing, description: null, trainer_notes: null, execution: null }], error: null },
+        },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    await parseMcpResponse(
+      await mcpCallTool(
+        "update_workout",
+        {
+          workoutId: VALID_WORKOUT_ID,
+          description: null,
+          trainerNotes: null,
+          execution: null,
+        },
+        {},
+      ),
+    );
+
+    const upsertCalls = mock.calls.filter((call) => call.table === "workouts" && call.operation === "upsert");
+    const payload = upsertCalls[0]?.args[0] as Array<Record<string, unknown>>;
+    expect(payload[0]).toEqual(
+      expect.objectContaining({
+        description: null,
+        trainer_notes: null,
+        execution: null,
+        label_id: "label-1",
+        title: existing.title,
+      }),
+    );
   });
 
   test("link_activity returns conflict when the activity is already linked elsewhere", async () => {

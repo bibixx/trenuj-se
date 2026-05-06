@@ -112,42 +112,43 @@ const batchUpdateWorkoutsSchema = z
     }
   });
 
-async function getPlanLabels(ctx: McpContext, planId: string) {
-  const [{ data: labels, error: labelsError }, { data: activitySports, error: activitySportsError }] = await Promise.all([
-    ctx.supabase
-      .from("labels")
-      .select("id, key, label, hue, icon, metadata, created_at, updated_at")
-      .eq("plan_id", planId)
-      .eq("user_id", ctx.userId)
-      .order("label", { ascending: true }),
-    ctx.supabase.from("label_activity_sports").select("label_id, activity_sport").eq("user_id", ctx.userId),
-  ]);
+type PlanLabel = {
+  id: string;
+  key: string;
+  label: string;
+  hue: number;
+  icon: string | null;
+  metadata: Record<string, unknown> | null;
+  planId: string;
+  activitySports: string[];
+};
 
-  if (labelsError) throw new AppError("INTERNAL_ERROR", labelsError.message);
-  if (activitySportsError) throw new AppError("INTERNAL_ERROR", activitySportsError.message);
+async function getPlanLabels(ctx: McpContext, planIds: string[]): Promise<PlanLabel[]> {
+  if (planIds.length === 0) return [];
 
-  const labelIds = new Set((labels ?? []).map((label) => label.id));
-  const sportsByLabelId = new Map<string, string[]>();
-  for (const row of activitySports ?? []) {
-    if (!labelIds.has(row.label_id)) continue;
-    const current = sportsByLabelId.get(row.label_id) ?? [];
-    current.push(row.activity_sport);
-    sportsByLabelId.set(row.label_id, current);
-  }
+  const { data, error } = await ctx.supabase
+    .from("labels")
+    .select("id, key, label, hue, icon, metadata, plan_id, label_activity_sports(activity_sport)")
+    .in("plan_id", planIds)
+    .eq("user_id", ctx.userId)
+    .order("label", { ascending: true });
 
-  return (labels ?? []).map((label) => ({
-    id: label.id,
-    key: label.key,
-    label: label.label,
-    hue: label.hue,
-    icon: label.icon,
-    metadata: label.metadata,
-    activitySports: sportsByLabelId.get(label.id) ?? [],
+  if (error) throw new AppError("INTERNAL_ERROR", error.message);
+
+  return (data ?? []).map((label: Record<string, unknown>) => ({
+    id: label["id"] as string,
+    key: label["key"] as string,
+    label: label["label"] as string,
+    hue: label["hue"] as number,
+    icon: (label["icon"] as string | null) ?? null,
+    metadata: (label["metadata"] as Record<string, unknown> | null) ?? null,
+    planId: label["plan_id"] as string,
+    activitySports: ((label["label_activity_sports"] as Array<{ activity_sport: string }> | null) ?? []).map((row) => row.activity_sport),
   }));
 }
 
 async function resolveWorkoutLabel(ctx: McpContext, planId: string, input: { labelId?: string; labelKey?: string }) {
-  const labels = await getPlanLabels(ctx, planId);
+  const labels = await getPlanLabels(ctx, [planId]);
   const label = input.labelId ? labels.find((candidate) => candidate.id === input.labelId) : labels.find((candidate) => candidate.key === input.labelKey);
 
   if (!label) {
@@ -162,7 +163,7 @@ function buildMissingActivitySportWarnings(label: { key: string; activitySports:
 }
 
 async function attachLabels(ctx: McpContext, planId: string, workouts: Array<Record<string, unknown>>) {
-  const labels = await getPlanLabels(ctx, planId);
+  const labels = await getPlanLabels(ctx, [planId]);
   const labelsById = new Map(labels.map((label) => [label.id, label]));
 
   return workouts.map((workout) => ({
@@ -190,41 +191,143 @@ function serializeWorkoutUpdateError(error: unknown) {
   return String(error);
 }
 
-async function applyWorkoutUpdate(ctx: McpContext, params: UpdateWorkoutParams) {
-  const { data: existingWorkout, error: existingError } = await ctx.supabase
-    .from("workouts")
-    .select("id, plan_id, label_id")
-    .eq("id", params.workoutId)
-    .eq("user_id", ctx.userId)
-    .maybeSingle();
+type BatchUpdateWorkoutsParams = z.infer<typeof batchUpdateWorkoutsSchema>;
+
+type BatchFailure = { index: number; workoutId: string; errors: unknown };
+
+function mapBatchFailureToAppError(errors: unknown): AppError {
+  if (errors && typeof errors === "object" && !Array.isArray(errors) && "code" in errors && "message" in errors) {
+    const { code, message } = errors as { code: AppError["code"]; message: string };
+    return new AppError(code, message);
+  }
+
+  if (Array.isArray(errors)) {
+    return new AppError("VALIDATION_ERROR", "Workout update failed validation", errors);
+  }
+
+  return new AppError("INTERNAL_ERROR", typeof errors === "string" ? errors : "Workout update failed");
+}
+
+async function applyBatchWorkoutUpdates(ctx: McpContext, params: BatchUpdateWorkoutsParams) {
+  const parsedRows: Array<{ index: number; update: UpdateWorkoutParams }> = [];
+  const failed: BatchFailure[] = [];
+
+  for (const [index, raw] of params.updates.entries()) {
+    try {
+      parsedRows.push({ index, update: updateWorkoutSchema.parse(raw) });
+    } catch (error) {
+      const workoutId = (raw && typeof raw === "object" && "workoutId" in raw && typeof raw.workoutId === "string" ? raw.workoutId : "") || "(missing)";
+      failed.push({ index, workoutId, errors: serializeWorkoutUpdateError(error) });
+    }
+  }
+
+  if (parsedRows.length === 0) {
+    return { updated: [] as unknown[], failed, warnings: [] as string[] };
+  }
+
+  const ids = parsedRows.map((row) => row.update.workoutId);
+  const { data: existingRowsRaw, error: existingError } = await ctx.supabase.from("workouts").select(workoutSelect).in("id", ids).eq("user_id", ctx.userId);
   if (existingError) throw new AppError("INTERNAL_ERROR", existingError.message);
-  if (!existingWorkout) throw new AppError("NOT_FOUND", "Workout not found");
+  const existingRows = (existingRowsRaw ?? []) as Array<Record<string, unknown>>;
 
-  const nextLabel = params.labelId || params.labelKey ? await resolveWorkoutLabel(ctx, existingWorkout.plan_id, params) : null;
-  const patch = {
-    date: params.date,
-    label_id: nextLabel?.id,
-    title: params.title,
-    description: params.description,
-    target_duration_min: params.targetDurationMin,
-    target_distance_m: params.targetDistanceM,
-    phase_id: params.phaseId,
-    sort_order: params.sortOrder,
-    status: params.status,
-    completion_notes: params.completionNotes,
-    trainer_notes: params.trainerNotes,
-    execution: params.execution === undefined ? undefined : (params.execution ?? null),
-    metadata: params.metadata === undefined ? undefined : validateWorkoutMetadata(params.metadata),
-  };
-  const cleanedPatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined));
+  const existingById = new Map(existingRows.map((row) => [row["id"] as string, row]));
 
-  const { data, error } = await ctx.supabase.from("workouts").update(cleanedPatch).eq("id", params.workoutId).eq("user_id", ctx.userId).select(workoutSelect).maybeSingle();
+  const distinctPlanIds = [...new Set(existingRows.map((row) => row["plan_id"] as string))];
+  const labels = await getPlanLabels(ctx, distinctPlanIds);
+  const labelsById = new Map(labels.map((label) => [label.id, label]));
+  const labelsByPlanAndKey = new Map<string, Map<string, PlanLabel>>();
+  for (const label of labels) {
+    let bucket = labelsByPlanAndKey.get(label.planId);
+    if (!bucket) {
+      bucket = new Map();
+      labelsByPlanAndKey.set(label.planId, bucket);
+    }
+    bucket.set(label.key, label);
+  }
 
-  if (error) throw new AppError("INTERNAL_ERROR", error.message);
-  if (!data) throw new AppError("NOT_FOUND", "Workout not found");
-  const [withLabel] = await attachLabels(ctx, existingWorkout.plan_id, [data]);
-  const warnings = withLabel?.label ? buildMissingActivitySportWarnings(withLabel.label) : [];
-  return { workout: withLabel, warnings };
+  const mergedRows: Array<Record<string, unknown>> = [];
+  const validRows: Array<{ index: number; update: UpdateWorkoutParams; labelForResponse: PlanLabel | null }> = [];
+
+  for (const { index, update } of parsedRows) {
+    const existing = existingById.get(update.workoutId);
+    if (!existing) {
+      failed.push({ index, workoutId: update.workoutId, errors: { code: "NOT_FOUND", message: "Workout not found" } });
+      continue;
+    }
+
+    let nextLabelId: string | null = (existing["label_id"] as string | null) ?? null;
+    if (update.labelId || update.labelKey) {
+      const planId = existing["plan_id"] as string;
+      const planLabels = labelsByPlanAndKey.get(planId);
+      const resolved = update.labelId ? labelsById.get(update.labelId) : planLabels?.get(update.labelKey!);
+      if (!resolved || resolved.planId !== planId) {
+        failed.push({
+          index,
+          workoutId: update.workoutId,
+          errors: { code: "NOT_FOUND", message: update.labelId ? "Label not found" : `Label '${update.labelKey}' not found` },
+        });
+        continue;
+      }
+      nextLabelId = resolved.id;
+    }
+
+    let metadata: unknown = existing["metadata"];
+    if (update.metadata !== undefined) {
+      try {
+        metadata = update.metadata === null ? null : validateWorkoutMetadata(update.metadata);
+      } catch (error) {
+        failed.push({ index, workoutId: update.workoutId, errors: serializeWorkoutUpdateError(error) });
+        continue;
+      }
+    }
+
+    const merged: Record<string, unknown> = {
+      id: existing["id"],
+      plan_id: existing["plan_id"],
+      user_id: ctx.userId,
+      phase_id: update.phaseId === undefined ? existing["phase_id"] : update.phaseId,
+      label_id: nextLabelId,
+      activity_id: existing["activity_id"],
+      date: update.date ?? existing["date"],
+      title: update.title ?? existing["title"],
+      description: update.description === undefined ? existing["description"] : update.description,
+      target_duration_min: update.targetDurationMin === undefined ? existing["target_duration_min"] : update.targetDurationMin,
+      target_distance_m: update.targetDistanceM === undefined ? existing["target_distance_m"] : update.targetDistanceM,
+      sort_order: update.sortOrder ?? existing["sort_order"],
+      status: update.status ?? existing["status"],
+      completion_notes: update.completionNotes === undefined ? existing["completion_notes"] : update.completionNotes,
+      trainer_notes: update.trainerNotes === undefined ? existing["trainer_notes"] : update.trainerNotes,
+      execution: update.execution === undefined ? existing["execution"] : (update.execution ?? null),
+      metadata,
+      created_at: existing["created_at"],
+      updated_at: existing["updated_at"],
+    };
+
+    mergedRows.push(merged);
+    const labelForResponse = nextLabelId ? (labelsById.get(nextLabelId) ?? null) : null;
+    validRows.push({ index, update, labelForResponse });
+  }
+
+  if (mergedRows.length === 0) {
+    return { updated: [] as unknown[], failed, warnings: [] as string[] };
+  }
+
+  const { data: upsertedRaw, error: upsertError } = await ctx.supabase.from("workouts").upsert(mergedRows, { onConflict: "id" }).select(workoutSelect);
+  if (upsertError) throw new AppError("INTERNAL_ERROR", upsertError.message);
+
+  const upserted = (upsertedRaw ?? []) as Array<Record<string, unknown>>;
+  const upsertedById = new Map(upserted.map((row) => [row["id"] as string, row]));
+  const updated: unknown[] = [];
+  const warnings: string[] = [];
+
+  for (const { update, labelForResponse } of validRows) {
+    const row = upsertedById.get(update.workoutId);
+    if (!row) continue;
+    updated.push({ ...row, label: labelForResponse });
+    if (labelForResponse) warnings.push(...buildMissingActivitySportWarnings(labelForResponse));
+  }
+
+  return { updated, failed, warnings: [...new Set(warnings)] };
 }
 
 export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
@@ -309,8 +412,9 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
     async (input) => {
       try {
         const params = updateWorkoutSchema.parse(input);
-        const { workout, warnings } = await applyWorkoutUpdate(ctx, params);
-        return toolSuccess(workout, warnings);
+        const { updated, failed, warnings } = await applyBatchWorkoutUpdates(ctx, { updates: [params] });
+        if (failed.length > 0) throw mapBatchFailureToAppError(failed[0]?.errors);
+        return toolSuccess(updated[0], warnings);
       } catch (error) {
         return toolError(error);
       }
@@ -329,28 +433,14 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
     async (input) => {
       try {
         const params = batchUpdateWorkoutsSchema.parse(input);
-        const updated: unknown[] = [];
-        const failed: Array<{ index: number; workoutId: string; errors: unknown }> = [];
-        const warnings: string[] = [];
-
-        for (const [index, update] of params.updates.entries()) {
-          try {
-            const { workout, warnings: updateWarnings } = await applyWorkoutUpdate(ctx, update);
-            updated.push(workout);
-            warnings.push(...updateWarnings);
-          } catch (error) {
-            failed.push({ index, workoutId: update.workoutId, errors: serializeWorkoutUpdateError(error) });
-          }
-        }
+        const { updated, failed, warnings } = await applyBatchWorkoutUpdates(ctx, params);
 
         if (updated.length === 0) {
           throw new AppError("VALIDATION_ERROR", "No workouts were updated", failed);
         }
-
         if (failed.length > 0) {
           warnings.push(`${failed.length} workout(s) failed validation or update`);
         }
-
         return toolSuccess({ updated, failed }, [...new Set(warnings)]);
       } catch (error) {
         return toolError(error);
