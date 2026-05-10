@@ -223,10 +223,19 @@ export async function matchAndStoreActivity(
     return null;
   }
 
+  const { data: activePlan, error: activePlanError } = await supabase.from("plans").select("id").eq("user_id", userId).eq("status", "active").maybeSingle();
+  if (activePlanError) {
+    throw new AppError("INTERNAL_ERROR", activePlanError.message);
+  }
+  if (!activePlan) {
+    return null;
+  }
+
   const { data: workouts, error: workoutsError } = await supabase
     .from("workouts")
     .select("id, title, label_id, sort_order")
     .eq("user_id", userId)
+    .eq("plan_id", activePlan.id)
     .eq("date", localDate)
     .eq("status", "planned")
     .order("sort_order", { ascending: true })

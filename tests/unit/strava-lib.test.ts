@@ -160,6 +160,9 @@ describe("matchAndStoreActivity", () => {
           ],
           insert: { data: null, error: null },
         },
+        plans: {
+          select: { data: { id: "plan-1" }, error: null },
+        },
         workouts: {
           select: { data: [{ id: "workout-uuid", title: "Long Trail Run", label_id: "label-1", sort_order: 1 }], error: null },
           update: { data: null, error: null },
@@ -188,6 +191,9 @@ describe("matchAndStoreActivity", () => {
             { data: [], error: null },
           ],
         },
+        plans: {
+          select: { data: { id: "plan-1" }, error: null },
+        },
         workouts: {
           select: { data: [{ id: "workout-uuid", title: "Long Trail Run", label_id: "label-1", sort_order: 1 }], error: null },
         },
@@ -210,6 +216,26 @@ describe("matchAndStoreActivity", () => {
     });
 
     await expect(matchAndStoreActivity(mock.client, MOCK_USER_ID, SAMPLE_STRAVA_ACTIVITY)).resolves.toBeNull();
+  });
+
+  test("returns null when the user has no active plan", async () => {
+    const mock = createMockSupabase({
+      tables: {
+        workout_activities: {
+          select: { data: null, error: null },
+        },
+        plans: {
+          select: { data: null, error: null },
+        },
+      },
+    });
+
+    await expect(matchAndStoreActivity(mock.client, MOCK_USER_ID, SAMPLE_STRAVA_ACTIVITY)).resolves.toBeNull();
+
+    const workoutsSelectCall = mock.calls.find((c) => c.table === "workouts" && c.operation === "select");
+    expect(workoutsSelectCall).toBeUndefined();
+    const insertCall = mock.calls.find((c) => c.table === "workout_activities" && c.operation === "insert");
+    expect(insertCall).toBeUndefined();
   });
 });
 
