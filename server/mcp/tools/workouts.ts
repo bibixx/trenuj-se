@@ -43,7 +43,7 @@ const workoutInputSchema = workoutLabelRefSchema.extend({
   execution: executionSchema
     .optional()
     .describe(
-      "Structured machine-readable workout definition. IMPORTANT: this is execution schema version 2. Use `alert`, not `cue`. Supported blocks: `warmup`, `cooldown`, `steady`, `rest`, `free`, `interval`, `repeat`. Each step/phase may have `displayName` and at most one alert (`heartRateZone`, `heartRateRange`, `paceRange`, `paceThreshold`, `powerRange`, `powerThreshold`, `cadenceRange`, `cadenceThreshold`). Unsupported here: `strength`, `note`, `lap-button`, `poolLengthMeters`, `displayHints`, and `appleWatch.alerts`. Fill this in whenever the workout can be represented precisely with that model — it powers Apple Watch export (.workout files), structured views, and analytics. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known.",
+      "OPTIONAL in the schema but EXPECTED in practice — fill this in whenever the workout can be represented as warmup/steady/interval/cooldown blocks (most runs, rides, and swims). ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known. Powers Apple Watch export (.workout files), structured views, and analytics. Schema: v2. Use `alert`, not `cue`. Supported blocks: `warmup`, `cooldown`, `steady`, `rest`, `free`, `interval`, `repeat`. Each step/phase may have `displayName` and at most one alert (`heartRateZone`, `heartRateRange`, `paceRange`, `paceThreshold`, `powerRange`, `powerThreshold`, `cadenceRange`, `cadenceThreshold`). Unsupported here: `strength`, `note`, `lap-button`, `poolLengthMeters`, `displayHints`, and `appleWatch.alerts`.",
     ),
   metadata: z.unknown().optional().describe("Arbitrary key-value data."),
 });
@@ -80,7 +80,7 @@ const updateWorkoutSchema = z
       .nullable()
       .optional()
       .describe(
-        "Structured machine-readable workout definition. IMPORTANT: this is execution schema version 2. Use `alert`, not `cue`. Supported blocks: `warmup`, `cooldown`, `steady`, `rest`, `free`, `interval`, `repeat`. Each step/phase may have `displayName` and at most one alert (`heartRateZone`, `heartRateRange`, `paceRange`, `paceThreshold`, `powerRange`, `powerThreshold`, `cadenceRange`, `cadenceThreshold`). Unsupported here: `strength`, `note`, `lap-button`, `poolLengthMeters`, `displayHints`, and `appleWatch.alerts`. Add or update this whenever the workout can be represented precisely with that model — it powers Apple Watch export (.workout files) and structured views. ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known. Set to null to clear.",
+        "OPTIONAL in the schema but EXPECTED in practice — add or update this whenever the workout can be represented as warmup/steady/interval/cooldown blocks (most runs, rides, and swims). ALWAYS set `appleWatch.activityType` and `appleWatch.location` when the sport is known. Powers Apple Watch export (.workout files), structured views, and analytics. Schema: v2. Use `alert`, not `cue`. Supported blocks: `warmup`, `cooldown`, `steady`, `rest`, `free`, `interval`, `repeat`. Each step/phase may have `displayName` and at most one alert (`heartRateZone`, `heartRateRange`, `paceRange`, `paceThreshold`, `powerRange`, `powerThreshold`, `cadenceRange`, `cadenceThreshold`). Unsupported here: `strength`, `note`, `lap-button`, `poolLengthMeters`, `displayHints`, and `appleWatch.alerts`. Set to null to clear.",
       ),
     metadata: z.unknown().nullable().optional().describe("Arbitrary key-value data. Set to null to clear."),
   })
@@ -161,6 +161,10 @@ async function resolveWorkoutLabel(ctx: McpContext, planId: string, input: { lab
 
 function buildMissingActivitySportWarnings(label: { key: string; activitySports: string[] }) {
   return label.activitySports.length === 0 ? [`Workout label '${label.key}' has no activitySports; linking imported activities may require manual matching.`] : [];
+}
+
+function buildMissingExecutionWarning(workout: { title: string }) {
+  return `Workout '${workout.title}' was created without execution data. Most workouts should include structured blocks (warmup/steady/interval/cooldown) plus appleWatch.activityType+location for Apple Watch export. Omit only for genuinely unstructured workouts (e.g. pure strength).`;
 }
 
 async function attachLabels(ctx: McpContext, planId: string, workouts: Array<Record<string, unknown>>) {
@@ -336,7 +340,7 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
     {
       title: "Add Workouts",
       description:
-        "Add one or more workouts to the active plan, or to a specific plan when planId is provided. Returns partial results if some fail validation. ⚠️ NOT idempotent — calling twice with the same data creates duplicates. If a previous call failed or you are retrying, use get_workouts first to check what already exists.",
+        "Add one or more workouts to the active plan, or to a specific plan when planId is provided. Each workout SHOULD include `execution` with structured blocks plus `appleWatch.activityType`/`location` whenever the sport is known — the response will warn when omitted. Skip only for genuinely unstructured workouts (e.g. pure strength). Returns partial results if some fail validation. ⚠️ NOT idempotent — calling twice with the same data creates duplicates. If a previous call failed or you are retrying, use get_workouts first to check what already exists.",
       inputSchema: addWorkoutsSchema,
       annotations: { idempotentHint: false },
     },
@@ -381,6 +385,9 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
 
             inserted.push({ ...data, label });
             warnings.push(...buildMissingActivitySportWarnings(label));
+            if (execution === null) {
+              warnings.push(buildMissingExecutionWarning(parsed));
+            }
           } catch (error) {
             failed.push({ index, errors: error instanceof z.ZodError ? error.issues : String(error) });
           }

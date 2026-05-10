@@ -124,6 +124,7 @@ describe("MCP Workout Tools", () => {
               description: "Easy aerobic run",
               targetDurationMin: 60,
               sortOrder: 0,
+              execution: { version: 2, structure: [{ type: "steady", target: { type: "time", seconds: 600 } }] },
             },
           ],
         },
@@ -175,7 +176,16 @@ describe("MCP Workout Tools", () => {
         "add_workouts",
         {
           planId: VALID_PLAN_ID,
-          workouts: [{ date: "2024-03-01", labelKey: "easy-run", title: "Easy Run", description: "Easy aerobic run", sortOrder: 0 }],
+          workouts: [
+            {
+              date: "2024-03-01",
+              labelKey: "easy-run",
+              title: "Easy Run",
+              description: "Easy aerobic run",
+              sortOrder: 0,
+              execution: { version: 2, structure: [{ type: "steady", target: { type: "time", seconds: 600 } }] },
+            },
+          ],
         },
         {},
       ),
@@ -183,6 +193,118 @@ describe("MCP Workout Tools", () => {
     const result = extractToolResult(parsed);
 
     expect(result?.warnings).toContain("Workout label 'easy-run' has no activitySports; linking imported activities may require manual matching.");
+  });
+
+  test("add_workouts warns when a workout is created without execution", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: {
+          plans: { select: { data: MOCK_PLAN, error: null } },
+          labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+          workouts: {
+            insert: {
+              data: {
+                id: MOCK_WORKOUT_ID,
+                plan_id: MOCK_PLAN_ID,
+                phase_id: null,
+                label_id: "label-1",
+                date: "2024-03-01",
+                title: "Easy Run",
+                description: "Easy aerobic run",
+                target_duration_min: 60,
+                target_distance_m: null,
+                sort_order: 0,
+                status: "planned",
+                completion_notes: null,
+                trainer_notes: null,
+                execution: null,
+                metadata: null,
+                created_at: "2024-01-01T00:00:00Z",
+                updated_at: "2024-01-01T00:00:00Z",
+              },
+              error: null,
+            },
+          },
+        },
+      }),
+    );
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "add_workouts",
+        {
+          planId: VALID_PLAN_ID,
+          workouts: [{ date: "2024-03-01", labelKey: "easy-run", title: "Easy Run", description: "Easy aerobic run", sortOrder: 0 }],
+        },
+        {},
+      ),
+    );
+    const result = extractToolResult(parsed);
+
+    expect(result?.warnings).toContain(
+      "Workout 'Easy Run' was created without execution data. Most workouts should include structured blocks (warmup/steady/interval/cooldown) plus appleWatch.activityType+location for Apple Watch export. Omit only for genuinely unstructured workouts (e.g. pure strength).",
+    );
+  });
+
+  test("add_workouts does not warn about missing execution when execution is provided", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: {
+          plans: { select: { data: MOCK_PLAN, error: null } },
+          labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+          workouts: {
+            insert: {
+              data: {
+                id: MOCK_WORKOUT_ID,
+                plan_id: MOCK_PLAN_ID,
+                phase_id: null,
+                label_id: "label-1",
+                date: "2024-03-01",
+                title: "Easy Run",
+                description: "Easy aerobic run",
+                target_duration_min: null,
+                target_distance_m: null,
+                sort_order: 0,
+                status: "planned",
+                completion_notes: null,
+                trainer_notes: null,
+                execution: null,
+                metadata: null,
+                created_at: "2024-01-01T00:00:00Z",
+                updated_at: "2024-01-01T00:00:00Z",
+              },
+              error: null,
+            },
+          },
+        },
+      }),
+    );
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "add_workouts",
+        {
+          planId: VALID_PLAN_ID,
+          workouts: [
+            {
+              date: "2024-03-01",
+              labelKey: "easy-run",
+              title: "Easy Run",
+              description: "Easy aerobic run",
+              sortOrder: 0,
+              execution: { version: 2, structure: [{ type: "steady", target: { type: "time", seconds: 600 } }] },
+            },
+          ],
+        },
+        {},
+      ),
+    );
+    const result = extractToolResult(parsed);
+
+    const missingExecutionWarning = result?.warnings?.find((warning: string) => warning.includes("was created without execution data"));
+    expect(missingExecutionWarning).toBeUndefined();
   });
 
   test("update_workout validates execution payloads", async () => {
