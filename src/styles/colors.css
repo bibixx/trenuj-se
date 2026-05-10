@@ -8,11 +8,11 @@
 :root,
 [data-theme="dark"] {
   /* Surfaces */
-  --bg: oklch(0.1766 0.0103 294.4);
+  --bg: oklch(0.1766 0.0103 119);
   --bg-card: oklch(1 0 none / 0.05);
   --bg-inset: oklch(1 0 none / 0.03);
   --bg-hover: oklch(1 0 none / 0.08);
-  --bg-elevated: oklch(0.22 0.0097 285.5);
+  --bg-elevated: oklch(0.22 0.0097 119);
 
   /* Text Base */
   --text-primary-base: 0.9707 0.0027 none;
@@ -64,16 +64,16 @@
 }
 
 [data-theme="light"] {
-  --accent-base: 0.91 0.23 120.79;
+  --accent-base: 0.56 0.66 122;
   --accent: oklch(var(--accent-base));
   --success: oklch(0.71 0.29 146.95);
 
   /* Surfaces */
-  --bg: oklch(0.965 0.004 286);
+  --bg: oklch(0.965 0.01 122);
   --bg-card: oklch(1 0 none / 0.78);
   --bg-inset: oklch(0.19 0.01 285 / 0.045);
   --bg-hover: oklch(0.19 0.01 285 / 0.075);
-  --bg-elevated: oklch(0.992 0.002 286);
+  --bg-elevated: oklch(0.992 0.002 120);
 
   /* Text Base */
   --text-primary-base: 0.24 0.012 286;
@@ -85,7 +85,7 @@
   --text-muted-base: 0.24 0.012 286;
   --text-muted-opacity: 0.5;
 
-  --text-on-accent-base: 0.24 0.012 286;
+  --text-on-accent-base: 0.98 0.003 120;
   --text-on-accent-opacity: 1;
 
   /* Borders / overlays / shadows */
@@ -104,10 +104,10 @@
   /* Workout hue recipes */
   --workout-tint-lightness: 1;
   --workout-tint-chroma: 0.032;
-  --workout-accent-lightness: 0.8;
-  --workout-accent-chroma: 0.48;
+  --workout-accent-lightness: 0.7;
+  --workout-accent-chroma: 0.7;
   --workout-neutral-tint: rgba(4, 4, 26, 0.035);
-  --workout-neutral-accent: rgba(4, 4, 26, 0.22);
+  --workout-neutral-accent: rgba(4, 4, 26, 0.8);
 
   /* Border Shine (signature light treatment) */
   --border-shine: rgba(4, 4, 26, 0.27) 0px -0.5px 0.25px 0px inset, rgba(0, 0, 0, 0) 0px 0px 0px 0px inset, rgba(5, 5, 26, 0.18) 0px 0px 2px 0px;
