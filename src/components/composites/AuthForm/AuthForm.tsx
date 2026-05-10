@@ -87,12 +87,6 @@ export function AuthForm({ mode, initialEmail, returnTo }: AuthFormProps) {
             </Link>
           </p>
         </Card>
-        <p className={styles.footer}>
-          Made by{" "}
-          <a href="https://legiec.io" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>
-            @bibixx
-          </a>
-        </p>
       </div>
     </PageLayout>
   );

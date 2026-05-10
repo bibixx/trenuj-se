@@ -1,0 +1,56 @@
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.heading {
+  composes: typography-2xl from global;
+  color: var(--text-primary);
+}
+
+.lastUpdate {
+  composes: typography-sm from global;
+  color: var(--text-muted);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionHeading {
+  composes: typography-lg from global;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.body {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 20px;
+  list-style: disc;
+}
+
+.term {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.link {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

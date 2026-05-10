@@ -5,6 +5,7 @@ import { profileQueryOptions } from "../../../lib/queries/profile.ts";
 import { Badge } from "../../primitives/Badge/Badge.tsx";
 import { ScrollAreaComponent as ScrollArea } from "../../primitives/ScrollArea/ScrollArea.tsx";
 import { ChromeHeader } from "../ChromeHeader/ChromeHeader.tsx";
+import { Footer } from "../Footer/Footer.tsx";
 import styles from "./PageLayout.module.css";
 
 interface PageLayoutProps {
@@ -27,6 +28,7 @@ export function PageLayout({ children, headerActions, centerHeader }: PageLayout
             </ChromeHeader.Actions>
           </ChromeHeader.Root>
           {children}
+          <Footer />
         </ScrollArea.Content>
       </ScrollArea.Viewport>
       <ScrollArea.Scrollbar />

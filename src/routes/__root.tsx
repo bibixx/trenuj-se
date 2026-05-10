@@ -15,13 +15,14 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 const PUBLIC_PREFIXES = ["/dev/", "/share/", "/oauth/"];
+const PUBLIC_ROUTES = ["/help", "/privacy-policy"];
 const AUTH_ROUTES = ["/login", "/signup"];
 
 function RootLayout() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  const isPublic = PUBLIC_PREFIXES.some((p) => location.pathname.startsWith(p));
+  const isPublic = PUBLIC_PREFIXES.some((p) => location.pathname.startsWith(p)) || PUBLIC_ROUTES.includes(location.pathname);
   const isAuthRoute = AUTH_ROUTES.includes(location.pathname);
 
   // Fetch active plan when logged in — used to scope Realtime subscriptions

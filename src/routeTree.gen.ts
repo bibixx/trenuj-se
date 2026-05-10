@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PrivacyPolicyRouteImport } from './routes/privacy-policy'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as ShareShareIdRouteImport } from './routes/share.$shareId'
@@ -28,6 +30,16 @@ import { Route as DevDesignSystemCrossfadeRouteImport } from './routes/dev/desig
 import { Route as DevDesignSystemCompositesRouteImport } from './routes/dev/design-system/composites'
 import { Route as DevDesignSystemColorsRouteImport } from './routes/dev/design-system/colors'
 
+const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
+  id: '/privacy-policy',
+  path: '/privacy-policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppRoute = AppRouteImport.update({
   id: '/_app',
   getParentRoute: () => rootRouteImport,
@@ -123,6 +135,8 @@ const DevDesignSystemColorsRoute = DevDesignSystemColorsRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/help': typeof HelpRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/login': typeof AppLoginRoute
   '/settings': typeof AppSettingsRoute
   '/signup': typeof AppSignupRoute
@@ -141,6 +155,8 @@ export interface FileRoutesByFullPath {
   '/dev/design-system/': typeof DevDesignSystemIndexRoute
 }
 export interface FileRoutesByTo {
+  '/help': typeof HelpRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/login': typeof AppLoginRoute
   '/settings': typeof AppSettingsRoute
   '/signup': typeof AppSignupRoute
@@ -161,6 +177,8 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/help': typeof HelpRoute
+  '/privacy-policy': typeof PrivacyPolicyRoute
   '/_app/login': typeof AppLoginRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/signup': typeof AppSignupRoute
@@ -183,6 +201,8 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/help'
+    | '/privacy-policy'
     | '/login'
     | '/settings'
     | '/signup'
@@ -201,6 +221,8 @@ export interface FileRouteTypes {
     | '/dev/design-system/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/help'
+    | '/privacy-policy'
     | '/login'
     | '/settings'
     | '/signup'
@@ -220,6 +242,8 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/help'
+    | '/privacy-policy'
     | '/_app/login'
     | '/_app/settings'
     | '/_app/signup'
@@ -241,6 +265,8 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  HelpRoute: typeof HelpRoute
+  PrivacyPolicyRoute: typeof PrivacyPolicyRoute
   DevDesignSystemRoute: typeof DevDesignSystemRouteWithChildren
   OauthConsentRoute: typeof OauthConsentRoute
   ShareShareIdRoute: typeof ShareShareIdRoute
@@ -248,6 +274,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/privacy-policy': {
+      id: '/privacy-policy'
+      path: '/privacy-policy'
+      fullPath: '/privacy-policy'
+      preLoaderRoute: typeof PrivacyPolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app': {
       id: '/_app'
       path: ''
@@ -425,6 +465,8 @@ const DevDesignSystemRouteWithChildren = DevDesignSystemRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  HelpRoute: HelpRoute,
+  PrivacyPolicyRoute: PrivacyPolicyRoute,
   DevDesignSystemRoute: DevDesignSystemRouteWithChildren,
   OauthConsentRoute: OauthConsentRoute,
   ShareShareIdRoute: ShareShareIdRoute,

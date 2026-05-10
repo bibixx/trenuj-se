@@ -1,0 +1,21 @@
+.heading {
+  composes: typography-xl from global;
+  color: var(--text-primary);
+}
+
+.body {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.link {
+  composes: typography-base from global;
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}

@@ -1,0 +1,35 @@
+.root {
+  composes: typography-xs from global;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 32px;
+  color: var(--text-muted);
+}
+
+.copy {
+  color: var(--text-muted);
+}
+
+.separator {
+  color: var(--text-muted);
+  opacity: 0.6;
+  user-select: none;
+}
+
+.link {
+  color: var(--text-secondary);
+  font-weight: 500;
+  text-decoration: none;
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: color;
+
+  &:hover {
+    color: var(--text-primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
