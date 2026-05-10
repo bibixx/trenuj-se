@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { Hono } from "hono";
 import type { MiddlewareHandler } from "hono";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
@@ -218,57 +219,77 @@ stravaRoutes.get("/webhook/:secret", async (c) => {
   }
 });
 
+const webhookEventSchema = z.object({
+  object_type: z.string(),
+  object_id: z.number(),
+  aspect_type: z.enum(["create", "update", "delete"]),
+  owner_id: z.number(),
+  updates: z.record(z.string(), z.unknown()).optional(),
+});
+type WebhookEvent = z.infer<typeof webhookEventSchema>;
+
+async function processStravaWebhookEvent(supabase: SupabaseClient, env: AppBindings, event: WebhookEvent) {
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("id, strava_athlete_id").eq("strava_athlete_id", event.owner_id).maybeSingle();
+
+  if (profileError) throw new AppError("INTERNAL_ERROR", profileError.message);
+  if (!profile) return;
+
+  if (event.object_type === "athlete" && event.aspect_type === "update" && event.updates?.["authorized"] === "false") {
+    await supabase.from("strava_credentials").delete().eq("user_id", profile.id);
+    await supabase.from("profiles").update({ strava_athlete_id: null }).eq("id", profile.id);
+    return;
+  }
+
+  if (event.object_type !== "activity") return;
+
+  if (event.aspect_type === "delete") {
+    const { data: linked } = await supabase.from("workout_activities").select("workout_id").eq("user_id", profile.id).eq("strava_id", event.object_id).maybeSingle();
+    if (linked) {
+      await supabase.from("workout_activities").delete().eq("workout_id", linked.workout_id).eq("user_id", profile.id);
+      await supabase.from("workouts").update({ status: "planned" }).eq("id", linked.workout_id).eq("user_id", profile.id);
+    }
+    return;
+  }
+
+  const detailedActivity = await stravaFetch<Record<string, unknown>>(supabase, env, profile.id, `/activities/${event.object_id}`);
+  await matchAndStoreActivity(supabase, profile.id, detailedActivity);
+}
+
 stravaRoutes.post("/webhook/:secret", async (c) => {
+  // Strava enforces a ~2s deadline. Ack fast and run match-and-store via waitUntil so
+  // slow Supabase + Strava round-trips never cause Strava to drop or retry events.
   if (c.req.param("secret") !== c.env.STRAVA_WEBHOOK_PATH_SECRET) {
     return c.notFound();
   }
 
+  const payload = await c.req.json().catch(() => null);
+  const supabase = createServerSupabase(c);
+  const env = c.env;
+
+  const work = (async () => {
+    try {
+      const event = webhookEventSchema.parse(payload);
+      await processStravaWebhookEvent(supabase, env, event);
+    } catch (error) {
+      console.error("Strava webhook handler failed", error);
+    }
+  })();
+
+  // Hono throws on c.executionCtx access when no ExecutionContext is provided (e.g. in tests).
+  let executionCtx: { waitUntil?: (p: Promise<unknown>) => void } | null = null;
   try {
-    const payload = await c.req.json();
-    const eventSchema = z.object({
-      object_type: z.string(),
-      object_id: z.number(),
-      aspect_type: z.enum(["create", "update", "delete"]),
-      owner_id: z.number(),
-      updates: z.record(z.string(), z.unknown()).optional(),
-    });
-    const event = eventSchema.parse(payload);
-
-    const supabase = createServerSupabase(c);
-    const { data: profile, error: profileError } = await supabase.from("profiles").select("id, strava_athlete_id").eq("strava_athlete_id", event.owner_id).maybeSingle();
-
-    if (profileError) throw new AppError("INTERNAL_ERROR", profileError.message);
-    if (!profile) {
-      return c.json({ ok: true, ignored: true });
-    }
-
-    if (event.object_type === "athlete" && event.aspect_type === "update" && event.updates?.["authorized"] === "false") {
-      await supabase.from("strava_credentials").delete().eq("user_id", profile.id);
-      await supabase.from("profiles").update({ strava_athlete_id: null }).eq("id", profile.id);
-      return c.json({ ok: true });
-    }
-
-    if (event.object_type !== "activity") {
-      return c.json({ ok: true, ignored: true });
-    }
-
-    if (event.aspect_type === "delete") {
-      const { data: linked } = await supabase.from("workout_activities").select("workout_id").eq("user_id", profile.id).eq("strava_id", event.object_id).maybeSingle();
-      if (linked) {
-        await supabase.from("workout_activities").delete().eq("workout_id", linked.workout_id).eq("user_id", profile.id);
-        await supabase.from("workouts").update({ status: "planned" }).eq("id", linked.workout_id).eq("user_id", profile.id);
-      }
-      return c.json({ ok: true });
-    }
-
-    const detailedActivity = await stravaFetch<Record<string, unknown>>(supabase, c.env, profile.id, `/activities/${event.object_id}`);
-    const match = await matchAndStoreActivity(supabase, profile.id, detailedActivity);
-
-    return c.json({ ok: true, matched: match?.workoutId ?? null });
-  } catch (error) {
-    console.error("Strava webhook handler failed", error);
-    return c.json({ ok: true, error: errorPayload(error) }, 200);
+    executionCtx = c.executionCtx;
+  } catch {
+    executionCtx = null;
   }
+
+  if (executionCtx?.waitUntil) {
+    executionCtx.waitUntil(work);
+  } else {
+    await work;
+  }
+
+  return c.json({ ok: true });
 });
 
 stravaRoutes.get("/recent-activities", async (c) => {
