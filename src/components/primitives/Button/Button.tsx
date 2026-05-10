@@ -1,4 +1,4 @@
-import { Button as BaseButton, type ButtonProps as BaseButtonProps } from "@base-ui-components/react/button";
+import { Button as BaseButton, type ButtonProps as BaseButtonProps } from "@base-ui/react/button";
 import clsx from "clsx";
 import type { ReactNode } from "react";
 import { triggerHaptic } from "tactus";

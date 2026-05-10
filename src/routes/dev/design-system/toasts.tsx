@@ -1,4 +1,4 @@
-import { Toast } from "@base-ui-components/react/toast";
+import { Toast } from "@base-ui/react/toast";
 import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "../../../components/primitives/Button/Button.tsx";
 import styles from "../design-system.module.css";

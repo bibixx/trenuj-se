@@ -1,4 +1,4 @@
-import { Toast as BaseToast } from "@base-ui-components/react/toast";
+import { Toast as BaseToast } from "@base-ui/react/toast";
 import { IconX } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import styles from "./Toast.module.css";

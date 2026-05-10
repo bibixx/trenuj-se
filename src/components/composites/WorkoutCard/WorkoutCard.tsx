@@ -1,4 +1,4 @@
-import { Collapsible } from "@base-ui-components/react/collapsible";
+import { Collapsible } from "@base-ui/react/collapsible";
 import clsx from "clsx";
 import { IconBrandStrava, IconDownload, IconTriangleInvertedFilled, IconUnlink } from "@tabler/icons-react";
 import { type CSSProperties, useCallback, useMemo, useState } from "react";

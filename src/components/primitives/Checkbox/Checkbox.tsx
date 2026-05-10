@@ -1,4 +1,4 @@
-import { Checkbox as BaseCheckbox } from "@base-ui-components/react/checkbox";
+import { Checkbox as BaseCheckbox } from "@base-ui/react/checkbox";
 import clsx from "clsx";
 import { IconCheck, IconMinus } from "@tabler/icons-react";
 import { triggerHaptic } from "tactus";

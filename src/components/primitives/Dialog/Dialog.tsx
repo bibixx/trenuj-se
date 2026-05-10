@@ -1,4 +1,4 @@
-import { Dialog as BaseDialog } from "@base-ui-components/react/dialog";
+import { Dialog as BaseDialog } from "@base-ui/react/dialog";
 import clsx from "clsx";
 import { IconX } from "@tabler/icons-react";
 import type { ReactNode } from "react";

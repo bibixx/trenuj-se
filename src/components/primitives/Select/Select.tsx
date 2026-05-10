@@ -1,4 +1,4 @@
-import { Select as BaseSelect } from "@base-ui-components/react/select";
+import { Select as BaseSelect } from "@base-ui/react/select";
 import { IconChevronDown, IconCheck } from "@tabler/icons-react";
 import type { ReactNode } from "react";
 import styles from "./Select.module.css";

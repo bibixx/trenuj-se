@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { Toast } from "@base-ui-components/react/toast";
+import { Toast } from "@base-ui/react/toast";
 import { IconCopy, IconHistory } from "@tabler/icons-react";
 import { useState, useCallback } from "react";
 import { Card } from "../../primitives/Card/Card.tsx";

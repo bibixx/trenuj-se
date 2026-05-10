@@ -1,4 +1,4 @@
-import { useRender } from "@base-ui-components/react/use-render";
+import { useRender } from "@base-ui/react/use-render";
 import { IconBrandStrava } from "@tabler/icons-react";
 import styles from "./StravaPill.module.css";
 

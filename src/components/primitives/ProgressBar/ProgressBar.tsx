@@ -1,4 +1,4 @@
-import { Progress } from "@base-ui-components/react/progress";
+import { Progress } from "@base-ui/react/progress";
 import clsx from "clsx";
 import styles from "./ProgressBar.module.css";
 

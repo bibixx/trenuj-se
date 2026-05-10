@@ -1,4 +1,4 @@
-import { Field } from "@base-ui-components/react/field";
+import { Field } from "@base-ui/react/field";
 import clsx from "clsx";
 import type { InputHTMLAttributes } from "react";
 import styles from "./Input.module.css";
