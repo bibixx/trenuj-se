@@ -19,6 +19,7 @@ vi.mock("../../server/lib/strava.ts", async (importOriginal) => {
       calories: 420,
     })),
     matchAndStoreActivity: vi.fn(async () => null),
+    refreshWorkoutActivityFromStrava: vi.fn(async () => undefined),
     getValidStravaAccessToken: vi.fn(async () => "mock-access-token"),
   };
 });
@@ -27,7 +28,7 @@ import app from "../../server/index.ts";
 import { MOCK_ENV, MOCK_USER_ID } from "../helpers/mock-env.ts";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { setMockSupabase, clearMockSupabase } from "../helpers/setup.ts";
-import { stravaFetch, matchAndStoreActivity } from "../../server/lib/strava.ts";
+import { stravaFetch, matchAndStoreActivity, refreshWorkoutActivityFromStrava } from "../../server/lib/strava.ts";
 
 const VALID_SECRET = MOCK_ENV.STRAVA_WEBHOOK_PATH_SECRET; // "mock-webhook-secret"
 const VALID_VERIFY_TOKEN = MOCK_ENV.STRAVA_VERIFY_TOKEN; // "mock-verify-token"
@@ -193,10 +194,11 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     expect(matchAndStoreActivity).toHaveBeenCalledOnce();
   });
 
-  test("activity update: same path as create — fetches, match-and-store", async () => {
+  test("activity update on unmatched activity: falls through to match-and-store", async () => {
     const mock = createMockSupabase({
       tables: {
         profiles: { select: { data: MOCK_PROFILE, error: null } },
+        workout_activities: { select: { data: null, error: null } },
       },
     });
     setMockSupabase(mock);
@@ -214,6 +216,33 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     expect(res.status).toBe(200);
     expect(stravaFetch).toHaveBeenCalledOnce();
     expect(matchAndStoreActivity).toHaveBeenCalledOnce();
+    expect(refreshWorkoutActivityFromStrava).not.toHaveBeenCalled();
+  });
+
+  test("activity update on already-linked activity: refreshes the stored row instead of re-matching", async () => {
+    const mock = createMockSupabase({
+      tables: {
+        profiles: { select: { data: MOCK_PROFILE, error: null } },
+        workout_activities: { select: { data: { workout_id: "workout-uuid-42" }, error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    const res = await app.request(
+      `/api/strava/webhook/${VALID_SECRET}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(makeActivityCreateEvent({ aspect_type: "update", object_id: 12345 })),
+      },
+      MOCK_ENV,
+    );
+
+    expect(res.status).toBe(200);
+    expect(stravaFetch).toHaveBeenCalledOnce();
+    expect(refreshWorkoutActivityFromStrava).toHaveBeenCalledOnce();
+    expect(refreshWorkoutActivityFromStrava).toHaveBeenCalledWith(expect.anything(), MOCK_USER_ID, "workout-uuid-42", expect.objectContaining({ id: 12345 }));
+    expect(matchAndStoreActivity).not.toHaveBeenCalled();
   });
 
   test("activity delete: removes the workout_activities row and resets the workout to planned", async () => {

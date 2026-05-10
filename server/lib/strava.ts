@@ -289,6 +289,14 @@ export async function matchAndStoreActivity(
   return { workoutId: match.id, workoutTitle: match.title };
 }
 
+export async function refreshWorkoutActivityFromStrava(supabase: SupabaseClient, userId: string, workoutId: string, activity: Record<string, unknown>): Promise<void> {
+  const row = buildWorkoutActivityRow(userId, workoutId, activity);
+  const { error } = await supabase.from("workout_activities").update(row).eq("workout_id", workoutId).eq("user_id", userId);
+  if (error) {
+    throw new AppError("INTERNAL_ERROR", error.message);
+  }
+}
+
 export async function linkActivityToWorkout(
   supabase: SupabaseClient,
   bindings: StravaBindings,

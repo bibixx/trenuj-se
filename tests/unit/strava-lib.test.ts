@@ -7,6 +7,7 @@ import {
   getValidStravaAccessToken,
   matchAndStoreActivity,
   parseStravaTimezoneToIana,
+  refreshWorkoutActivityFromStrava,
   stravaFetch,
 } from "../../server/lib/strava.ts";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
@@ -236,6 +237,40 @@ describe("matchAndStoreActivity", () => {
     expect(workoutsSelectCall).toBeUndefined();
     const insertCall = mock.calls.find((c) => c.table === "workout_activities" && c.operation === "insert");
     expect(insertCall).toBeUndefined();
+  });
+});
+
+describe("refreshWorkoutActivityFromStrava", () => {
+  test("updates the workout_activities row with rebuilt fields from the latest activity", async () => {
+    const mock = createMockSupabase({
+      tables: {
+        workout_activities: { update: { data: null, error: null } },
+      },
+    });
+
+    await refreshWorkoutActivityFromStrava(mock.client, MOCK_USER_ID, "workout-uuid-42", {
+      ...SAMPLE_STRAVA_ACTIVITY,
+      name: "Renamed activity",
+      distance: 11000,
+    });
+
+    const updateCall = mock.calls.find((c) => c.table === "workout_activities" && c.operation === "update");
+    expect(updateCall).toBeDefined();
+    const args = updateCall?.args[0] as Record<string, unknown>;
+    expect(args.name).toBe("Renamed activity");
+    expect(args.distance_m).toBe(11000);
+    expect(args.workout_id).toBe("workout-uuid-42");
+    expect(args.user_id).toBe(MOCK_USER_ID);
+  });
+
+  test("throws when the update fails", async () => {
+    const mock = createMockSupabase({
+      tables: {
+        workout_activities: { update: { data: null, error: { message: "boom" } } },
+      },
+    });
+
+    await expect(refreshWorkoutActivityFromStrava(mock.client, MOCK_USER_ID, "workout-uuid-42", SAMPLE_STRAVA_ACTIVITY)).rejects.toThrow(/boom/);
   });
 });
 

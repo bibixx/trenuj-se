@@ -12,6 +12,7 @@ import {
   getValidStravaAccessToken,
   linkActivityToWorkout,
   matchAndStoreActivity,
+  refreshWorkoutActivityFromStrava,
   stravaFetch,
 } from "../lib/strava";
 import { consumeStreamToken } from "../lib/stream-tokens";
@@ -249,6 +250,21 @@ async function processStravaWebhookEvent(supabase: SupabaseClient, env: AppBindi
       await supabase.from("workouts").update({ status: "planned" }).eq("id", linked.workout_id).eq("user_id", profile.id);
     }
     return;
+  }
+
+  if (event.aspect_type === "update") {
+    const { data: linked, error: linkedError } = await supabase
+      .from("workout_activities")
+      .select("workout_id")
+      .eq("user_id", profile.id)
+      .eq("strava_id", event.object_id)
+      .maybeSingle();
+    if (linkedError) throw new AppError("INTERNAL_ERROR", linkedError.message);
+    if (linked) {
+      const detailedActivity = await stravaFetch<Record<string, unknown>>(supabase, env, profile.id, `/activities/${event.object_id}`);
+      await refreshWorkoutActivityFromStrava(supabase, profile.id, linked.workout_id, detailedActivity);
+      return;
+    }
   }
 
   const detailedActivity = await stravaFetch<Record<string, unknown>>(supabase, env, profile.id, `/activities/${event.object_id}`);
