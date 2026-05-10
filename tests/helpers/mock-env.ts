@@ -7,7 +7,7 @@ export const MOCK_ENV: AppBindings = {
   STRAVA_CLIENT_SECRET: "mock-strava-secret",
   STRAVA_VERIFY_TOKEN: "mock-verify-token",
   STRAVA_WEBHOOK_PATH_SECRET: "mock-webhook-secret",
-  PUBLIC_APP_URL: "http://localhost:8788",
+  PUBLIC_APP_URL: "http://localhost:8787",
 };
 
 export const MOCK_USER_ID = "00000000-0000-0000-0000-000000000001";

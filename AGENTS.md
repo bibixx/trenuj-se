@@ -32,7 +32,7 @@ Guidance for AI agents working in this codebase.
    - `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` — from your Strava API app
    - `STRAVA_VERIFY_TOKEN` — any string, used to verify Strava webhook subscription
    - `STRAVA_WEBHOOK_PATH_SECRET` — random string, becomes part of the webhook URL path to prevent enumeration
-   - `PUBLIC_APP_URL` — defaults to `http://localhost:8788` for local dev
+   - `PUBLIC_APP_URL` — defaults to `http://localhost:8787` for local dev
 
 3. Run database migrations:
 
@@ -48,7 +48,7 @@ Guidance for AI agents working in this codebase.
 pnpm dev
 ```
 
-This builds the TypeScript (`tsc`) then starts a local Cloudflare Pages dev server on `http://localhost:8788`. The app is served via Wrangler which emulates the Workers runtime. Environment variables are read from `.dev.vars`.
+This builds the TypeScript (`tsc`) then starts a local Cloudflare Pages dev server on `http://localhost:8787`. The app is served via Wrangler which emulates the Workers runtime. Environment variables are read from `.dev.vars`.
 
 ### Running tests
 

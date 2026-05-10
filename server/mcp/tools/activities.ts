@@ -129,7 +129,7 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
         if (!activity) throw new AppError("NOT_FOUND", "Activity not found");
 
         const token = await generateStreamToken(ctx.supabase, ctx.userId, activity.strava_id);
-        const baseUrl = (ctx.bindings.PUBLIC_APP_URL ?? "http://localhost:8788").replace(/\/$/, "");
+        const baseUrl = (ctx.bindings.PUBLIC_APP_URL ?? "http://localhost:8787").replace(/\/$/, "");
         return toolSuccess({
           url: `${baseUrl}/api/strava/streams/${activity.strava_id}?token=${token}`,
           expiresInSec: 900,

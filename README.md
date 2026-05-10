@@ -147,7 +147,7 @@ Copy `.dev.vars.example` to `.dev.vars` and fill in:
 - `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` — OAuth credentials
 - `STRAVA_VERIFY_TOKEN` — Webhook verification token
 - `STRAVA_WEBHOOK_PATH_SECRET` — Random string for webhook URL path
-- `PUBLIC_APP_URL` — Application base URL (`http://localhost:8788` for dev)
+- `PUBLIC_APP_URL` — Application base URL (`http://localhost:8787` for dev)
 
 ## Testing
 

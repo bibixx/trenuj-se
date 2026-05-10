@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:server": "pnpm run build && wrangler dev",
+    "dev:server": "wrangler dev",
     "build": "vite build",
     "build:server": "tsc -p tsconfig.node.json && mkdir -p dist",
     "preview": "vite preview",

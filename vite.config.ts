@@ -101,8 +101,8 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       allowedHosts: allEnv.ALLOWED_HOSTS?.split(",") ?? [],
       proxy: {
-        "/api": "http://localhost:8788",
-        "/mcp": "http://localhost:8788",
+        "/api": "http://localhost:8787",
+        "/mcp": "http://localhost:8787",
       },
     },
   };
