@@ -11,14 +11,6 @@
   flex-shrink: 0;
 }
 
-.mask {
-  display: block;
-  background: currentColor;
-  mask-size: contain;
-  mask-repeat: no-repeat;
-  mask-position: center;
-}
-
 .svg {
   display: flex;
   align-items: center;

@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { resolveIcon, FALLBACK_ICON_NAME } from "../../../lib/icon-resolver.ts";
 import { getTablerIconUrl } from "../../../lib/tabler-icon-url.ts";
 import styles from "./WorkoutTypeIcon.module.css";
+import { useId, useState } from "react";
 
 interface WorkoutTypeIconProps {
   icon: string | null | undefined;
@@ -10,17 +11,28 @@ interface WorkoutTypeIconProps {
 
 function TablerMaskIcon({ name, size }: { name: string; size: number }) {
   const url = getTablerIconUrl(name);
+  const id = useId();
+  const maskId = `mask-${id}`;
+  const [loadingState, setLoadingState] = useState<"loading" | "loaded" | "error">("loading");
+
+  if (loadingState === "error") {
+    return <TablerMaskIcon name={FALLBACK_ICON_NAME} size={18} />;
+  }
 
   return (
-    <span
-      className={styles.mask}
+    <svg
+      viewBox="0 0 32 32"
       style={{
         width: size,
         height: size,
-        maskImage: `url("${url}")`,
-        WebkitMaskImage: `url("${url}")`,
       }}
-    />
+    >
+      <mask id={maskId} mask-type="alpha">
+        <image href={url} height="32" width="32" onError={() => setLoadingState("error")} onLoad={() => setLoadingState("loaded")} />
+      </mask>
+
+      <rect x="0" y="0" width="32" height="32" fill="currentcolor" mask={`url(#${maskId})`}></rect>
+    </svg>
   );
 }
 
