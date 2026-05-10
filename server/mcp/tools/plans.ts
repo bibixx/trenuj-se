@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AppError, activitySportSchema, collectMissingActivitySportWarnings, resolvePlanId, toolError, toolSuccess, type McpContext, validateLabelMetadata } from "../context";
+import { validateLabelIcon } from "../icon-validation";
 
 const planStatusSchema = z.enum(["active", "inactive"]);
 const labelKeySchema = z
@@ -8,6 +9,15 @@ const labelKeySchema = z
   .trim()
   .min(1)
   .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Label key must use lowercase letters, numbers, and hyphens only (e.g. 'easy-run')");
+
+const iconValueSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .superRefine((value, ctx) => {
+    const result = validateLabelIcon(value);
+    if (!result.valid) ctx.addIssue({ code: "custom", message: result.message });
+  });
 
 const createPlanSchema = z
   .object({
@@ -39,10 +49,7 @@ const labelSchema = z.object({
   key: labelKeySchema.describe("Unique label identifier using lowercase letters, numbers, and hyphens only (e.g. 'easy-run')."),
   label: z.string().trim().min(1).describe("Human-readable display name."),
   hue: z.number().int().min(0).max(359).describe("HSL hue (0–359) for the label color."),
-  icon: z
-    .string()
-    .trim()
-    .min(1)
+  icon: iconValueSchema
     .optional()
     .describe(
       "Icon identifier. Prefer a Tabler icon name (e.g. 'run') — use search_icons to discover names. Alternatively an emoji (e.g. '🏃') or a raw SVG string (starting with '<svg').",
@@ -67,10 +74,7 @@ const updateLabelSchema = z.object({
   key: labelKeySchema.describe("Label key to update, using lowercase letters, numbers, and hyphens only (e.g. 'easy-run')."),
   label: z.string().trim().min(1).optional().describe("Human-readable display name."),
   hue: z.number().int().min(0).max(359).optional().describe("HSL hue (0–359) for the label color."),
-  icon: z
-    .string()
-    .trim()
-    .min(1)
+  icon: iconValueSchema
     .nullable()
     .optional()
     .describe(

@@ -1,15 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { toolError, toolSuccess } from "../context";
-import iconsJson from "../../../node_modules/@tabler/icons/icons.json" with { type: "json" };
-
-interface IconEntry {
-  name: string;
-  category: string;
-  tags: (string | number)[];
-}
-
-const icons: IconEntry[] = Object.values(iconsJson as Record<string, IconEntry>);
+import { iconEntries } from "../icon-catalog";
 
 const InputSchema = z.object({
   query: z.string().min(1).describe("Search term to match against icon names, categories, and tags"),
@@ -30,12 +22,12 @@ export function registerIconTools(server: McpServer) {
         const { query, limit } = InputSchema.parse(input);
         const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-        const scored = icons
+        const scored = iconEntries
           .map((icon) => {
             let score = 0;
             const nameLower = icon.name.toLowerCase();
             const categoryLower = icon.category.toLowerCase();
-            const tagsLower = icon.tags.map((t) => String(t).toLowerCase());
+            const tagsLower = icon.tags.map((tag) => tag.toLowerCase());
 
             for (const term of terms) {
               // Exact name match — strongest signal
@@ -69,7 +61,7 @@ export function registerIconTools(server: McpServer) {
         const results = scored.map(({ icon }) => ({
           name: icon.name,
           category: icon.category,
-          tags: icon.tags.map(String),
+          tags: icon.tags,
         }));
 
         return toolSuccess({ total: scored.length, icons: results });

@@ -341,4 +341,74 @@ describe("MCP Plan Tools", () => {
 
     expect(parsed.error ?? parsed.result).toBeDefined();
   });
+
+  test("add_label rejects an unknown Tabler icon name", async () => {
+    setMockSupabase(createMockSupabase({ auth: mockAuth(), tables: { plans: { select: { data: MOCK_PLAN, error: null } } } }));
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "add_label",
+        {
+          planId: VALID_PLAN_ID,
+          key: "mobility",
+          label: "Mobility",
+          hue: 40,
+          icon: "footprints",
+          activitySports: [],
+        },
+        {},
+      ),
+    );
+
+    const payload = JSON.stringify(parsed);
+    expect(payload).toContain("footprints");
+    expect(payload).toContain("search_icons");
+  });
+
+  test("add_label accepts a known Tabler icon name", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: { select: { data: MOCK_PLAN, error: null } },
+        labels: {
+          select: { data: null, error: null },
+          insert: {
+            data: {
+              id: "label-3",
+              key: "mobility",
+              label: "Mobility",
+              hue: 40,
+              icon: "run",
+              metadata: null,
+              created_at: "2024-01-01T00:00:00Z",
+              updated_at: "2024-01-01T00:00:00Z",
+            },
+            error: null,
+          },
+        },
+        label_activity_sports: {
+          delete: { data: null, error: null },
+          insert: { data: null, error: null },
+        },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(
+      await mcpCallTool(
+        "add_label",
+        {
+          planId: VALID_PLAN_ID,
+          key: "mobility",
+          label: "Mobility",
+          hue: 40,
+          icon: "run",
+          activitySports: ["Run"],
+        },
+        {},
+      ),
+    );
+    const result = extractToolResult(parsed);
+    expect(result?.result.icon).toBe("run");
+  });
 });
