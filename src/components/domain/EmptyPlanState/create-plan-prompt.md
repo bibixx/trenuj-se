@@ -137,7 +137,7 @@ After the plan is built:
 - Use `get_week_summary` and `compare_planned_vs_actual` to review how the athlete is tracking
 - Review uploaded workout data after sessions via `get_activities` and `get_activity_streams`
 - Compare planned vs actual (intensity, volume, RPE, technique notes)
-- Adjust upcoming sessions based on how the athlete is responding — use `update_workout` to modify future sessions
+- Adjust upcoming sessions based on how the athlete is responding — use `update_workouts` to modify future sessions (single edits and bulk rescheduling both go through this tool)
 - Use `add_trainer_notes` to attach coach feedback to completed workouts
 - Flag when baselines need recalibration based on fitness changes
 - Be proactive about potential issues (overtraining, injury risk, equipment needs, motivation dips)
@@ -267,7 +267,7 @@ Workouts support optional metadata and execution fields:
 
 **Read:** `list_plans`, `get_plan`, `get_workouts`, `get_activities`, `get_activity_streams`, `get_week_summary`, `get_plan_progress`, `compare_planned_vs_actual`, `get_plan_notes`, `get_profile`, `search_icons`
 
-**Write:** `create_plan`, `update_plan`, `deactivate_plan`, `set_labels`, `update_label`, `add_phase`, `update_phase`, `remove_phase`, `add_workouts`, `update_workout`, `remove_workouts`, `complete_workout`, `skip_workout`, `link_activity`, `unlink_activity`, `add_trainer_notes`, `add_plan_note`, `update_plan_note`, `delete_plan_note`
+**Write:** `create_plan`, `update_plan`, `deactivate_plan`, `set_labels`, `update_label`, `add_phase`, `update_phase`, `remove_phase`, `add_workouts`, `update_workouts`, `remove_workouts`, `complete_workout`, `skip_workout`, `link_activity`, `unlink_activity`, `add_trainer_notes`, `add_plan_note`, `update_plan_note`, `delete_plan_note`
 
 ### Common Mistakes to Avoid
 

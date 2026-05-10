@@ -101,7 +101,7 @@ Schema defined in `db/schema.ts` with Drizzle ORM. Migrations in `db/migrations/
 6 tool categories registered on the MCP server:
 
 - **Plans** — `list_plans`, `get_plan`, `create_plan`, `update_plan`, `deactivate_plan`, `set_labels`, `update_label`, `add_phase`, `update_phase`, `remove_phase`
-- **Workouts** — `add_workouts`, `get_workouts`, `update_workout`, `remove_workouts`, `complete_workout`, `skip_workout`, `link_activity`, `unlink_activity`, `add_trainer_notes`
+- **Workouts** — `add_workouts`, `get_workouts`, `update_workouts`, `remove_workouts`, `complete_workout`, `skip_workout`, `link_activity`, `unlink_activity`, `add_trainer_notes`
 - **Notes** — `add_plan_note`, `update_plan_note`, `delete_plan_note`, `get_plan_notes`
 - **Activities** — `get_workout_streams`, `get_week_summary`, `get_plan_progress`, `compare_planned_vs_actual`
 - **Athlete** — `get_profile`

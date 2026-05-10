@@ -92,9 +92,9 @@ const updateWorkoutSchema = z
 
 type UpdateWorkoutParams = z.infer<typeof updateWorkoutSchema>;
 
-const batchUpdateWorkoutsSchema = z
+const updateWorkoutsSchema = z
   .object({
-    updates: z.array(updateWorkoutSchema).min(1).max(100).describe("Workout updates to apply. Each item uses the same fields as update_workout and requires workoutId."),
+    updates: z.array(updateWorkoutSchema).min(1).max(100).describe("Workout updates to apply. Each item uses the same fields as a single workout update and requires workoutId."),
   })
   .superRefine((value, issueContext) => {
     const seen = new Set<string>();
@@ -196,24 +196,11 @@ function serializeWorkoutUpdateError(error: unknown) {
   return String(error);
 }
 
-type BatchUpdateWorkoutsParams = z.infer<typeof batchUpdateWorkoutsSchema>;
+type UpdateWorkoutsParams = z.infer<typeof updateWorkoutsSchema>;
 
 type BatchFailure = { index: number; workoutId: string; errors: unknown };
 
-function mapBatchFailureToAppError(errors: unknown): AppError {
-  if (errors && typeof errors === "object" && !Array.isArray(errors) && "code" in errors && "message" in errors) {
-    const { code, message } = errors as { code: AppError["code"]; message: string };
-    return new AppError(code, message);
-  }
-
-  if (Array.isArray(errors)) {
-    return new AppError("VALIDATION_ERROR", "Workout update failed validation", errors);
-  }
-
-  return new AppError("INTERNAL_ERROR", typeof errors === "string" ? errors : "Workout update failed");
-}
-
-async function applyBatchWorkoutUpdates(ctx: McpContext, params: BatchUpdateWorkoutsParams) {
+async function applyBatchWorkoutUpdates(ctx: McpContext, params: UpdateWorkoutsParams) {
   const parsedRows: Array<{ index: number; update: UpdateWorkoutParams }> = [];
   const failed: BatchFailure[] = [];
 
@@ -409,37 +396,17 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
   );
 
   server.registerTool(
-    "update_workout",
+    "update_workouts",
     {
-      title: "Update Workout",
-      description: "Update a workout's fields. Omitted fields stay unchanged; fields set to null are cleared.",
-      inputSchema: updateWorkoutSchema,
-      annotations: { idempotentHint: true },
-    },
-    async (input) => {
-      try {
-        const params = updateWorkoutSchema.parse(input);
-        const { updated, failed, warnings } = await applyBatchWorkoutUpdates(ctx, { updates: [params] });
-        if (failed.length > 0) throw mapBatchFailureToAppError(failed[0]?.errors);
-        return toolSuccess(updated[0], warnings);
-      } catch (error) {
-        return toolError(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    "batch_update_workouts",
-    {
-      title: "Batch Update Workouts",
+      title: "Update Workouts",
       description:
-        "Update multiple workouts in one call. Each update uses the same fields as update_workout; omitted fields stay unchanged and fields set to null are cleared. Returns partial failures when individual updates cannot be applied.",
-      inputSchema: batchUpdateWorkoutsSchema,
+        "Update one or more workouts in a single call. Each update requires `workoutId`. Omitted fields stay unchanged; fields set to null are cleared. Supports partial success — valid updates apply even if others fail. Use this for both single edits (one item in `updates`) and bulk operations like rescheduling a week.",
+      inputSchema: updateWorkoutsSchema,
       annotations: { idempotentHint: true },
     },
     async (input) => {
       try {
-        const params = batchUpdateWorkoutsSchema.parse(input);
+        const params = updateWorkoutsSchema.parse(input);
         const { updated, failed, warnings } = await applyBatchWorkoutUpdates(ctx, params);
 
         if (updated.length === 0) {
