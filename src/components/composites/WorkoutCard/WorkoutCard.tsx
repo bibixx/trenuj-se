@@ -150,7 +150,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
                       {unlink.isPending ? "Unlinking…" : "Unlink activity"}
                     </Button>
                   )}
-                  {showActivityActions && !workout.activity && !isCompleted && (
+                  {showActivityActions && !workout.activity && (
                     <Button variant="secondary" size="sm" icon={<IconBrandStrava size={16} />} onClick={() => setLinkDialogOpen(true)}>
                       Link Strava activity
                     </Button>
