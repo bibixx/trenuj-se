@@ -8,11 +8,11 @@
 :root,
 [data-theme="dark"] {
   /* Surfaces */
-  --bg: oklch(0.1766 0.0103 119);
+  --bg: oklch(0.1766 0.0103 294.4);
   --bg-card: oklch(1 0 none / 0.05);
   --bg-inset: oklch(1 0 none / 0.03);
   --bg-hover: oklch(1 0 none / 0.08);
-  --bg-elevated: oklch(0.22 0.0097 119);
+  --bg-elevated: oklch(0.22 0.0097 294.4);
 
   /* Text Base */
   --text-primary-base: 0.9707 0.0027 none;
@@ -69,11 +69,11 @@
   --success: oklch(0.71 0.29 146.95);
 
   /* Surfaces */
-  --bg: oklch(0.965 0.01 122);
+  --bg: oklch(0.965 0.01 294.4);
   --bg-card: oklch(1 0 none / 0.78);
   --bg-inset: oklch(0.19 0.01 285 / 0.045);
   --bg-hover: oklch(0.19 0.01 285 / 0.075);
-  --bg-elevated: oklch(0.992 0.002 120);
+  --bg-elevated: oklch(0.992 0.002 294.4);
 
   /* Text Base */
   --text-primary-base: 0.24 0.012 286;
@@ -85,7 +85,7 @@
   --text-muted-base: 0.24 0.012 286;
   --text-muted-opacity: 0.5;
 
-  --text-on-accent-base: 0.98 0.003 120;
+  --text-on-accent-base: 0.98 0.003 294.4;
   --text-on-accent-opacity: 1;
 
   /* Borders / overlays / shadows */
