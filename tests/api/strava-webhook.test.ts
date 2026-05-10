@@ -29,8 +29,10 @@ import { MOCK_ENV, MOCK_USER_ID } from "../helpers/mock-env.ts";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { setMockSupabase, clearMockSupabase } from "../helpers/setup.ts";
 import { stravaFetch, matchAndStoreActivity, refreshWorkoutActivityFromStrava } from "../../server/lib/strava.ts";
+import { buildStravaSignatureHeader, computeStravaSignature } from "../helpers/strava-signature.ts";
 
 const VALID_SECRET = MOCK_ENV.STRAVA_WEBHOOK_PATH_SECRET; // "mock-webhook-secret"
+const VALID_SIGNING_SECRET = MOCK_ENV.STRAVA_WEBHOOK_SIGNING_SECRET ?? ""; // "mock-signing-secret"
 const VALID_VERIFY_TOKEN = MOCK_ENV.STRAVA_VERIFY_TOKEN; // "mock-verify-token"
 const MOCK_ATHLETE_ID = 98765;
 
@@ -48,6 +50,41 @@ function makeActivityCreateEvent(overrides: Record<string, unknown> = {}) {
     updates: {},
     ...overrides,
   };
+}
+
+type PostWebhookOptions = {
+  body: unknown;
+  pathSecret?: string;
+  env?: typeof MOCK_ENV;
+  // Override the X-Strava-Signature header. `null` omits it entirely; a string sets it verbatim;
+  // omitting the field signs the request with `env.STRAVA_WEBHOOK_SIGNING_SECRET` (or no header
+  // if that env var is empty — soft-fail path).
+  rawHeader?: string | null;
+  // Override the secret used for signing (defaults to env's signing secret)
+  signingSecret?: string;
+  // Override the timestamp used for signing (defaults to now)
+  tSec?: number;
+};
+
+async function postWebhook(opts: PostWebhookOptions) {
+  const env = opts.env ?? MOCK_ENV;
+  const pathSecret = opts.pathSecret ?? VALID_SECRET;
+  const rawBody = typeof opts.body === "string" ? opts.body : JSON.stringify(opts.body);
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+
+  if (opts.rawHeader === null) {
+    // intentionally omit
+  } else if (typeof opts.rawHeader === "string") {
+    headers["x-strava-signature"] = opts.rawHeader;
+  } else {
+    const secret = opts.signingSecret ?? env.STRAVA_WEBHOOK_SIGNING_SECRET;
+    if (secret) {
+      const { header } = await buildStravaSignatureHeader({ secret, rawBody, tSec: opts.tSec });
+      headers["x-strava-signature"] = header;
+    }
+  }
+
+  return app.request(`/api/strava/webhook/${pathSecret}`, { method: "POST", headers, body: rawBody }, env);
 }
 
 describe("GET /api/strava/webhook/:secret — verification", () => {
@@ -103,15 +140,7 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     const mock = createMockSupabase();
     setMockSupabase(mock);
 
-    const res = await app.request(
-      "/api/strava/webhook/bad-secret",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(makeActivityCreateEvent()),
-      },
-      MOCK_ENV,
-    );
+    const res = await postWebhook({ body: makeActivityCreateEvent(), pathSecret: "bad-secret" });
     expect(res.status).toBe(404);
   });
 
@@ -123,15 +152,7 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    const res = await app.request(
-      `/api/strava/webhook/${VALID_SECRET}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(makeActivityCreateEvent({ owner_id: 99999 })),
-      },
-      MOCK_ENV,
-    );
+    const res = await postWebhook({ body: makeActivityCreateEvent({ owner_id: 99999 }) });
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -146,21 +167,15 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    const res = await app.request(
-      `/api/strava/webhook/${VALID_SECRET}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          object_type: "gear",
-          object_id: 555,
-          aspect_type: "update",
-          owner_id: MOCK_ATHLETE_ID,
-          updates: {},
-        }),
+    const res = await postWebhook({
+      body: {
+        object_type: "gear",
+        object_id: 555,
+        aspect_type: "update",
+        owner_id: MOCK_ATHLETE_ID,
+        updates: {},
       },
-      MOCK_ENV,
-    );
+    });
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -175,15 +190,7 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    const res = await app.request(
-      `/api/strava/webhook/${VALID_SECRET}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(makeActivityCreateEvent()),
-      },
-      MOCK_ENV,
-    );
+    const res = await postWebhook({ body: makeActivityCreateEvent() });
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -203,15 +210,7 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    const res = await app.request(
-      `/api/strava/webhook/${VALID_SECRET}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(makeActivityCreateEvent({ aspect_type: "update", object_id: 12345 })),
-      },
-      MOCK_ENV,
-    );
+    const res = await postWebhook({ body: makeActivityCreateEvent({ aspect_type: "update", object_id: 12345 }) });
 
     expect(res.status).toBe(200);
     expect(stravaFetch).toHaveBeenCalledOnce();
@@ -228,15 +227,7 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    const res = await app.request(
-      `/api/strava/webhook/${VALID_SECRET}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(makeActivityCreateEvent({ aspect_type: "update", object_id: 12345 })),
-      },
-      MOCK_ENV,
-    );
+    const res = await postWebhook({ body: makeActivityCreateEvent({ aspect_type: "update", object_id: 12345 }) });
 
     expect(res.status).toBe(200);
     expect(stravaFetch).toHaveBeenCalledOnce();
@@ -258,15 +249,7 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    const res = await app.request(
-      `/api/strava/webhook/${VALID_SECRET}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(makeActivityCreateEvent({ aspect_type: "delete" })),
-      },
-      MOCK_ENV,
-    );
+    const res = await postWebhook({ body: makeActivityCreateEvent({ aspect_type: "delete" }) });
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -293,21 +276,15 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    const res = await app.request(
-      `/api/strava/webhook/${VALID_SECRET}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          object_type: "athlete",
-          object_id: MOCK_ATHLETE_ID,
-          aspect_type: "update",
-          owner_id: MOCK_ATHLETE_ID,
-          updates: { authorized: "false" },
-        }),
+    const res = await postWebhook({
+      body: {
+        object_type: "athlete",
+        object_id: MOCK_ATHLETE_ID,
+        aspect_type: "update",
+        owner_id: MOCK_ATHLETE_ID,
+        updates: { authorized: "false" },
       },
-      MOCK_ENV,
-    );
+    });
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -330,21 +307,15 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    const res = await app.request(
-      `/api/strava/webhook/${VALID_SECRET}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          object_type: "athlete",
-          object_id: MOCK_ATHLETE_ID,
-          aspect_type: "update",
-          owner_id: MOCK_ATHLETE_ID,
-          updates: { firstname: "John" },
-        }),
+    const res = await postWebhook({
+      body: {
+        object_type: "athlete",
+        object_id: MOCK_ATHLETE_ID,
+        aspect_type: "update",
+        owner_id: MOCK_ATHLETE_ID,
+        updates: { firstname: "John" },
       },
-      MOCK_ENV,
-    );
+    });
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -362,15 +333,7 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    const res = await app.request(
-      `/api/strava/webhook/${VALID_SECRET}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(makeActivityCreateEvent()),
-      },
-      MOCK_ENV,
-    );
+    const res = await postWebhook({ body: makeActivityCreateEvent() });
 
     expect(res.status).toBe(200);
     const body = await res.json();
@@ -396,16 +359,99 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     });
     setMockSupabase(mock);
 
-    await app.request(
+    await postWebhook({ body: makeActivityCreateEvent() });
+
+    expect(matchAndStoreActivity).toHaveBeenCalledWith(expect.anything(), MOCK_USER_ID, detailedActivity);
+  });
+});
+
+describe("POST /api/strava/webhook/:secret — signature verification", () => {
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const mock = createMockSupabase({
+      tables: {
+        profiles: { select: { data: MOCK_PROFILE, error: null } },
+      },
+    });
+    setMockSupabase(mock);
+  });
+
+  afterEach(() => {
+    clearMockSupabase();
+    vi.clearAllMocks();
+    warnSpy.mockRestore();
+  });
+
+  test("401 when X-Strava-Signature header is missing (and signing secret configured)", async () => {
+    const res = await postWebhook({ body: makeActivityCreateEvent(), rawHeader: null });
+    expect(res.status).toBe(401);
+    const body = await res.json();
+    expect(body.code).toBe("AUTH_ERROR");
+    expect(body.message).toMatch(/invalid signature/i);
+    expect(stravaFetch).not.toHaveBeenCalled();
+  });
+
+  test("401 when X-Strava-Signature header is malformed", async () => {
+    const res = await postWebhook({ body: makeActivityCreateEvent(), rawHeader: "garbage-no-equals" });
+    expect(res.status).toBe(401);
+    expect(stravaFetch).not.toHaveBeenCalled();
+  });
+
+  test("401 when timestamp is outside tolerance (older than 300s)", async () => {
+    const staleT = Math.floor(Date.now() / 1000) - 600;
+    const res = await postWebhook({ body: makeActivityCreateEvent(), tSec: staleT });
+    expect(res.status).toBe(401);
+    expect(stravaFetch).not.toHaveBeenCalled();
+  });
+
+  test("401 when signature was computed with a different secret", async () => {
+    const res = await postWebhook({ body: makeActivityCreateEvent(), signingSecret: "wrong-signing-secret" });
+    expect(res.status).toBe(401);
+    expect(stravaFetch).not.toHaveBeenCalled();
+  });
+
+  test("401 when body is tampered with after signing", async () => {
+    const original = makeActivityCreateEvent();
+    const rawBody = JSON.stringify(original);
+    const t = Math.floor(Date.now() / 1000);
+    const v1 = await computeStravaSignature(VALID_SIGNING_SECRET, t, rawBody);
+    // Send a different body but the signature for `rawBody`
+    const tampered = JSON.stringify({ ...original, object_id: 99999 });
+    const res = await app.request(
       `/api/strava/webhook/${VALID_SECRET}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(makeActivityCreateEvent()),
+        headers: { "Content-Type": "application/json", "x-strava-signature": `t=${t},v1=${v1}` },
+        body: tampered,
       },
       MOCK_ENV,
     );
+    expect(res.status).toBe(401);
+    expect(stravaFetch).not.toHaveBeenCalled();
+  });
 
-    expect(matchAndStoreActivity).toHaveBeenCalledWith(expect.anything(), MOCK_USER_ID, detailedActivity);
+  test("200 when signature is valid", async () => {
+    const res = await postWebhook({ body: makeActivityCreateEvent() });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(stravaFetch).toHaveBeenCalledOnce();
+  });
+
+  test("soft-fail: when STRAVA_WEBHOOK_SIGNING_SECRET is unset, request without header is accepted and a warning is logged", async () => {
+    const envWithoutSecret = { ...MOCK_ENV, STRAVA_WEBHOOK_SIGNING_SECRET: undefined };
+    const res = await postWebhook({ body: makeActivityCreateEvent(), env: envWithoutSecret, rawHeader: null });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.ok).toBe(true);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("STRAVA_WEBHOOK_SIGNING_SECRET not configured"));
+    expect(stravaFetch).toHaveBeenCalledOnce();
+  });
+
+  test("path-secret check runs before signature check (404 still wins for unknown path)", async () => {
+    const res = await postWebhook({ body: makeActivityCreateEvent(), pathSecret: "wrong-path-secret", rawHeader: null });
+    expect(res.status).toBe(404);
   });
 });

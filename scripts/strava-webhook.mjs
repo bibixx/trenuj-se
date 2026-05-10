@@ -94,6 +94,8 @@ async function cmdRegister() {
 
   const created = await createSubscription(env);
   console.log(`Registered subscription #${created.id} → ${expected}`);
+  console.log("Full response (check for any signing secret field):");
+  console.log(JSON.stringify(created, null, 2));
 }
 
 async function cmdDelete() {

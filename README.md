@@ -151,6 +151,7 @@ Copy `.dev.vars.example` to `.dev.vars` and fill in:
 - `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` — OAuth credentials
 - `STRAVA_VERIFY_TOKEN` — Webhook verification token
 - `STRAVA_WEBHOOK_PATH_SECRET` — Random string for webhook URL path
+- `STRAVA_WEBHOOK_SIGNING_SECRET` — Strava HMAC-SHA256 signing secret for `X-Strava-Signature`. Leave unset until Strava surfaces it; verification is skipped while empty.
 - `PUBLIC_APP_URL` — Application base URL (`http://localhost:8787` for dev)
 
 ## Testing

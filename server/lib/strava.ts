@@ -9,6 +9,7 @@ export type StravaBindings = {
   STRAVA_CLIENT_ID?: string;
   STRAVA_CLIENT_SECRET?: string;
   STRAVA_VERIFY_TOKEN?: string;
+  STRAVA_WEBHOOK_SIGNING_SECRET?: string;
   PUBLIC_APP_URL?: string;
 };
 
@@ -45,8 +46,83 @@ export function getStravaVerifyToken(bindings: StravaBindings) {
   return requireBinding(bindings, "STRAVA_VERIFY_TOKEN");
 }
 
+export function getStravaWebhookSigningSecret(bindings: StravaBindings): string | undefined {
+  return getBinding(bindings, "STRAVA_WEBHOOK_SIGNING_SECRET");
+}
+
 export function getPublicAppUrl(bindings: StravaBindings) {
   return requireBinding(bindings, "PUBLIC_APP_URL");
+}
+
+const STRAVA_SIGNATURE_TOLERANCE_SEC = 300;
+
+export type StravaSignatureCheck = { ok: true } | { ok: false; reason: string };
+
+function parseStravaSignatureHeader(header: string): { t: string; v1: string } | null {
+  let t: string | undefined;
+  let v1: string | undefined;
+  for (const part of header.split(",")) {
+    const eqIdx = part.indexOf("=");
+    if (eqIdx === -1) return null;
+    const key = part.slice(0, eqIdx).trim();
+    const value = part.slice(eqIdx + 1).trim();
+    if (key === "t") t = value;
+    else if (key === "v1") v1 = value;
+  }
+  if (!t || !v1) return null;
+  return { t, v1 };
+}
+
+function hexToBytes(hex: string): Uint8Array | null {
+  if (hex.length === 0 || hex.length % 2 !== 0) return null;
+  if (!/^[0-9a-f]+$/i.test(hex)) return null;
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = Number.parseInt(hex.slice(i, i + 2), 16);
+  }
+  return bytes;
+}
+
+export async function verifyStravaSignature(args: {
+  secret: string;
+  header: string | null | undefined;
+  rawBody: string;
+  nowMs?: number;
+  toleranceSec?: number;
+}): Promise<StravaSignatureCheck> {
+  const tolerance = args.toleranceSec ?? STRAVA_SIGNATURE_TOLERANCE_SEC;
+  const nowSec = Math.floor((args.nowMs ?? Date.now()) / 1000);
+
+  if (!args.header) {
+    return { ok: false, reason: "missing X-Strava-Signature header" };
+  }
+
+  const parsed = parseStravaSignatureHeader(args.header);
+  if (!parsed) {
+    return { ok: false, reason: "malformed X-Strava-Signature header" };
+  }
+
+  if (!/^\d+$/.test(parsed.t)) {
+    return { ok: false, reason: "invalid timestamp" };
+  }
+  const t = Number(parsed.t);
+  if (Math.abs(nowSec - t) > tolerance) {
+    return { ok: false, reason: "timestamp outside tolerance window" };
+  }
+
+  const signatureBytes = hexToBytes(parsed.v1);
+  if (!signatureBytes) {
+    return { ok: false, reason: "v1 is not valid hex" };
+  }
+
+  const encoder = new TextEncoder();
+  const key = await crypto.subtle.importKey("raw", encoder.encode(args.secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"]);
+  const payload = encoder.encode(`${parsed.t}.${args.rawBody}`);
+  const valid = await crypto.subtle.verify("HMAC", key, signatureBytes, payload);
+  if (!valid) {
+    return { ok: false, reason: "signature mismatch" };
+  }
+  return { ok: true };
 }
 
 export async function getValidStravaAccessToken(supabase: SupabaseClient, bindings: StravaBindings, userId: string) {

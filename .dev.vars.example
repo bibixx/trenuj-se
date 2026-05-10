@@ -8,5 +8,6 @@ DATABASE_URL=
 STRAVA_CLIENT_ID=
 STRAVA_CLIENT_SECRET=
 STRAVA_VERIFY_TOKEN=
-STRAVA_WEBHOOK_PATH_SECRET=   # Random string, used as webhook URL path segment
+STRAVA_WEBHOOK_PATH_SECRET=      # Random string, used as webhook URL path segment
+STRAVA_WEBHOOK_SIGNING_SECRET=   # Strava-issued HMAC-SHA256 signing secret; leave empty until Strava surfaces it
 PUBLIC_APP_URL=

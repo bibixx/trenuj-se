@@ -9,9 +9,11 @@ import {
   parseStravaTimezoneToIana,
   refreshWorkoutActivityFromStrava,
   stravaFetch,
+  verifyStravaSignature,
 } from "../../server/lib/strava.ts";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { MOCK_USER_ID } from "../helpers/mock-env.ts";
+import { computeStravaSignature } from "../helpers/strava-signature.ts";
 
 const VALID_BINDINGS = {
   STRAVA_CLIENT_ID: "client-id",
@@ -271,6 +273,106 @@ describe("refreshWorkoutActivityFromStrava", () => {
     });
 
     await expect(refreshWorkoutActivityFromStrava(mock.client, MOCK_USER_ID, "workout-uuid-42", SAMPLE_STRAVA_ACTIVITY)).rejects.toThrow(/boom/);
+  });
+});
+
+describe("verifyStravaSignature", () => {
+  const SECRET = "test-signing-secret";
+  const BODY = JSON.stringify({ object_type: "activity", object_id: 123, aspect_type: "create", owner_id: 999 });
+  const NOW_SEC = 1_715_000_000;
+  const NOW_MS = NOW_SEC * 1000;
+
+  test("accepts a valid signature", async () => {
+    const v1 = await computeStravaSignature(SECRET, NOW_SEC, BODY);
+    const result = await verifyStravaSignature({
+      secret: SECRET,
+      header: `t=${NOW_SEC},v1=${v1}`,
+      rawBody: BODY,
+      nowMs: NOW_MS,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test("rejects missing header", async () => {
+    const result = await verifyStravaSignature({ secret: SECRET, header: null, rawBody: BODY, nowMs: NOW_MS });
+    expect(result).toEqual({ ok: false, reason: "missing X-Strava-Signature header" });
+  });
+
+  test("rejects header without v1", async () => {
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=${NOW_SEC}`, rawBody: BODY, nowMs: NOW_MS });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/malformed/i);
+  });
+
+  test("rejects header without t", async () => {
+    const v1 = await computeStravaSignature(SECRET, NOW_SEC, BODY);
+    const result = await verifyStravaSignature({ secret: SECRET, header: `v1=${v1}`, rawBody: BODY, nowMs: NOW_MS });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/malformed/i);
+  });
+
+  test("rejects malformed header (missing equals)", async () => {
+    const result = await verifyStravaSignature({ secret: SECRET, header: "garbage", rawBody: BODY, nowMs: NOW_MS });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/malformed/i);
+  });
+
+  test("rejects non-numeric timestamp", async () => {
+    const v1 = await computeStravaSignature(SECRET, NOW_SEC, BODY);
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=now,v1=${v1}`, rawBody: BODY, nowMs: NOW_MS });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/timestamp/i);
+  });
+
+  test("rejects timestamp older than tolerance", async () => {
+    const oldT = NOW_SEC - 301;
+    const v1 = await computeStravaSignature(SECRET, oldT, BODY);
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=${oldT},v1=${v1}`, rawBody: BODY, nowMs: NOW_MS });
+    expect(result).toEqual({ ok: false, reason: "timestamp outside tolerance window" });
+  });
+
+  test("rejects timestamp further in the future than tolerance", async () => {
+    const futureT = NOW_SEC + 301;
+    const v1 = await computeStravaSignature(SECRET, futureT, BODY);
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=${futureT},v1=${v1}`, rawBody: BODY, nowMs: NOW_MS });
+    expect(result).toEqual({ ok: false, reason: "timestamp outside tolerance window" });
+  });
+
+  test("accepts timestamp at the edge of tolerance (300s)", async () => {
+    const edgeT = NOW_SEC - 300;
+    const v1 = await computeStravaSignature(SECRET, edgeT, BODY);
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=${edgeT},v1=${v1}`, rawBody: BODY, nowMs: NOW_MS });
+    expect(result.ok).toBe(true);
+  });
+
+  test("rejects v1 that is not valid hex", async () => {
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=${NOW_SEC},v1=not-hex!!`, rawBody: BODY, nowMs: NOW_MS });
+    expect(result).toEqual({ ok: false, reason: "v1 is not valid hex" });
+  });
+
+  test("rejects v1 with odd length", async () => {
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=${NOW_SEC},v1=abc`, rawBody: BODY, nowMs: NOW_MS });
+    expect(result).toEqual({ ok: false, reason: "v1 is not valid hex" });
+  });
+
+  test("rejects signature computed with wrong secret", async () => {
+    const v1 = await computeStravaSignature("different-secret", NOW_SEC, BODY);
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=${NOW_SEC},v1=${v1}`, rawBody: BODY, nowMs: NOW_MS });
+    expect(result).toEqual({ ok: false, reason: "signature mismatch" });
+  });
+
+  test("rejects when body has been tampered with after signing", async () => {
+    const v1 = await computeStravaSignature(SECRET, NOW_SEC, BODY);
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=${NOW_SEC},v1=${v1}`, rawBody: `${BODY} `, nowMs: NOW_MS });
+    expect(result).toEqual({ ok: false, reason: "signature mismatch" });
+  });
+
+  test("respects custom tolerance", async () => {
+    const t = NOW_SEC - 60;
+    const v1 = await computeStravaSignature(SECRET, t, BODY);
+    const result = await verifyStravaSignature({ secret: SECRET, header: `t=${t},v1=${v1}`, rawBody: BODY, nowMs: NOW_MS, toleranceSec: 30 });
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.reason).toMatch(/tolerance/i);
   });
 });
 

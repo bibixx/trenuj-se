@@ -32,6 +32,7 @@ Guidance for AI agents working in this codebase.
    - `STRAVA_CLIENT_ID` / `STRAVA_CLIENT_SECRET` — from your Strava API app
    - `STRAVA_VERIFY_TOKEN` — any string, used to verify Strava webhook subscription
    - `STRAVA_WEBHOOK_PATH_SECRET` — random string, becomes part of the webhook URL path to prevent enumeration
+   - `STRAVA_WEBHOOK_SIGNING_SECRET` — Strava-issued HMAC-SHA256 secret for verifying `X-Strava-Signature` on webhook POSTs. When unset, signature verification is skipped (logs a warning). Set it as soon as Strava surfaces the secret.
    - `PUBLIC_APP_URL` — defaults to `http://localhost:8787` for local dev
 
 3. Run database migrations:

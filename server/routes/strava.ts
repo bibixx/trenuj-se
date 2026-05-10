@@ -9,11 +9,13 @@ import {
   collapseStravaSportType,
   getStravaOauthConfig,
   getStravaVerifyToken,
+  getStravaWebhookSigningSecret,
   getValidStravaAccessToken,
   linkActivityToWorkout,
   matchAndStoreActivity,
   refreshWorkoutActivityFromStrava,
   stravaFetch,
+  verifyStravaSignature,
 } from "../lib/strava";
 import { consumeStreamToken } from "../lib/stream-tokens";
 
@@ -278,7 +280,31 @@ stravaRoutes.post("/webhook/:secret", async (c) => {
     return c.notFound();
   }
 
-  const payload = await c.req.json().catch(() => null);
+  // HMAC-SHA256 must run against the raw request bytes, so read text once and
+  // JSON-parse from the same string.
+  const rawBody = await c.req.text();
+
+  const signingSecret = getStravaWebhookSigningSecret(c.env);
+  if (signingSecret) {
+    const result = await verifyStravaSignature({
+      secret: signingSecret,
+      header: c.req.header("x-strava-signature") ?? null,
+      rawBody,
+    });
+    if (!result.ok) {
+      console.warn("Strava webhook signature verification failed:", result.reason);
+      return c.json({ code: "AUTH_ERROR", message: "Invalid signature" }, 401);
+    }
+  } else {
+    console.warn("STRAVA_WEBHOOK_SIGNING_SECRET not configured — skipping signature verification");
+  }
+
+  let payload: unknown = null;
+  try {
+    payload = rawBody.length > 0 ? JSON.parse(rawBody) : null;
+  } catch {
+    payload = null;
+  }
   const supabase = createServerSupabase(c);
   const env = c.env;
 
