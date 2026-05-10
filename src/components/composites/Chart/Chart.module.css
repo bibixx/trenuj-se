@@ -1,0 +1,113 @@
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 14px 14px 6px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+}
+
+.title {
+  composes: typography-sm from global;
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.canvas {
+  width: 100%;
+  min-height: 220px;
+
+  & :global(.recharts-cartesian-grid line),
+  & :global(.recharts-polar-grid line),
+  & :global(.recharts-polar-grid path) {
+    stroke: var(--border-subtle);
+  }
+
+  & :global(.recharts-cartesian-axis-tick-value),
+  & :global(.recharts-polar-angle-axis-tick-value),
+  & :global(.recharts-polar-radius-axis-tick-value) {
+    fill: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  & :global(.recharts-cartesian-axis-line),
+  & :global(.recharts-cartesian-axis-tick-line) {
+    stroke: var(--border-subtle);
+  }
+
+  & :global(.recharts-label) {
+    fill: var(--text-muted);
+    font-size: var(--text-xs);
+  }
+
+  & :global(.recharts-reference-line line) {
+    stroke: var(--text-muted);
+  }
+
+  & :global(.recharts-reference-area-rect) {
+    stroke: none;
+  }
+
+  & :global(.recharts-default-legend) {
+    font-size: var(--text-xs) !important;
+  }
+
+  & :global(.recharts-legend-item-text) {
+    color: var(--text-secondary) !important;
+  }
+}
+
+.tooltip {
+  background: var(--bg-elevated);
+  box-shadow: var(--border-shine), var(--shadow-floating);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  composes: typography-xs from global;
+  color: var(--text-primary);
+}
+
+.tooltipLabel {
+  color: var(--text-muted);
+  font-weight: var(--weight-medium);
+}
+
+.tooltipRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tooltipSwatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.tooltipName {
+  color: var(--text-secondary);
+}
+
+.tooltipValue {
+  color: var(--text-primary);
+  font-weight: var(--weight-medium);
+  margin-left: auto;
+}
+
+.invalid {
+  composes: typography-xs from global;
+
+  color: var(--destructive);
+  background: color-mix(in srgb, var(--destructive) 15%, var(--bg-elevated));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin: 12px 0;
+}

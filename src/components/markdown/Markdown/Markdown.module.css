@@ -156,7 +156,7 @@
   & :global(table) {
     width: 100%;
     border-collapse: collapse;
-    margin: 10px -10px;
+    margin: 10px -5px;
     font-size: var(--text-xs);
   }
 
@@ -193,17 +193,5 @@
     max-width: 100%;
     height: auto;
     border-radius: var(--radius);
-  }
-
-  /* Mermaid charts */
-  & :global(.mermaid) {
-    margin: 12px 0;
-    display: flex;
-    justify-content: center;
-
-    & :global(svg) {
-      max-width: 100%;
-      height: auto;
-    }
   }
 }

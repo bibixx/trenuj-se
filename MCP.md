@@ -143,7 +143,7 @@ Activities synced from Strava are auto-matched to planned workouts by date + spo
 
 ### Training Guide Resource
 
-The server exposes a `training-plan-guide` resource (`guide://training-plan-guide`) containing conventions for workout descriptions, metadata shapes, naming, colors, icons, and mermaid usage. **Read this resource before creating or modifying plans** — it defines the expected formats.
+The server exposes a `training-plan-guide` resource (`guide://training-plan-guide`) containing conventions for workout descriptions, metadata shapes, naming, colors, icons, and chart-block usage (Recharts-backed `chart` JSON code blocks). **Read this resource before creating or modifying plans** — it defines the expected formats.
 
 ---
 

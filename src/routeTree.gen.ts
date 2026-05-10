@@ -29,6 +29,7 @@ import { Route as DevDesignSystemDomainRouteImport } from './routes/dev/design-s
 import { Route as DevDesignSystemCrossfadeRouteImport } from './routes/dev/design-system/crossfade'
 import { Route as DevDesignSystemCompositesRouteImport } from './routes/dev/design-system/composites'
 import { Route as DevDesignSystemColorsRouteImport } from './routes/dev/design-system/colors'
+import { Route as DevDesignSystemChartsRouteImport } from './routes/dev/design-system/charts'
 
 const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
   id: '/privacy-policy',
@@ -132,6 +133,11 @@ const DevDesignSystemColorsRoute = DevDesignSystemColorsRouteImport.update({
   path: '/colors',
   getParentRoute: () => DevDesignSystemRoute,
 } as any)
+const DevDesignSystemChartsRoute = DevDesignSystemChartsRouteImport.update({
+  id: '/charts',
+  path: '/charts',
+  getParentRoute: () => DevDesignSystemRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/dev/design-system': typeof DevDesignSystemRouteWithChildren
   '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
+  '/dev/design-system/charts': typeof DevDesignSystemChartsRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
   '/dev/design-system/crossfade': typeof DevDesignSystemCrossfadeRoute
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/': typeof AppIndexRoute
+  '/dev/design-system/charts': typeof DevDesignSystemChartsRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
   '/dev/design-system/crossfade': typeof DevDesignSystemCrossfadeRoute
@@ -186,6 +194,7 @@ export interface FileRoutesById {
   '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/_app/': typeof AppIndexRoute
+  '/dev/design-system/charts': typeof DevDesignSystemChartsRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
   '/dev/design-system/crossfade': typeof DevDesignSystemCrossfadeRoute
@@ -209,6 +218,7 @@ export interface FileRouteTypes {
     | '/dev/design-system'
     | '/oauth/consent'
     | '/share/$shareId'
+    | '/dev/design-system/charts'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
     | '/dev/design-system/crossfade'
@@ -229,6 +239,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/share/$shareId'
     | '/'
+    | '/dev/design-system/charts'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
     | '/dev/design-system/crossfade'
@@ -251,6 +262,7 @@ export interface FileRouteTypes {
     | '/oauth/consent'
     | '/share/$shareId'
     | '/_app/'
+    | '/dev/design-system/charts'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
     | '/dev/design-system/crossfade'
@@ -414,6 +426,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevDesignSystemColorsRouteImport
       parentRoute: typeof DevDesignSystemRoute
     }
+    '/dev/design-system/charts': {
+      id: '/dev/design-system/charts'
+      path: '/charts'
+      fullPath: '/dev/design-system/charts'
+      preLoaderRoute: typeof DevDesignSystemChartsRouteImport
+      parentRoute: typeof DevDesignSystemRoute
+    }
   }
 }
 
@@ -434,6 +453,7 @@ const AppRouteChildren: AppRouteChildren = {
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
 interface DevDesignSystemRouteChildren {
+  DevDesignSystemChartsRoute: typeof DevDesignSystemChartsRoute
   DevDesignSystemColorsRoute: typeof DevDesignSystemColorsRoute
   DevDesignSystemCompositesRoute: typeof DevDesignSystemCompositesRoute
   DevDesignSystemCrossfadeRoute: typeof DevDesignSystemCrossfadeRoute
@@ -447,6 +467,7 @@ interface DevDesignSystemRouteChildren {
 }
 
 const DevDesignSystemRouteChildren: DevDesignSystemRouteChildren = {
+  DevDesignSystemChartsRoute: DevDesignSystemChartsRoute,
   DevDesignSystemColorsRoute: DevDesignSystemColorsRoute,
   DevDesignSystemCompositesRoute: DevDesignSystemCompositesRoute,
   DevDesignSystemCrossfadeRoute: DevDesignSystemCrossfadeRoute,

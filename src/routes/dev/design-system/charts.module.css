@@ -1,0 +1,55 @@
+.example {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+.exampleHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exampleTitle {
+  composes: typography-base from global;
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.exampleNumber {
+  color: var(--text-muted);
+  margin-right: 6px;
+}
+
+.exampleDescription {
+  composes: typography-xs from global;
+  color: var(--text-secondary);
+}
+
+.exampleBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.source {
+  composes: typography-xs from global;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin: 12px 0;
+  overflow: auto;
+  max-height: 320px;
+  white-space: pre;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+@media (max-width: 720px) {
+  .exampleBody {
+    grid-template-columns: 1fr;
+  }
+}

@@ -55,13 +55,22 @@ Interval Plan:
   Total volume: ~8km
 \`\`\`
 
-### Mermaid Chart (xychart-beta)
-\`\`\`mermaid
-xychart-beta
-  title "Zone Distribution (min)"
-  x-axis ["Z1", "Z2", "Z3", "Z4", "Z5"]
-  y-axis "Minutes" 0 --> 60
-  bar [10, 45, 25, 15, 5]
+### Chart Block
+\`\`\`chart
+{
+  "type": "bar",
+  "title": "Zone Distribution",
+  "data": [
+    { "zone": "Z1", "minutes": 10 },
+    { "zone": "Z2", "minutes": 45 },
+    { "zone": "Z3", "minutes": 25 },
+    { "zone": "Z4", "minutes": 15 },
+    { "zone": "Z5", "minutes": 5 }
+  ],
+  "xAxis": { "dataKey": "zone" },
+  "yAxis": { "label": "min" },
+  "series": [{ "dataKey": "minutes", "hue": 145, "name": "Time in zone" }]
+}
 \`\`\`
 
 ### Nested Content

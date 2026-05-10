@@ -18,6 +18,7 @@ const SECTIONS = [
   { label: "Domain", to: "/dev/design-system/domain" },
   { label: "Composites", to: "/dev/design-system/composites" },
   { label: "Markdown", to: "/dev/design-system/markdown" },
+  { label: "Charts", to: "/dev/design-system/charts" },
   { label: "Colors", to: "/dev/design-system/colors" },
   { label: "Toasts", to: "/dev/design-system/toasts" },
   { label: "Crossfade", to: "/dev/design-system/crossfade" },
