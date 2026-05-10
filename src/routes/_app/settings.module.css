@@ -7,43 +7,30 @@
 .grid {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 24px;
 }
 
-/* Card sections */
-.card {
+/* Sections */
+.section {
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
-.cardHeader {
+.sectionHeader {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
 
-.cardHeaderInfo {
-  display: flex;
-  flex-direction: column;
-}
-
-.cardMeta {
-  composes: typography-xs from global;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.cardTitle {
+.sectionTitle {
   composes: typography-base from global;
   font-weight: 600;
   color: var(--text-primary);
-  margin-top: 2px;
 }
 
-.cardDescription {
+.sectionDescription {
   composes: typography-sm from global;
   color: var(--text-secondary);
   line-height: var(--leading-relaxed);

@@ -3,7 +3,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type FormEvent, useState } from "react";
 import { Badge } from "../../components/primitives/Badge/Badge.tsx";
 import { Button } from "../../components/primitives/Button/Button.tsx";
-import { Card } from "../../components/primitives/Card/Card.tsx";
 import { Dialog } from "../../components/primitives/Dialog/Dialog.tsx";
 import { Input } from "../../components/primitives/Input/Input.tsx";
 import { ToggleGroup } from "../../components/primitives/ToggleGroup/ToggleGroup.tsx";
@@ -46,17 +45,17 @@ function SettingsPage() {
       <h1 className={styles.heading}>Settings</h1>
 
       <div className={styles.grid}>
-        <AccountCard user={user} />
-        <AppearanceCard />
-        <StravaCard profile={profile ?? null} stravaParam={stravaParam} />
+        <AccountSection user={user} />
+        <AppearanceSection />
+        <StravaSection profile={profile ?? null} stravaParam={stravaParam} />
       </div>
     </PageLayout>
   );
 }
 
-// --- Account Card ---
+// --- Account Section ---
 
-function AccountCard({ user }: { user: User | null }) {
+function AccountSection({ user }: { user: User | null }) {
   const meta = user?.user_metadata ?? {};
   const isEmailProvider = user?.app_metadata.provider === "email";
 
@@ -112,13 +111,8 @@ function AccountCard({ user }: { user: User | null }) {
   };
 
   return (
-    <Card className={styles.card}>
-      <div className={styles.cardHeader}>
-        <div className={styles.cardHeaderInfo}>
-          <span className={styles.cardMeta}>Account</span>
-          <h2 className={styles.cardTitle}>Profile</h2>
-        </div>
-      </div>
+    <section className={styles.section}>
+      <h2 className={styles.sectionTitle}>Profile</h2>
 
       <form onSubmit={handleProfileSubmit} className={styles.form}>
         <Input label="Email address" value={user?.email ?? ""} readOnly />
@@ -149,23 +143,18 @@ function AccountCard({ user }: { user: User | null }) {
           Log out
         </Button>
       </div>
-    </Card>
+    </section>
   );
 }
 
-// --- Appearance Card ---
+// --- Appearance Section ---
 
-function AppearanceCard() {
+function AppearanceSection() {
   const [preference, , setTheme] = useTheme();
 
   return (
-    <Card className={styles.card}>
-      <div className={styles.cardHeader}>
-        <div className={styles.cardHeaderInfo}>
-          <span className={styles.cardMeta}>Appearance</span>
-          <h2 className={styles.cardTitle}>Theme</h2>
-        </div>
-      </div>
+    <section className={styles.section}>
+      <h2 className={styles.sectionTitle}>Theme</h2>
       <div className={styles.buttonRow}>
         <ToggleGroup.Root value={[preference]} onValueChange={(v) => v.length > 0 && setTheme(v[0] as ThemePreference)} aria-label="Theme">
           <ToggleGroup.Item value="system">System</ToggleGroup.Item>
@@ -173,13 +162,13 @@ function AppearanceCard() {
           <ToggleGroup.Item value="light">Light</ToggleGroup.Item>
         </ToggleGroup.Root>
       </div>
-    </Card>
+    </section>
   );
 }
 
-// --- Strava Card ---
+// --- Strava Section ---
 
-function StravaCard({ profile, stravaParam }: { profile: Profile | null; stravaParam?: string }) {
+function StravaSection({ profile, stravaParam }: { profile: Profile | null; stravaParam?: string }) {
   const isConnected = !!profile?.stravaAthleteId;
   const [disconnecting, setDisconnecting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -219,16 +208,15 @@ function StravaCard({ profile, stravaParam }: { profile: Profile | null; stravaP
   };
 
   return (
-    <Card className={styles.card}>
-      <div className={styles.cardHeader}>
-        <div className={styles.cardHeaderInfo}>
-          <span className={styles.cardMeta}>Strava</span>
-          <h2 className={styles.cardTitle}>Connection</h2>
-        </div>
+    <section className={styles.section}>
+      <div className={styles.sectionHeader}>
+        <h2 className={styles.sectionTitle}>Strava Connection</h2>
         {isConnected && <Badge variant="status">Connected · Athlete #{profile.stravaAthleteId}</Badge>}
       </div>
-      <p className={styles.cardDescription}>
-        Strava stays optional. When connected, completed activities are auto-matched to your planned workouts; you can also link them manually from any workout card.
+      <p className={styles.sectionDescription}>
+        Connect Strava to match your runs, rides, and swims to the workouts in your plan.
+        <br />
+        This will happen automatically and can be done using “Link Strava activity” button.
       </p>
       <div className={styles.buttonRow}>
         {isConnected ? (
@@ -258,6 +246,6 @@ function StravaCard({ profile, stravaParam }: { profile: Profile | null; stravaP
           </div>
         </Dialog.Content>
       </Dialog.Root>
-    </Card>
+    </section>
   );
 }
