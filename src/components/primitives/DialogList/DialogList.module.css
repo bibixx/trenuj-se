@@ -1,8 +1,9 @@
+/* Negative horizontal margin lets item hover backgrounds bleed past the dialog's text-aligned content area. Assumes the host dialog has at least 12px of inner padding. */
 .list {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  margin: 0 -12px;
+  margin: 12px -12px -12px;
 }
 
 .item {
@@ -12,23 +13,31 @@
   padding: 10px 12px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: background var(--motion-timing-fast) var(--motion-function);
+  text-align: left;
+  background: transparent;
+  border: 0;
+  width: 100%;
+  transition: var(--motion-timing-fast) var(--motion-function);
+  transition-property: background;
 
-  &:hover {
+  &:hover:not(:disabled) {
     background: var(--bg-hover);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
   }
 }
 
 .itemActive {
-  composes: item;
-
   &::after {
     content: "";
     display: block;
     width: 6px;
     height: 6px;
     border-radius: var(--radius-full);
-    background: var(--text-accent);
+    background: var(--accent);
     flex-shrink: 0;
     margin-left: auto;
   }
@@ -39,6 +48,7 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  flex: 1;
 }
 
 .itemName {

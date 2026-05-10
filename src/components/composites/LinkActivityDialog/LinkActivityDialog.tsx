@@ -3,6 +3,7 @@ import { useState } from "react";
 import { apiFetch } from "../../../lib/api.ts";
 import { recentStravaActivitiesQueryOptions, useLinkStravaActivity, type RecentStravaActivity } from "../../../lib/queries/workouts.ts";
 import { Dialog } from "../../primitives/Dialog/Dialog.tsx";
+import { DialogList } from "../../primitives/DialogList/DialogList.tsx";
 import { WorkoutTypeIcon } from "../../domain/WorkoutTypeIcon/WorkoutTypeIcon.tsx";
 import styles from "./LinkActivityDialog.module.css";
 
@@ -121,30 +122,30 @@ export function LinkActivityDialog({ workoutId, planId, open, onOpenChange }: Li
         {error && stravaNotConnected && (
           <>
             <Dialog.Description>Connect Strava to link activities to your workouts.</Dialog.Description>
-            <button className={styles.item} onClick={handleConnectStrava}>
-              <span className={styles.itemContent}>
-                <span className={styles.itemName}>Connect with Strava</span>
-              </span>
-            </button>
+            <DialogList.Item onClick={handleConnectStrava}>
+              <DialogList.Content>
+                <DialogList.Name>Connect with Strava</DialogList.Name>
+              </DialogList.Content>
+            </DialogList.Item>
           </>
         )}
 
         {error && !stravaNotConnected && <p className={styles.error}>{error.message}</p>}
 
-        {data && data.length === 0 && <p className={styles.empty}>No recent unlinked Strava activities. New activities sync automatically when you finish them.</p>}
+        {data && data.length === 0 && <DialogList.Empty>No recent unlinked Strava activities. New activities sync automatically when you finish them.</DialogList.Empty>}
 
         {data && data.length > 0 && (
-          <div className={styles.list}>
+          <DialogList.Root>
             {data.map((activity) => (
-              <button key={activity.stravaId} className={styles.item} disabled={link.isPending || refresh.isPending} onClick={() => handleSelect(activity)}>
+              <DialogList.Item key={activity.stravaId} disabled={link.isPending || refresh.isPending} onClick={() => handleSelect(activity)}>
                 <WorkoutTypeIcon icon={SPORT_ICONS[activity.sport] ?? null} />
-                <span className={styles.itemContent}>
-                  <span className={styles.itemName}>{activity.name}</span>
-                  <span className={styles.itemMeta}>{formatMeta(activity)}</span>
-                </span>
-              </button>
+                <DialogList.Content>
+                  <DialogList.Name>{activity.name}</DialogList.Name>
+                  <DialogList.Meta>{formatMeta(activity)}</DialogList.Meta>
+                </DialogList.Content>
+              </DialogList.Item>
             ))}
-          </div>
+          </DialogList.Root>
         )}
 
         {linkError && <p className={styles.error}>{linkError}</p>}

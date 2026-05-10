@@ -334,6 +334,28 @@
   gap: 6px;
 }
 
+/* Composites: dialog-mimicking frame for DialogList demos */
+.dialogDemoFrame {
+  width: 100%;
+  max-width: 360px;
+  padding: 24px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--border-shine), var(--shadow-elevated);
+}
+
+.dialogDemoTitle {
+  composes: typography-lg from global;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.dialogDemoStack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 /* Colors section */
 .hueControl {
   display: flex;

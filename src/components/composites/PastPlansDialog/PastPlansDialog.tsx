@@ -3,7 +3,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { plansQueryOptions } from "../../../lib/queries/plans.ts";
 import type { Plan } from "../../../lib/types.ts";
 import { Dialog } from "../../primitives/Dialog/Dialog.tsx";
-import styles from "./PastPlansDialog.module.css";
+import { DialogList } from "../../primitives/DialogList/DialogList.tsx";
 
 interface PastPlansDialogProps {
   open: boolean;
@@ -43,17 +43,20 @@ export function PastPlansDialog({ open, onOpenChange }: PastPlansDialogProps) {
         <Dialog.Close />
         <Dialog.Title>Plans</Dialog.Title>
 
-        <div className={styles.list}>
-          {plans.map((plan) => (
-            <button key={plan.id} className={plan.status === "active" ? styles.itemActive : styles.item} onClick={() => handleSelect(plan)}>
-              <div className={styles.itemContent}>
-                <span className={styles.itemName}>{plan.name}</span>
-                <span className={styles.itemMeta}>{formatDateRange(plan)}</span>
-              </div>
-            </button>
-          ))}
-          {plans.length === 0 && <p className={styles.empty}>No plans yet</p>}
-        </div>
+        {plans.length === 0 ? (
+          <DialogList.Empty>No plans yet</DialogList.Empty>
+        ) : (
+          <DialogList.Root>
+            {plans.map((plan) => (
+              <DialogList.Item key={plan.id} active={plan.status === "active"} onClick={() => handleSelect(plan)}>
+                <DialogList.Content>
+                  <DialogList.Name>{plan.name}</DialogList.Name>
+                  <DialogList.Meta>{formatDateRange(plan)}</DialogList.Meta>
+                </DialogList.Content>
+              </DialogList.Item>
+            ))}
+          </DialogList.Root>
+        )}
       </Dialog.Content>
     </Dialog.Root>
   );

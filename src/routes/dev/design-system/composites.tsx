@@ -5,6 +5,8 @@ import { WeekNavigation } from "../../../components/composites/WeekNavigation/We
 import { WeekSummary } from "../../../components/composites/WeekSummary/WeekSummary.tsx";
 import { PlanNote } from "../../../components/composites/PlanNote/PlanNote.tsx";
 import { Badge } from "../../../components/primitives/Badge/Badge.tsx";
+import { DialogList } from "../../../components/primitives/DialogList/DialogList.tsx";
+import { WorkoutTypeIcon } from "../../../components/domain/WorkoutTypeIcon/WorkoutTypeIcon.tsx";
 import { Markdown } from "../../../components/markdown/Markdown/Markdown.tsx";
 import { SAMPLE_WORKOUTS, SAMPLE_NOTE } from "./-sample-data.ts";
 import styles from "../design-system.module.css";
@@ -54,6 +56,79 @@ function CompositesSection() {
           />
         ))}
       </div>
+
+      <h2 className={styles.subTitle}>Dialog List</h2>
+      <p className={styles.description}>
+        Selectable list designed to sit inside a <code>Dialog</code>. Items use a negative horizontal margin so hover backgrounds bleed past the dialog's content edges.
+      </p>
+      <div className={styles.dialogDemoStack}>
+        <div className={styles.dialogDemoFrame}>
+          <h3 className={styles.dialogDemoTitle}>Plans</h3>
+          <DialogList.Root>
+            {SAMPLE_DIALOG_LIST_ITEMS.map((item) => (
+              <DialogList.Item key={item.id} active={item.active} disabled={item.disabled}>
+                {item.icon && <WorkoutTypeIcon icon={item.icon} />}
+                <DialogList.Content>
+                  <DialogList.Name>{item.name}</DialogList.Name>
+                  <DialogList.Meta>{item.meta}</DialogList.Meta>
+                </DialogList.Content>
+              </DialogList.Item>
+            ))}
+          </DialogList.Root>
+        </div>
+
+        <div className={styles.dialogDemoFrame}>
+          <h3 className={styles.dialogDemoTitle}>No items</h3>
+          <DialogList.Empty>No recent unlinked Strava activities. New activities sync automatically when you finish them.</DialogList.Empty>
+        </div>
+
+        <div className={styles.dialogDemoFrame}>
+          <h3 className={styles.dialogDemoTitle}>Standalone item</h3>
+          <p className={styles.description}>
+            <code>DialogList.Item</code> works outside a <code>Root</code> too — used for one-off CTAs like "Connect with Strava".
+          </p>
+          <DialogList.Item>
+            <DialogList.Content>
+              <DialogList.Name>Connect with Strava</DialogList.Name>
+            </DialogList.Content>
+          </DialogList.Item>
+        </div>
+      </div>
     </div>
   );
 }
+
+const SAMPLE_DIALOG_LIST_ITEMS = [
+  {
+    id: "plan-1",
+    name: "Marathon block — Spring 2026",
+    meta: "Mar 1 – Apr 26, 2026",
+    active: true,
+  },
+  {
+    id: "plan-2",
+    name: "Easy 8 km",
+    meta: "Sat, Apr 12 · 48 min · 8 km",
+    icon: "run",
+  },
+  {
+    id: "plan-3",
+    name: "Threshold ride",
+    meta: "Currently linking…",
+    icon: "bike",
+    disabled: true,
+  },
+  {
+    id: "plan-4",
+    name: "An unusually long workout name that should truncate cleanly with an ellipsis",
+    meta: "Tue, Apr 15 · 1h 12m",
+    icon: "swimming",
+  },
+] satisfies ReadonlyArray<{
+  id: string;
+  name: string;
+  meta: string;
+  active?: boolean;
+  disabled?: boolean;
+  icon?: string;
+}>;
