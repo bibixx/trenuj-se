@@ -40,8 +40,9 @@ async function listSubscriptions(env) {
 
 async function deleteSubscription(env, id) {
   const url = new URL(`${STRAVA_API}/${id}`);
-  const form = new URLSearchParams({ client_id: env.clientId, client_secret: env.clientSecret });
-  const res = await fetch(url, { method: "DELETE", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: form });
+  url.searchParams.set("client_id", env.clientId);
+  url.searchParams.set("client_secret", env.clientSecret);
+  const res = await fetch(url, { method: "DELETE" });
   if (!res.ok && res.status !== 204) {
     const text = await res.text();
     throw new Error(`Strava delete ${id} failed (${res.status}): ${text}`);
