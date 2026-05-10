@@ -6,13 +6,8 @@ vi.mock("../../server/lib/strava.ts", async (importOriginal) => {
   return {
     ...original,
     stravaFetch: vi.fn(async () => []),
-    upsertStravaActivity: vi.fn(async (_sb: unknown, _uid: string, _activity: unknown) => ({
-      id: "activity-1",
-      sport: "run",
-      date: "2024-01-01T00:00:00Z",
-      timezone: null,
-    })),
-    autoMatchActivityToWorkout: vi.fn(async () => null),
+    matchAndStoreActivity: vi.fn(async () => null),
+    linkActivityToWorkout: vi.fn(async (_sb: unknown, _b: unknown, _uid: string, workoutId: string) => ({ workoutId })),
     getValidStravaAccessToken: vi.fn(async () => "mock-access-token"),
   };
 });
@@ -26,7 +21,7 @@ import app from "../../server/index.ts";
 import { MOCK_ENV, MOCK_USER_ID } from "../helpers/mock-env.ts";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { setMockSupabase, clearMockSupabase } from "../helpers/setup.ts";
-import { stravaFetch, upsertStravaActivity, autoMatchActivityToWorkout } from "../../server/lib/strava.ts";
+import { stravaFetch, linkActivityToWorkout } from "../../server/lib/strava.ts";
 import { consumeStreamToken } from "../../server/lib/stream-tokens.ts";
 
 type TableConfig = Parameters<typeof createMockSupabase>[0]["tables"];
@@ -199,9 +194,45 @@ describe("POST /api/strava/disconnect", () => {
   });
 });
 
-// ─── POST /api/strava/sync ──────────────────────────────────────────────────
+// ─── GET /api/strava/recent-activities ──────────────────────────────────────
 
-describe("POST /api/strava/sync", () => {
+describe("GET /api/strava/recent-activities", () => {
+  afterEach(() => {
+    clearMockSupabase();
+    vi.clearAllMocks();
+  });
+
+  test("401 without auth", async () => {
+    const mock = makeAuthMock();
+    setMockSupabase(mock);
+
+    const res = await app.request("/api/strava/recent-activities", {}, MOCK_ENV);
+    expect(res.status).toBe(401);
+  });
+
+  test("200 returns shaped activities with linked ones filtered out", async () => {
+    vi.mocked(stravaFetch).mockResolvedValueOnce([
+      { id: 1001, sport_type: "Run", name: "Easy Run", start_date: "2024-01-01T07:00:00Z", elapsed_time: 1800, distance: 5000 },
+      { id: 1002, sport_type: "Ride", name: "Spin", start_date: "2024-01-02T17:00:00Z", elapsed_time: 3600, distance: 30000 },
+    ] as unknown[]);
+
+    const mock = makeAuthMock({
+      workout_activities: { select: { data: [{ strava_id: 1001 }], error: null } },
+    });
+    setMockSupabase(mock);
+
+    const res = await app.request("/api/strava/recent-activities", { headers: AUTH_HEADER }, MOCK_ENV);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { activities: Array<{ stravaId: number; name: string; sport: string }> };
+    expect(body.activities).toHaveLength(1);
+    expect(body.activities[0]?.stravaId).toBe(1002);
+    expect(body.activities[0]?.name).toBe("Spin");
+  });
+});
+
+// ─── POST /api/strava/link ──────────────────────────────────────────────────
+
+describe("POST /api/strava/link", () => {
   afterEach(() => {
     clearMockSupabase();
     vi.clearAllMocks();
@@ -212,126 +243,71 @@ describe("POST /api/strava/sync", () => {
     setMockSupabase(mock);
 
     const res = await app.request(
-      "/api/strava/sync",
+      "/api/strava/link",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ workoutId: "a0000000-0000-4000-8000-000000000001", stravaActivityId: 1001 }),
       },
       MOCK_ENV,
     );
     expect(res.status).toBe(401);
   });
 
-  test("200 with default days, returns { ok: true, synced: 0, matchedWorkouts: 0 } when no activities", async () => {
-    vi.mocked(stravaFetch).mockResolvedValueOnce([] as unknown[]);
-
+  test("200 when link succeeds", async () => {
     const mock = makeAuthMock();
     setMockSupabase(mock);
 
     const res = await app.request(
-      "/api/strava/sync",
+      "/api/strava/link",
       {
         method: "POST",
         headers: { ...AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
+        body: JSON.stringify({ workoutId: "a0000000-0000-4000-8000-000000000001", stravaActivityId: 1001 }),
       },
       MOCK_ENV,
     );
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
-    expect(body.synced).toBe(0);
-    expect(body.matchedWorkouts).toBe(0);
+    expect(linkActivityToWorkout).toHaveBeenCalledOnce();
   });
 
-  test("200 syncs activities, upsertStravaActivity called once per activity", async () => {
-    const activities = [
-      { id: 1001, sport_type: "Run" },
-      { id: 1002, sport_type: "Run" },
-    ];
-    vi.mocked(stravaFetch)
-      .mockResolvedValueOnce(activities as unknown[])
-      .mockResolvedValueOnce([] as unknown[]);
+  test("400 when body validation fails", async () => {
+    const mock = makeAuthMock();
+    setMockSupabase(mock);
+
+    const res = await app.request(
+      "/api/strava/link",
+      {
+        method: "POST",
+        headers: { ...AUTH_HEADER, "Content-Type": "application/json" },
+        body: JSON.stringify({ workoutId: "not-a-uuid", stravaActivityId: -1 }),
+      },
+      MOCK_ENV,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  test("409 when linkActivityToWorkout throws CONFLICT", async () => {
+    const { AppError } = await import("../../server/mcp/context.ts");
+    vi.mocked(linkActivityToWorkout).mockRejectedValueOnce(new AppError("CONFLICT", "Workout already has a linked activity"));
 
     const mock = makeAuthMock();
     setMockSupabase(mock);
 
     const res = await app.request(
-      "/api/strava/sync",
+      "/api/strava/link",
       {
         method: "POST",
         headers: { ...AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify({ days: 7 }),
+        body: JSON.stringify({ workoutId: "a0000000-0000-4000-8000-000000000001", stravaActivityId: 1001 }),
       },
       MOCK_ENV,
     );
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(409);
     const body = await res.json();
-    expect(body.ok).toBe(true);
-    expect(body.synced).toBe(2);
-    expect(upsertStravaActivity).toHaveBeenCalledTimes(2);
-  });
-
-  test("200 counts matchedWorkouts when autoMatchActivityToWorkout returns a workout", async () => {
-    const activities = [{ id: 1001, sport_type: "Run" }];
-    vi.mocked(stravaFetch)
-      .mockReset()
-      .mockResolvedValueOnce(activities as unknown[])
-      .mockResolvedValueOnce([] as unknown[]);
-    vi.mocked(autoMatchActivityToWorkout)
-      .mockReset()
-      .mockResolvedValueOnce({ id: "workout-matched-1" } as Record<string, unknown>);
-    vi.mocked(upsertStravaActivity)
-      .mockReset()
-      .mockResolvedValue({
-        id: "activity-1",
-        sport: "run",
-        date: "2024-01-01T00:00:00Z",
-        timezone: null,
-      } as Record<string, unknown>);
-
-    const mock = makeAuthMock();
-    setMockSupabase(mock);
-
-    const res = await app.request(
-      "/api/strava/sync",
-      {
-        method: "POST",
-        headers: { ...AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      },
-      MOCK_ENV,
-    );
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.synced).toBe(1);
-    expect(body.matchedWorkouts).toBe(1);
-  });
-
-  test("200 with 0 synced when stravaFetch immediately returns empty array", async () => {
-    vi.mocked(stravaFetch)
-      .mockReset()
-      .mockResolvedValue([] as unknown[]);
-    vi.mocked(upsertStravaActivity).mockReset();
-
-    const mock = makeAuthMock();
-    setMockSupabase(mock);
-
-    const res = await app.request(
-      "/api/strava/sync",
-      {
-        method: "POST",
-        headers: { ...AUTH_HEADER, "Content-Type": "application/json" },
-        body: JSON.stringify({ days: 30 }),
-      },
-      MOCK_ENV,
-    );
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body.synced).toBe(0);
-    expect(body.matchedWorkouts).toBe(0);
-    expect(upsertStravaActivity).not.toHaveBeenCalled();
+    expect(body.code).toBe("CONFLICT");
   });
 });
 

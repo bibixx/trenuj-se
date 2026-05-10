@@ -174,19 +174,18 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 | `get_workouts`      | Query workouts. Optional filters: `planId`, `dateFrom`, `dateTo`, `labelId`, `labelKey`, `status`, `limit` (default 50, max 200).                                                                                                                       |
 | `complete_workout`  | Mark as completed. Required: `workoutId`. Optional: `notes`.                                                                                                                                                                                            |
 | `skip_workout`      | Mark as skipped. Required: `workoutId`. Optional: `reason`.                                                                                                                                                                                             |
-| `link_activity`     | Link a Strava activity to a workout and mark it completed. Required: `workoutId`, `activityId`. Fails on conflict.                                                                                                                                      |
-| `unlink_activity`   | Remove activity link, reset to planned. Required: `workoutId`.                                                                                                                                                                                          |
-| `add_trainer_notes` | Set coach notes (markdown). Required: exactly one of `workoutId`/`activityId`, plus `notes`. Overwrites existing.                                                                                                                                       |
+| `link_activity`     | Link a Strava activity to a workout and mark it completed. Fetches the activity from Strava and stores it. Required: `workoutId`, `stravaActivityId` (numeric Strava ID). Fails on conflict.                                                            |
+| `unlink_activity`   | Remove activity link, delete the stored activity row, reset workout to planned. Required: `workoutId`.                                                                                                                                                  |
+| `add_trainer_notes` | Set coach notes (markdown) on a workout. Required: `workoutId`, `notes`. Overwrites existing.                                                                                                                                                           |
 
 ### Activities & Analytics
 
-| Tool                        | What it does                                                                                                |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| `get_activities`            | Query Strava activities. Optional: `dateFrom`, `dateTo`, `sport`, `limit` (default 20, max 100).            |
-| `get_activity_streams`      | Get temp URL for detailed Strava stream data. Required: `activityId`.                                       |
-| `get_week_summary`          | Planned vs actual aggregation for a Mon–Sun week. Optional: `weekDate`, `planId`.                           |
-| `get_plan_progress`         | Overall plan metrics: total/completed/skipped workouts, completion rate, current phase. Optional: `planId`. |
-| `compare_planned_vs_actual` | Per-workout planned vs actual comparison. Optional: `planId`, `dateFrom`, `dateTo`.                         |
+| Tool                        | What it does                                                                                                                      |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `get_workout_streams`       | Get temp URL for detailed Strava stream data for a linked workout (use this to build GPX, analyze pacing). Required: `workoutId`. |
+| `get_week_summary`          | Planned vs actual aggregation for a Mon–Sun week. Optional: `weekDate`, `planId`.                                                 |
+| `get_plan_progress`         | Overall plan metrics: total/completed/skipped workouts, completion rate, current phase. Optional: `planId`.                       |
+| `compare_planned_vs_actual` | Per-workout planned vs actual comparison. Optional: `planId`, `dateFrom`, `dateTo`.                                               |
 
 ### Notes
 

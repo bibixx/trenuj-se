@@ -69,7 +69,7 @@ function ColorsSection() {
             status: "planned",
             completionNotes: null,
             trainerNotes: "Coach says: looking good, keep it up!",
-            activityId: null,
+            activity: null,
             execution: null,
             metadata: null,
             createdAt: "",

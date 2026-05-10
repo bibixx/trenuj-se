@@ -181,7 +181,6 @@ function AppearanceCard() {
 
 function StravaCard({ profile, stravaParam }: { profile: Profile | null; stravaParam?: string }) {
   const isConnected = !!profile?.stravaAthleteId;
-  const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(() => {
@@ -189,19 +188,6 @@ function StravaCard({ profile, stravaParam }: { profile: Profile | null; stravaP
     if (stravaParam === "error") return "Failed to connect Strava";
     return null;
   });
-
-  const handleSync = async () => {
-    setSyncing(true);
-    setFeedback(null);
-    try {
-      await apiFetch("/api/strava/sync", { method: "POST", body: JSON.stringify({}) });
-      setFeedback("Sync complete");
-    } catch (err) {
-      setFeedback(err instanceof Error ? err.message : "Sync failed");
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   const handleDisconnect = async () => {
     setConfirmOpen(false);
@@ -241,17 +227,14 @@ function StravaCard({ profile, stravaParam }: { profile: Profile | null; stravaP
         </div>
         {isConnected && <Badge variant="status">Connected · Athlete #{profile.stravaAthleteId}</Badge>}
       </div>
-      <p className={styles.cardDescription}>Strava stays optional, but when connected it powers the lightweight activity links back from the plan.</p>
+      <p className={styles.cardDescription}>
+        Strava stays optional. When connected, completed activities are auto-matched to your planned workouts; you can also link them manually from any workout card.
+      </p>
       <div className={styles.buttonRow}>
         {isConnected ? (
-          <>
-            <Button variant="secondary" onClick={handleSync} disabled={syncing}>
-              {syncing ? "Syncing…" : "Sync now"}
-            </Button>
-            <Button variant="destructive" onClick={() => setConfirmOpen(true)} disabled={disconnecting}>
-              {disconnecting ? "Disconnecting…" : "Disconnect"}
-            </Button>
-          </>
+          <Button variant="destructive" onClick={() => setConfirmOpen(true)} disabled={disconnecting}>
+            {disconnecting ? "Disconnecting…" : "Disconnect"}
+          </Button>
         ) : (
           <button className={styles.stravaButton} onClick={handleConnect} disabled={connecting}>
             {connecting ? "Connecting…" : "Connect with Strava"}

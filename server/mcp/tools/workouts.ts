@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { AppError, assertSingleTarget, resolvePlanId, toolError, toolSuccess, type McpContext, validateWorkoutMetadata } from "../context";
+import { AppError, resolvePlanId, toolError, toolSuccess, type McpContext, validateWorkoutMetadata } from "../context";
+import { linkActivityToWorkout, unlinkActivityFromWorkout } from "../../lib/strava";
 import { executionSchema } from "../../../shared/workout-execution-schema";
 
 const workoutStatusSchema = z.enum(["planned", "completed", "skipped"]);
@@ -173,7 +174,7 @@ async function attachLabels(ctx: McpContext, planId: string, workouts: Array<Rec
 }
 
 const workoutSelect =
-  "id, plan_id, phase_id, label_id, date, title, description, target_duration_min, target_distance_m, sort_order, status, completion_notes, trainer_notes, activity_id, execution, metadata, created_at, updated_at";
+  "id, plan_id, phase_id, label_id, date, title, description, target_duration_min, target_distance_m, sort_order, status, completion_notes, trainer_notes, execution, metadata, created_at, updated_at";
 
 function serializeWorkoutUpdateError(error: unknown) {
   if (error instanceof z.ZodError) {
@@ -287,7 +288,6 @@ async function applyBatchWorkoutUpdates(ctx: McpContext, params: BatchUpdateWork
       user_id: ctx.userId,
       phase_id: update.phaseId === undefined ? existing["phase_id"] : update.phaseId,
       label_id: nextLabelId,
-      activity_id: existing["activity_id"],
       date: update.date ?? existing["date"],
       title: update.title ?? existing["title"],
       description: update.description === undefined ? existing["description"] : update.description,
@@ -590,50 +590,19 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
     "link_activity",
     {
       title: "Link Activity",
-      description: "Link a Strava activity to a workout and mark it completed. Returns a conflict if the workout already has an activity or the activity is linked elsewhere.",
-      inputSchema: z.object({ workoutId: z.string().uuid().describe("Workout UUID."), activityId: z.string().uuid().describe("Strava activity UUID to link.") }),
+      description:
+        "Link a Strava activity to a workout and mark it completed. Fetches the activity from Strava and stores it. Returns a conflict if the workout already has an activity or the Strava activity is linked elsewhere.",
+      inputSchema: z.object({
+        workoutId: z.string().uuid().describe("Workout UUID."),
+        stravaActivityId: z.number().int().positive().describe("Strava activity numeric ID (the one in the Strava URL)."),
+      }),
       annotations: { idempotentHint: true },
     },
     async (input) => {
       try {
-        const params = z.object({ workoutId: z.string().uuid(), activityId: z.string().uuid() }).parse(input);
-        const { data: workout, error: workoutError } = await ctx.supabase
-          .from("workouts")
-          .select("id, activity_id")
-          .eq("id", params.workoutId)
-          .eq("user_id", ctx.userId)
-          .maybeSingle();
-
-        if (workoutError) throw new AppError("INTERNAL_ERROR", workoutError.message);
-        if (!workout) throw new AppError("NOT_FOUND", "Workout not found");
-        if (workout.activity_id) throw new AppError("CONFLICT", "Workout already has a linked activity");
-
-        const { data: activity, error: activityError } = await ctx.supabase.from("activities").select("id").eq("id", params.activityId).eq("user_id", ctx.userId).maybeSingle();
-
-        if (activityError) throw new AppError("INTERNAL_ERROR", activityError.message);
-        if (!activity) throw new AppError("NOT_FOUND", "Activity not found");
-
-        const { data: conflictingWorkout, error: conflictError } = await ctx.supabase
-          .from("workouts")
-          .select("id")
-          .eq("activity_id", params.activityId)
-          .eq("user_id", ctx.userId)
-          .neq("id", params.workoutId)
-          .maybeSingle();
-
-        if (conflictError) throw new AppError("INTERNAL_ERROR", conflictError.message);
-        if (conflictingWorkout) throw new AppError("CONFLICT", "Activity is already linked to another workout");
-
-        const { data, error } = await ctx.supabase
-          .from("workouts")
-          .update({ activity_id: params.activityId, status: "completed" })
-          .eq("id", params.workoutId)
-          .eq("user_id", ctx.userId)
-          .select("id, status, activity_id")
-          .single();
-
-        if (error) throw new AppError("INTERNAL_ERROR", error.message);
-        return toolSuccess(data);
+        const params = z.object({ workoutId: z.string().uuid(), stravaActivityId: z.number().int().positive() }).parse(input);
+        const result = await linkActivityToWorkout(ctx.supabase, ctx.bindings, ctx.userId, params.workoutId, params.stravaActivityId);
+        return toolSuccess(result);
       } catch (error) {
         return toolError(error);
       }
@@ -644,24 +613,15 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
     "unlink_activity",
     {
       title: "Unlink Activity",
-      description: "Remove an activity link from a workout and reset it to planned.",
+      description: "Remove an activity link from a workout, delete the stored activity row, and reset the workout to planned.",
       inputSchema: z.object({ workoutId: z.string().uuid().describe("Workout UUID.") }),
       annotations: { idempotentHint: true },
     },
     async (input) => {
       try {
         const params = z.object({ workoutId: z.string().uuid() }).parse(input);
-        const { data, error } = await ctx.supabase
-          .from("workouts")
-          .update({ activity_id: null, status: "planned" })
-          .eq("id", params.workoutId)
-          .eq("user_id", ctx.userId)
-          .select("id, status, activity_id")
-          .maybeSingle();
-
-        if (error) throw new AppError("INTERNAL_ERROR", error.message);
-        if (!data) throw new AppError("NOT_FOUND", "Workout not found");
-        return toolSuccess(data);
+        const result = await unlinkActivityFromWorkout(ctx.supabase, ctx.userId, params.workoutId);
+        return toolSuccess(result);
       } catch (error) {
         return toolError(error);
       }
@@ -672,10 +632,9 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
     "add_trainer_notes",
     {
       title: "Add Trainer Notes",
-      description: "Set trainer/coach notes on a workout or activity. Overwrites existing notes.",
+      description: "Set trainer/coach notes on a workout. Overwrites existing notes.",
       inputSchema: z.object({
-        workoutId: z.string().uuid().optional().describe("Workout UUID. Provide exactly one of workoutId or activityId."),
-        activityId: z.string().uuid().optional().describe("Activity UUID. Provide exactly one of workoutId or activityId."),
+        workoutId: z.string().uuid().describe("Workout UUID."),
         notes: z.string().trim().min(1).describe("Trainer/coach notes in markdown."),
       }),
       annotations: { idempotentHint: true },
@@ -684,39 +643,22 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
       try {
         const params = z
           .object({
-            workoutId: z.string().uuid().optional(),
-            activityId: z.string().uuid().optional(),
+            workoutId: z.string().uuid(),
             notes: z.string().trim().min(1),
           })
           .parse(input);
 
-        assertSingleTarget(params.workoutId, params.activityId);
-
-        if (params.workoutId) {
-          const { data, error } = await ctx.supabase
-            .from("workouts")
-            .update({ trainer_notes: params.notes })
-            .eq("id", params.workoutId)
-            .eq("user_id", ctx.userId)
-            .select("id, trainer_notes")
-            .maybeSingle();
-
-          if (error) throw new AppError("INTERNAL_ERROR", error.message);
-          if (!data) throw new AppError("NOT_FOUND", "Workout not found");
-          return toolSuccess({ target: "workout", ...data });
-        }
-
         const { data, error } = await ctx.supabase
-          .from("activities")
+          .from("workouts")
           .update({ trainer_notes: params.notes })
-          .eq("id", params.activityId!)
+          .eq("id", params.workoutId)
           .eq("user_id", ctx.userId)
           .select("id, trainer_notes")
           .maybeSingle();
 
         if (error) throw new AppError("INTERNAL_ERROR", error.message);
-        if (!data) throw new AppError("NOT_FOUND", "Activity not found");
-        return toolSuccess({ target: "activity", ...data });
+        if (!data) throw new AppError("NOT_FOUND", "Workout not found");
+        return toolSuccess(data);
       } catch (error) {
         return toolError(error);
       }

@@ -195,13 +195,6 @@ export function validateWorkoutMetadata(metadata: unknown) {
   return parsedBase;
 }
 
-export function assertSingleTarget(workoutId?: string, activityId?: string) {
-  const count = Number(Boolean(workoutId)) + Number(Boolean(activityId));
-  if (count !== 1) {
-    throw new AppError("VALIDATION_ERROR", "Exactly one of workoutId or activityId is required");
-  }
-}
-
 export function collectMissingActivitySportWarnings(labels: Array<{ key: string; activitySports: string[] }>) {
   return labels
     .filter((label) => label.activitySports.length === 0)

@@ -4,14 +4,20 @@ import { getCookie, setCookie, deleteCookie } from "hono/cookie";
 import { z } from "zod";
 import { createServerSupabase, type AppBindings } from "../lib/supabase";
 import { AppError, errorPayload } from "../mcp/context";
-import { autoMatchActivityToWorkout, getStravaOauthConfig, getStravaVerifyToken, getValidStravaAccessToken, stravaFetch, upsertStravaActivity } from "../lib/strava";
+import {
+  collapseStravaSportType,
+  getStravaOauthConfig,
+  getStravaVerifyToken,
+  getValidStravaAccessToken,
+  linkActivityToWorkout,
+  matchAndStoreActivity,
+  stravaFetch,
+} from "../lib/strava";
 import { consumeStreamToken } from "../lib/stream-tokens";
 
 type Variables = {
   userId: string;
 };
-
-const syncBodySchema = z.object({ days: z.number().int().min(1).max(90).default(30).optional() });
 
 const requireUser: MiddlewareHandler<{ Bindings: AppBindings; Variables: Variables }> = async (c, next) => {
   const authHeader = c.req.header("authorization");
@@ -64,7 +70,8 @@ const stravaRoutes = new Hono<{ Bindings: AppBindings; Variables: Variables }>()
 
 stravaRoutes.use("/profile", requireUser);
 stravaRoutes.use("/disconnect", requireUser);
-stravaRoutes.use("/sync", requireUser);
+stravaRoutes.use("/recent-activities", requireUser);
+stravaRoutes.use("/link", requireUser);
 
 stravaRoutes.get("/profile", async (c) => {
   const userId = c.get("userId");
@@ -246,50 +253,77 @@ stravaRoutes.post("/webhook/:secret", async (c) => {
     }
 
     if (event.aspect_type === "delete") {
-      await supabase.from("activities").delete().eq("strava_id", event.object_id).eq("user_id", profile.id);
+      const { data: linked } = await supabase.from("workout_activities").select("workout_id").eq("user_id", profile.id).eq("strava_id", event.object_id).maybeSingle();
+      if (linked) {
+        await supabase.from("workout_activities").delete().eq("workout_id", linked.workout_id).eq("user_id", profile.id);
+        await supabase.from("workouts").update({ status: "planned" }).eq("id", linked.workout_id).eq("user_id", profile.id);
+      }
       return c.json({ ok: true });
     }
 
     const detailedActivity = await stravaFetch<Record<string, unknown>>(supabase, c.env, profile.id, `/activities/${event.object_id}`);
-    const activity = await upsertStravaActivity(supabase, profile.id, detailedActivity);
-    await autoMatchActivityToWorkout(supabase, profile.id, activity);
+    const match = await matchAndStoreActivity(supabase, profile.id, detailedActivity);
 
-    return c.json({ ok: true });
+    return c.json({ ok: true, matched: match?.workoutId ?? null });
   } catch (error) {
-    const payload = errorPayload(error);
-    return c.json(payload, 500);
+    console.error("Strava webhook handler failed", error);
+    return c.json({ ok: true, error: errorPayload(error) }, 200);
   }
 });
 
-stravaRoutes.post("/sync", async (c) => {
+stravaRoutes.get("/recent-activities", async (c) => {
   try {
-    const { days = 30 } = syncBodySchema.parse(await c.req.json().catch(() => ({})));
     const userId = c.get("userId");
     const supabase = createServerSupabase(c);
-    const after = Math.floor((Date.now() - Math.min(days, 90) * 24 * 60 * 60 * 1000) / 1000);
+    const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 10), 1), 30);
 
-    let page = 1;
-    let synced = 0;
-    const matched: string[] = [];
-    while (page <= 3) {
-      const activities = await stravaFetch<Array<Record<string, unknown>>>(supabase, c.env, userId, `/athlete/activities?after=${after}&page=${page}&per_page=100`);
-      if (activities.length === 0) break;
+    const recent = await stravaFetch<Array<Record<string, unknown>>>(supabase, c.env, userId, `/athlete/activities?per_page=${limit}`);
 
-      for (const detailed of activities) {
-        const activity = await upsertStravaActivity(supabase, userId, detailed);
-        const workout = await autoMatchActivityToWorkout(supabase, userId, activity);
-        if (workout?.id) matched.push(workout.id);
-        synced += 1;
+    const stravaIds = recent.map((activity) => activity["id"]).filter((id): id is number => typeof id === "number");
+    const linkedSet = new Set<number>();
+    if (stravaIds.length > 0) {
+      const { data: linked, error: linkedError } = await supabase.from("workout_activities").select("strava_id").eq("user_id", userId).in("strava_id", stravaIds);
+      if (linkedError) throw new AppError("INTERNAL_ERROR", linkedError.message);
+      for (const row of linked ?? []) {
+        if (typeof row.strava_id === "number") linkedSet.add(row.strava_id);
       }
-
-      if (activities.length < 100) break;
-      page += 1;
     }
 
-    return c.json({ ok: true, synced, matchedWorkouts: matched.length });
+    const activities = recent
+      .filter((activity) => typeof activity["id"] === "number" && !linkedSet.has(activity["id"] as number))
+      .map((activity) => ({
+        stravaId: activity["id"] as number,
+        name: typeof activity["name"] === "string" ? activity["name"] : "Untitled activity",
+        sport: collapseStravaSportType(typeof activity["sport_type"] === "string" ? (activity["sport_type"] as string) : (activity["type"] as string | undefined)),
+        startDate: typeof activity["start_date"] === "string" ? activity["start_date"] : null,
+        timezone: typeof activity["timezone"] === "string" ? activity["timezone"] : null,
+        durationSec: typeof activity["elapsed_time"] === "number" ? Math.round(activity["elapsed_time"]) : null,
+        distanceM: typeof activity["distance"] === "number" ? Math.round(activity["distance"]) : null,
+      }));
+
+    return c.json({ activities });
   } catch (error) {
     const payload = errorPayload(error);
-    const status = payload.code === "AUTH_ERROR" ? 401 : 500;
+    const status = payload.code === "AUTH_ERROR" ? 401 : payload.code === "NOT_FOUND" ? 404 : 500;
+    return c.json(payload, status);
+  }
+});
+
+const linkBodySchema = z.object({
+  workoutId: z.string().uuid(),
+  stravaActivityId: z.number().int().positive(),
+});
+
+stravaRoutes.post("/link", async (c) => {
+  try {
+    const body = linkBodySchema.parse(await c.req.json().catch(() => ({})));
+    const userId = c.get("userId");
+    const supabase = createServerSupabase(c);
+    const result = await linkActivityToWorkout(supabase, c.env, userId, body.workoutId, body.stravaActivityId);
+    return c.json({ ok: true, ...result });
+  } catch (error) {
+    const payload = errorPayload(error);
+    const status = payload.code === "AUTH_ERROR" ? 401 : payload.code === "VALIDATION_ERROR" ? 400 : payload.code === "NOT_FOUND" ? 404 : payload.code === "CONFLICT" ? 409 : 500;
     return c.json(payload, status);
   }
 });

@@ -1,7 +1,6 @@
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useEffect } from "react";
 import { queryClient } from "./query-client.ts";
-import { activityKeys } from "./queries/activities.ts";
 import { labelKeys } from "./queries/labels.ts";
 import { planKeys } from "./queries/plans.ts";
 import { planNoteKeys } from "./queries/plan-notes.ts";
@@ -54,8 +53,8 @@ export function useRealtimeSync(planId: string | null) {
       queryClient.invalidateQueries({ queryKey: workoutKeys.byPlan(planId) });
     });
 
-    subscribe("activities", undefined, () => {
-      queryClient.invalidateQueries({ queryKey: activityKeys.all });
+    subscribe("workout_activities", undefined, () => {
+      queryClient.invalidateQueries({ queryKey: workoutKeys.byPlan(planId) });
     });
 
     subscribe("plan_notes", `plan_id=eq.${planId}`, () => {

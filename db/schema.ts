@@ -118,37 +118,6 @@ export const phases = pgTable(
   (table) => [check("phases_dates_check", sql`${table.endDate} >= ${table.startDate}`), index("phases_plan_sort").on(table.planId, table.sortOrder)],
 );
 
-export const activities = pgTable(
-  "activities",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
-    stravaId: bigint("strava_id", { mode: "number" }).notNull(),
-    sport: text("sport").notNull(),
-    name: text("name").notNull(),
-    date: timestamp("date", { withTimezone: true }).notNull(),
-    timezone: text("timezone"),
-    durationSec: integer("duration_sec").notNull(),
-    distanceM: integer("distance_m"),
-    elevationM: integer("elevation_m"),
-    avgHr: integer("avg_hr"),
-    maxHr: integer("max_hr"),
-    avgPower: integer("avg_power"),
-    calories: integer("calories"),
-    trainerNotes: text("trainer_notes"),
-    rawData: jsonb("raw_data").$type<Record<string, unknown> | null>(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [
-    unique("activities_strava_id_unique").on(table.stravaId),
-    check("activities_sport_check", enumCheck(table.sport, sportTypeListSql)),
-    check("activities_duration_positive", sql`${table.durationSec} > 0`),
-    index("activities_user_date").on(table.userId, table.date),
-  ],
-);
-
 export const workouts = pgTable(
   "workouts",
   {
@@ -170,7 +139,6 @@ export const workouts = pgTable(
     status: text("status").default("planned").notNull(),
     completionNotes: text("completion_notes"),
     trainerNotes: text("trainer_notes"),
-    activityId: uuid("activity_id").references(() => activities.id, { onDelete: "set null" }),
     execution: jsonb("execution").$type<WorkoutExecution | null>(),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
@@ -184,9 +152,38 @@ export const workouts = pgTable(
     index("workouts_plan_label_date").on(table.planId, table.labelId, table.date),
     index("workouts_user_date").on(table.userId, table.date),
     index("workouts_user_status").on(table.userId, table.status),
-    uniqueIndex("workouts_activity_unique_idx")
-      .on(table.activityId)
-      .where(sql`${table.activityId} is not null`),
+  ],
+);
+
+export const workoutActivities = pgTable(
+  "workout_activities",
+  {
+    workoutId: uuid("workout_id")
+      .primaryKey()
+      .references(() => workouts.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    stravaId: bigint("strava_id", { mode: "number" }).notNull(),
+    sport: text("sport").notNull(),
+    name: text("name").notNull(),
+    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+    timezone: text("timezone"),
+    durationSec: integer("duration_sec").notNull(),
+    distanceM: integer("distance_m"),
+    elevationM: integer("elevation_m"),
+    avgHr: integer("avg_hr"),
+    maxHr: integer("max_hr"),
+    avgPower: integer("avg_power"),
+    calories: integer("calories"),
+    rawData: jsonb("raw_data").$type<Record<string, unknown> | null>(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("workout_activities_strava_unique").on(table.userId, table.stravaId),
+    check("workout_activities_sport_check", enumCheck(table.sport, sportTypeListSql)),
+    check("workout_activities_duration_positive", sql`${table.durationSec} > 0`),
+    index("workout_activities_user_strava").on(table.userId, table.stravaId),
   ],
 );
 
@@ -270,8 +267,8 @@ export const tables = {
   labels,
   labelActivitySports,
   phases,
-  activities,
   workouts,
+  workoutActivities,
   planNotes,
   planShares,
   mcpConnectorTokens,

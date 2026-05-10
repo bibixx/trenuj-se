@@ -20,6 +20,21 @@ export interface Label {
   updatedAt: string;
 }
 
+export interface WorkoutActivity {
+  stravaId: number;
+  sport: SportType;
+  name: string;
+  startDate: string;
+  timezone: string | null;
+  durationSec: number;
+  distanceM: number | null;
+  elevationM: number | null;
+  avgHr: number | null;
+  maxHr: number | null;
+  avgPower: number | null;
+  calories: number | null;
+}
+
 export interface Workout {
   id: string;
   planId: string;
@@ -36,7 +51,7 @@ export interface Workout {
   status: "planned" | "completed" | "skipped";
   completionNotes: string | null;
   trainerNotes: string | null;
-  activityId: string | null;
+  activity: WorkoutActivity | null;
   execution: WorkoutExecution | null;
   metadata: WorkoutMetadata | null;
   createdAt: string;
@@ -75,24 +90,6 @@ export interface Plan {
   metadata: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface Activity {
-  id: string;
-  stravaId: number;
-  sport: SportType;
-  name: string;
-  date: string;
-  timezone: string | null;
-  durationSec: number;
-  distanceM: number | null;
-  elevationM: number | null;
-  avgHr: number | null;
-  maxHr: number | null;
-  avgPower: number | null;
-  calories: number | null;
-  trainerNotes: string | null;
-  createdAt: string;
 }
 
 export interface PlanShare {

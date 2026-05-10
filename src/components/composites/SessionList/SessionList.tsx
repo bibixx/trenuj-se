@@ -69,7 +69,7 @@ function createGeneratedRestWorkout(date: string, restLabel: Label | null): Work
     status: "planned",
     completionNotes: null,
     trainerNotes: null,
-    activityId: null,
+    activity: null,
     execution: null,
     metadata: { ui: { variant: "rest" } },
     createdAt: "",

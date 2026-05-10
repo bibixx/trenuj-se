@@ -165,54 +165,70 @@ export async function stravaFetch<T>(supabase: SupabaseClient, bindings: StravaB
   return payload as T;
 }
 
-export async function upsertStravaActivity(supabase: SupabaseClient, userId: string, activity: Record<string, unknown>) {
-  const num = (key: string) => (typeof activity[key] === "number" ? activity[key] : null);
-  const str = (key: string) => (typeof activity[key] === "string" ? activity[key] : null);
-  const roundNum = (key: string) => {
-    const v = num(key);
-    return v != null ? Math.round(v) : null;
-  };
+function num(activity: Record<string, unknown>, key: string): number | null {
+  return typeof activity[key] === "number" ? (activity[key] as number) : null;
+}
 
-  const sport = collapseStravaSportType(str("sport_type") ?? str("type"));
-  const row = {
+function str(activity: Record<string, unknown>, key: string): string | null {
+  return typeof activity[key] === "string" ? (activity[key] as string) : null;
+}
+
+function roundNum(activity: Record<string, unknown>, key: string): number | null {
+  const v = num(activity, key);
+  return v != null ? Math.round(v) : null;
+}
+
+function buildWorkoutActivityRow(userId: string, workoutId: string, activity: Record<string, unknown>) {
+  const sport = collapseStravaSportType(str(activity, "sport_type") ?? str(activity, "type"));
+  return {
+    workout_id: workoutId,
     user_id: userId,
     strava_id: activity["id"],
     sport,
-    name: str("name") ?? "Untitled activity",
-    date: activity["start_date"],
-    timezone: str("timezone") ?? null,
-    duration_sec: num("elapsed_time") ?? num("moving_time") ?? 0,
-    distance_m: roundNum("distance"),
-    elevation_m: roundNum("total_elevation_gain"),
-    avg_hr: roundNum("average_heartrate"),
-    max_hr: roundNum("max_heartrate"),
-    avg_power: roundNum("average_watts"),
-    calories: roundNum("calories"),
+    name: str(activity, "name") ?? "Untitled activity",
+    start_date: activity["start_date"],
+    timezone: str(activity, "timezone"),
+    duration_sec: num(activity, "elapsed_time") ?? num(activity, "moving_time") ?? 0,
+    distance_m: roundNum(activity, "distance"),
+    elevation_m: roundNum(activity, "total_elevation_gain"),
+    avg_hr: roundNum(activity, "average_heartrate"),
+    max_hr: roundNum(activity, "max_heartrate"),
+    avg_power: roundNum(activity, "average_watts"),
+    calories: roundNum(activity, "calories"),
     raw_data: activity,
   };
-
-  const { data, error } = await supabase.from("activities").upsert(row, { onConflict: "strava_id" }).select("*").single();
-
-  if (error || !data) {
-    throw new AppError("INTERNAL_ERROR", error?.message ?? "Failed to upsert activity");
-  }
-
-  return data;
 }
 
-export async function autoMatchActivityToWorkout(supabase: SupabaseClient, userId: string, activity: { id: string; sport: SportType; date: string; timezone: string | null }) {
-  const localDate = activityLocalDate({ start_date: activity.date, timezone: activity.timezone });
+export async function matchAndStoreActivity(
+  supabase: SupabaseClient,
+  userId: string,
+  activity: Record<string, unknown>,
+): Promise<{ workoutId: string; workoutTitle: string } | null> {
+  const sport = collapseStravaSportType(str(activity, "sport_type") ?? str(activity, "type"));
+  const localDate = activityLocalDate({ start_date: str(activity, "start_date"), timezone: str(activity, "timezone") });
   if (!localDate) {
+    return null;
+  }
+
+  const stravaId = activity["id"];
+  if (typeof stravaId !== "number") {
+    return null;
+  }
+
+  const { data: existing, error: existingError } = await supabase.from("workout_activities").select("workout_id").eq("user_id", userId).eq("strava_id", stravaId).maybeSingle();
+  if (existingError) {
+    throw new AppError("INTERNAL_ERROR", existingError.message);
+  }
+  if (existing) {
     return null;
   }
 
   const { data: workouts, error: workoutsError } = await supabase
     .from("workouts")
-    .select("id, label_id, sort_order")
+    .select("id, title, label_id, sort_order")
     .eq("user_id", userId)
     .eq("date", localDate)
     .eq("status", "planned")
-    .is("activity_id", null)
     .order("sort_order", { ascending: true })
     .limit(50);
 
@@ -220,43 +236,120 @@ export async function autoMatchActivityToWorkout(supabase: SupabaseClient, userI
     throw new AppError("INTERNAL_ERROR", workoutsError.message);
   }
 
-  const workoutCandidates = (workouts ?? []).filter((workout) => workout.label_id != null);
-  if (workoutCandidates.length === 0) {
+  const candidates = (workouts ?? []).filter((workout): workout is { id: string; title: string; label_id: string; sort_order: number } => Boolean(workout.label_id));
+  if (candidates.length === 0) {
     return null;
   }
 
-  const labelIds = [...new Set(workoutCandidates.map((workout) => workout.label_id).filter((labelId): labelId is string => Boolean(labelId)))];
+  const candidateIds = candidates.map((workout) => workout.id);
+  const { data: alreadyMatched, error: alreadyMatchedError } = await supabase.from("workout_activities").select("workout_id").in("workout_id", candidateIds);
+  if (alreadyMatchedError) {
+    throw new AppError("INTERNAL_ERROR", alreadyMatchedError.message);
+  }
+  const matchedWorkoutIds = new Set((alreadyMatched ?? []).map((row) => row.workout_id));
+
+  const labelIds = [...new Set(candidates.map((workout) => workout.label_id))];
   const { data: labelActivitySports, error: labelActivitySportsError } = await supabase
     .from("label_activity_sports")
     .select("label_id, activity_sport")
     .eq("user_id", userId)
     .in("label_id", labelIds)
-    .eq("activity_sport", activity.sport);
+    .eq("activity_sport", sport);
 
   if (labelActivitySportsError) {
     throw new AppError("INTERNAL_ERROR", labelActivitySportsError.message);
   }
 
   const matchingLabelIds = new Set((labelActivitySports ?? []).map((row) => row.label_id));
-  const match = workoutCandidates.find((workout) => workout.label_id && matchingLabelIds.has(workout.label_id));
+  const match = candidates.find((workout) => !matchedWorkoutIds.has(workout.id) && matchingLabelIds.has(workout.label_id));
   if (!match) {
     return null;
   }
 
-  const { data: updated, error: updateError } = await supabase
-    .from("workouts")
-    .update({
-      activity_id: activity.id,
-      status: "completed",
-    })
-    .eq("id", match.id)
-    .eq("user_id", userId)
-    .select("id, title, status, activity_id")
-    .single();
+  const row = buildWorkoutActivityRow(userId, match.id, activity);
+  const { error: insertError } = await supabase.from("workout_activities").insert(row);
+  if (insertError) {
+    throw new AppError("INTERNAL_ERROR", insertError.message);
+  }
 
+  const { error: updateError } = await supabase.from("workouts").update({ status: "completed" }).eq("id", match.id).eq("user_id", userId);
   if (updateError) {
     throw new AppError("INTERNAL_ERROR", updateError.message);
   }
 
-  return updated;
+  return { workoutId: match.id, workoutTitle: match.title };
+}
+
+export async function linkActivityToWorkout(
+  supabase: SupabaseClient,
+  bindings: StravaBindings,
+  userId: string,
+  workoutId: string,
+  stravaActivityId: number,
+): Promise<{ workoutId: string }> {
+  const { data: workout, error: workoutError } = await supabase.from("workouts").select("id").eq("id", workoutId).eq("user_id", userId).maybeSingle();
+  if (workoutError) {
+    throw new AppError("INTERNAL_ERROR", workoutError.message);
+  }
+  if (!workout) {
+    throw new AppError("NOT_FOUND", "Workout not found");
+  }
+
+  const { data: existingForWorkout, error: existingForWorkoutError } = await supabase.from("workout_activities").select("workout_id").eq("workout_id", workoutId).maybeSingle();
+  if (existingForWorkoutError) {
+    throw new AppError("INTERNAL_ERROR", existingForWorkoutError.message);
+  }
+  if (existingForWorkout) {
+    throw new AppError("CONFLICT", "Workout already has a linked activity");
+  }
+
+  const { data: existingForActivity, error: existingForActivityError } = await supabase
+    .from("workout_activities")
+    .select("workout_id")
+    .eq("user_id", userId)
+    .eq("strava_id", stravaActivityId)
+    .maybeSingle();
+  if (existingForActivityError) {
+    throw new AppError("INTERNAL_ERROR", existingForActivityError.message);
+  }
+  if (existingForActivity) {
+    throw new AppError("CONFLICT", "Activity is already linked to another workout");
+  }
+
+  const detailedActivity = await stravaFetch<Record<string, unknown>>(supabase, bindings, userId, `/activities/${stravaActivityId}`);
+  const row = buildWorkoutActivityRow(userId, workoutId, detailedActivity);
+
+  const { error: insertError } = await supabase.from("workout_activities").insert(row);
+  if (insertError) {
+    throw new AppError("INTERNAL_ERROR", insertError.message);
+  }
+
+  const { error: updateError } = await supabase.from("workouts").update({ status: "completed" }).eq("id", workoutId).eq("user_id", userId);
+  if (updateError) {
+    throw new AppError("INTERNAL_ERROR", updateError.message);
+  }
+
+  return { workoutId };
+}
+
+export async function unlinkActivityFromWorkout(supabase: SupabaseClient, userId: string, workoutId: string): Promise<{ workoutId: string }> {
+  const { data: existing, error: existingError } = await supabase.from("workout_activities").select("workout_id").eq("workout_id", workoutId).eq("user_id", userId).maybeSingle();
+  if (existingError) {
+    throw new AppError("INTERNAL_ERROR", existingError.message);
+  }
+  if (!existing) {
+    throw new AppError("NOT_FOUND", "Workout has no linked activity");
+  }
+
+  const { error: deleteError } = await supabase.from("workout_activities").delete().eq("workout_id", workoutId).eq("user_id", userId);
+  if (deleteError) {
+    throw new AppError("INTERNAL_ERROR", deleteError.message);
+  }
+
+  const { error: updateError } = await supabase.from("workouts").update({ status: "planned" }).eq("id", workoutId).eq("user_id", userId);
+  if (updateError) {
+    throw new AppError("INTERNAL_ERROR", updateError.message);
+  }
+
+  return { workoutId };
 }

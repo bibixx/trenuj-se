@@ -46,7 +46,7 @@ function DomainSection() {
 
       <h2 className={styles.subTitle}>StravaPill</h2>
       <div className={styles.row}>
-        <StravaPill activityId="1234567890" />
+        <StravaPill stravaActivityId={1234567890} />
       </div>
 
       <h2 className={styles.subTitle}>Skeleton</h2>

@@ -46,90 +46,53 @@ async function getPlanLabels(ctx: McpContext, planId: string) {
   }));
 }
 
+const workoutActivitySelect = "workout_id, strava_id, sport, name, start_date, timezone, duration_sec, distance_m, elevation_m, avg_hr, max_hr, avg_power, calories";
+
+type WorkoutActivityRow = {
+  workout_id: string;
+  strava_id: number;
+  sport: string;
+  name: string;
+  start_date: string;
+  timezone: string | null;
+  duration_sec: number;
+  distance_m: number | null;
+  elevation_m: number | null;
+  avg_hr: number | null;
+  max_hr: number | null;
+  avg_power: number | null;
+  calories: number | null;
+};
+
+function pickActivity(value: WorkoutActivityRow | WorkoutActivityRow[] | null | undefined): WorkoutActivityRow | null {
+  if (!value) return null;
+  return Array.isArray(value) ? (value[0] ?? null) : value;
+}
+
 export function registerActivityTools(server: McpServer, ctx: McpContext) {
   server.registerTool(
-    "get_activities",
+    "get_workout_streams",
     {
-      title: "Get Activities",
-      description: "Query synced Strava activities with filters and linked workout titles.",
-      inputSchema: z.object({
-        dateFrom: z.string().datetime().optional().or(z.string().date().optional()).describe("Filter start boundary (ISO datetime or YYYY-MM-DD)."),
-        dateTo: z.string().datetime().optional().or(z.string().date().optional()).describe("Filter end boundary (ISO datetime or YYYY-MM-DD)."),
-        sport: z.string().trim().min(1).optional().describe("Filter by Strava sport type (e.g. 'Run', 'Ride', 'Swim')."),
-        limit: z.number().int().positive().max(100).default(20).optional().describe("Max results (default 20, max 100)."),
-      }),
+      title: "Get Workout Streams",
+      description: "Return a short-lived URL for fetching detailed Strava activity streams for a linked workout (use this to build GPX, analyze pacing, etc.).",
+      inputSchema: z.object({ workoutId: z.string().uuid().describe("Workout UUID. The workout must have a linked Strava activity.") }),
       annotations: { readOnlyHint: true },
     },
     async (input) => {
       try {
-        const params = z
-          .object({
-            dateFrom: z.string().optional(),
-            dateTo: z.string().optional(),
-            sport: z.string().trim().min(1).optional(),
-            limit: z.number().int().positive().max(100).default(20).optional(),
-          })
-          .parse(input ?? {});
-
-        let query = ctx.supabase
-          .from("activities")
-          .select("id, strava_id, sport, name, date, timezone, duration_sec, distance_m, elevation_m, avg_hr, max_hr, avg_power, calories, trainer_notes, created_at")
+        const params = z.object({ workoutId: z.string().uuid() }).parse(input);
+        const { data: activity, error } = await ctx.supabase
+          .from("workout_activities")
+          .select("workout_id, strava_id")
+          .eq("workout_id", params.workoutId)
           .eq("user_id", ctx.userId)
-          .order("date", { ascending: false })
-          .limit(params.limit ?? 20);
-
-        if (params.dateFrom) query = query.gte("date", params.dateFrom);
-        if (params.dateTo) query = query.lte("date", params.dateTo);
-        if (params.sport) query = query.eq("sport", params.sport);
-
-        const { data, error } = await query;
-        if (error) throw new AppError("INTERNAL_ERROR", error.message);
-
-        const activityIds = (data ?? []).map((activity) => activity.id);
-        let workoutsByActivity = new Map<string, { id: string; title: string }>();
-        if (activityIds.length > 0) {
-          const { data: workouts, error: workoutError } = await ctx.supabase
-            .from("workouts")
-            .select("id, title, activity_id")
-            .eq("user_id", ctx.userId)
-            .in("activity_id", activityIds);
-
-          if (workoutError) throw new AppError("INTERNAL_ERROR", workoutError.message);
-          workoutsByActivity = new Map(
-            (workouts ?? []).filter((workout) => workout.activity_id != null).map((workout) => [workout.activity_id, { id: workout.id, title: workout.title }]),
-          );
-        }
-
-        return toolSuccess(
-          (data ?? []).map((activity) => ({
-            ...activity,
-            linkedWorkout: workoutsByActivity.get(activity.id) ?? null,
-          })),
-        );
-      } catch (error) {
-        return toolError(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    "get_activity_streams",
-    {
-      title: "Get Activity Streams",
-      description: "Return a short-lived URL for fetching detailed Strava activity streams.",
-      inputSchema: z.object({ activityId: z.string().uuid().describe("Activity UUID.") }),
-      annotations: { readOnlyHint: true },
-    },
-    async (input) => {
-      try {
-        const params = z.object({ activityId: z.string().uuid() }).parse(input);
-        const { data: activity, error } = await ctx.supabase.from("activities").select("id, strava_id").eq("id", params.activityId).eq("user_id", ctx.userId).maybeSingle();
+          .maybeSingle();
 
         if (error) throw new AppError("INTERNAL_ERROR", error.message);
-        if (!activity) throw new AppError("NOT_FOUND", "Activity not found");
+        if (!activity) throw new AppError("NOT_FOUND", "Workout has no linked Strava activity");
 
         const token = await generateStreamToken(ctx.supabase, ctx.userId, activity.strava_id);
-        const baseUrl = (ctx.bindings.PUBLIC_APP_URL ?? "http://localhost:8787").replace(/\/$/, "");
+        const baseUrl = (ctx.bindings.PUBLIC_APP_URL ?? "http://localhost:8788").replace(/\/$/, "");
         return toolSuccess({
           url: `${baseUrl}/api/strava/streams/${activity.strava_id}?token=${token}`,
           expiresInSec: 900,
@@ -164,24 +127,15 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
         const labels = await getPlanLabels(ctx, plan.id);
         const labelsById = new Map(labels.map((label) => [label.id, label]));
 
-        const [{ data: workouts, error: workoutError }, { data: activities, error: activityError }] = await Promise.all([
-          ctx.supabase
-            .from("workouts")
-            .select("id, label_id, status, target_duration_min, target_distance_m, activity_id")
-            .eq("user_id", ctx.userId)
-            .eq("plan_id", plan.id)
-            .gte("date", from)
-            .lte("date", to),
-          ctx.supabase
-            .from("activities")
-            .select("id, sport, duration_sec, distance_m")
-            .eq("user_id", ctx.userId)
-            .gte("date", `${from}T00:00:00.000Z`)
-            .lte("date", `${to}T23:59:59.999Z`),
-        ]);
+        const { data: workouts, error: workoutError } = await ctx.supabase
+          .from("workouts")
+          .select(`id, label_id, status, target_duration_min, target_distance_m, workout_activities(${workoutActivitySelect})`)
+          .eq("user_id", ctx.userId)
+          .eq("plan_id", plan.id)
+          .gte("date", from)
+          .lte("date", to);
 
         if (workoutError) throw new AppError("INTERNAL_ERROR", workoutError.message);
-        if (activityError) throw new AppError("INTERNAL_ERROR", activityError.message);
 
         const byLabel = new Map<
           string,
@@ -197,7 +151,16 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
         >();
         const byActivitySport = new Map<string, { sport: string; actualDurationSec: number; actualDistanceM: number; activityCount: number }>();
 
-        for (const workout of workouts ?? []) {
+        type WorkoutRow = {
+          id: string;
+          label_id: string | null;
+          status: string;
+          target_duration_min: number | null;
+          target_distance_m: number | null;
+          workout_activities: WorkoutActivityRow | WorkoutActivityRow[] | null;
+        };
+
+        for (const workout of (workouts ?? []) as WorkoutRow[]) {
           const label = workout.label_id ? labelsById.get(workout.label_id) : null;
           const key = label?.key ?? "unlabeled";
           const current = byLabel.get(key) ?? {
@@ -215,14 +178,15 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
           if (workout.status === "completed") current.completedCount += 1;
           if (workout.status === "skipped") current.skippedCount += 1;
           byLabel.set(key, current);
-        }
 
-        for (const activity of activities ?? []) {
-          const current = byActivitySport.get(activity.sport) ?? { sport: activity.sport, actualDurationSec: 0, actualDistanceM: 0, activityCount: 0 };
-          current.actualDurationSec += activity.duration_sec;
-          current.actualDistanceM += activity.distance_m ?? 0;
-          current.activityCount += 1;
-          byActivitySport.set(activity.sport, current);
+          const activity = pickActivity(workout.workout_activities);
+          if (activity) {
+            const sportCurrent = byActivitySport.get(activity.sport) ?? { sport: activity.sport, actualDurationSec: 0, actualDistanceM: 0, activityCount: 0 };
+            sportCurrent.actualDurationSec += activity.duration_sec;
+            sportCurrent.actualDistanceM += activity.distance_m ?? 0;
+            sportCurrent.activityCount += 1;
+            byActivitySport.set(activity.sport, sportCurrent);
+          }
         }
 
         const totalPlanned = (workouts ?? []).length;
@@ -324,7 +288,7 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
 
         let query = ctx.supabase
           .from("workouts")
-          .select("id, date, label_id, title, status, target_duration_min, target_distance_m, activity_id")
+          .select(`id, date, label_id, title, status, target_duration_min, target_distance_m, workout_activities(${workoutActivitySelect})`)
           .eq("plan_id", plan.id)
           .eq("user_id", ctx.userId)
           .order("date", { ascending: true })
@@ -336,16 +300,19 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
         const { data: workouts, error } = await query;
         if (error) throw new AppError("INTERNAL_ERROR", error.message);
 
-        const activityIds = (workouts ?? []).map((workout) => workout.activity_id).filter(Boolean);
-        const { data: activities, error: activityError } = activityIds.length
-          ? await ctx.supabase.from("activities").select("id, sport, duration_sec, distance_m, name, date").in("id", activityIds)
-          : { data: [], error: null };
+        type WorkoutRow = {
+          id: string;
+          date: string;
+          label_id: string | null;
+          title: string;
+          status: string;
+          target_duration_min: number | null;
+          target_distance_m: number | null;
+          workout_activities: WorkoutActivityRow | WorkoutActivityRow[] | null;
+        };
 
-        if (activityError) throw new AppError("INTERNAL_ERROR", activityError.message);
-        const activityMap = new Map((activities ?? []).map((activity) => [activity.id, activity]));
-
-        const perWorkout = (workouts ?? []).map((workout) => {
-          const activity = workout.activity_id ? activityMap.get(workout.activity_id) : null;
+        const perWorkout = ((workouts ?? []) as WorkoutRow[]).map((workout) => {
+          const activity = pickActivity(workout.workout_activities);
           const label = workout.label_id ? labelsById.get(workout.label_id) : null;
           return {
             workoutId: workout.id,

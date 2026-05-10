@@ -1,15 +1,17 @@
 import { Collapsible } from "@base-ui-components/react/collapsible";
 import clsx from "clsx";
-import { IconDownload, IconTriangleInvertedFilled } from "@tabler/icons-react";
+import { IconBrandStrava, IconDownload, IconTriangleInvertedFilled, IconUnlink } from "@tabler/icons-react";
 import { type CSSProperties, useCallback, useMemo, useState } from "react";
 import { triggerHaptic } from "tactus";
 import { Badge } from "../../primitives/Badge/Badge.tsx";
 import { Button } from "../../primitives/Button/Button.tsx";
 import { Checkbox } from "../../primitives/Checkbox/Checkbox.tsx";
+import { LinkActivityDialog } from "../LinkActivityDialog/LinkActivityDialog.tsx";
 import { StravaPill } from "../../domain/StravaPill/StravaPill.tsx";
 import { WorkoutTypeIcon } from "../../domain/WorkoutTypeIcon/WorkoutTypeIcon.tsx";
 import type { Workout } from "../../../lib/types.ts";
 import { getUiVariant, isCheckable } from "../../../lib/types.ts";
+import { useUnlinkActivity } from "../../../lib/queries/workouts.ts";
 import { resolveHue } from "../../../lib/color.ts";
 import { buildWorkoutFile } from "../../../lib/workout-file.ts";
 import styles from "./WorkoutCard.module.css";
@@ -55,8 +57,13 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
   const isCompleted = workout.status === "completed";
   const isOptional = variant === "optional";
   const workoutFile = useMemo(() => buildWorkoutFile(workout), [workout]);
-  const hasContent = !!(workout.description || workout.trainerNotes || workout.completionNotes) || workoutFile !== null;
+  const showActivityActions = !editorial && !readOnly && checkable && workout.planId !== "";
+  const hasActivityAction = showActivityActions && (workout.activity != null || !isCompleted);
+  const hasContent = !!(workout.description || workout.trainerNotes || workout.completionNotes) || workoutFile !== null || hasActivityAction;
   const expandable = !editorial && hasContent;
+
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const unlink = useUnlinkActivity(workout.planId);
 
   const handleDownload = useCallback(() => {
     if (!workoutFile) return;
@@ -69,6 +76,10 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
     a.remove();
     URL.revokeObjectURL(url);
   }, [workoutFile]);
+
+  const handleUnlink = useCallback(() => {
+    unlink.mutate({ workoutId: workout.id });
+  }, [unlink, workout.id]);
 
   const [expanded, setExpanded] = useState(defaultExpanded || editorial);
   const handleOpenChange = useCallback((open: boolean) => {
@@ -94,7 +105,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
               <div className={styles.duration}>{formatSubtitle(workout.targetDistanceM, workout.targetDurationMin)}</div>
             )}
           </div>
-          {workout.activityId && <StravaPill activityId={workout.activityId} onClick={(e) => e.stopPropagation()} />}
+          {workout.activity && <StravaPill stravaActivityId={workout.activity.stravaId} onClick={(e) => e.stopPropagation()} />}
           {checkable ? (
             <div onClick={(e) => e.stopPropagation()} className={styles.checkboxWrapper}>
               <Checkbox checked={isCompleted} onCheckedChange={(checked) => onToggleComplete?.(workout.id, !!checked)} hue={hue} readOnly={readOnly} />
@@ -127,11 +138,23 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
                   {renderDescription ? renderDescription(workout.completionNotes) : workout.completionNotes}
                 </div>
               )}
-              {workoutFile && (
+              {(workoutFile || hasActivityAction) && (
                 <div className={styles.actions}>
-                  <Button variant="secondary" size="sm" icon={<IconDownload size={16} />} onClick={handleDownload}>
-                    Save to Apple Watch
-                  </Button>
+                  {workoutFile && (
+                    <Button variant="secondary" size="sm" icon={<IconDownload size={16} />} onClick={handleDownload}>
+                      Save to Apple Watch
+                    </Button>
+                  )}
+                  {showActivityActions && workout.activity && (
+                    <Button variant="secondary" size="sm" icon={<IconUnlink size={16} />} onClick={handleUnlink} disabled={unlink.isPending}>
+                      {unlink.isPending ? "Unlinking…" : "Unlink activity"}
+                    </Button>
+                  )}
+                  {showActivityActions && !workout.activity && !isCompleted && (
+                    <Button variant="secondary" size="sm" icon={<IconBrandStrava size={16} />} onClick={() => setLinkDialogOpen(true)}>
+                      Link Strava activity
+                    </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -145,6 +168,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
           </details>
         )}
       </article>
+      {showActivityActions && !workout.activity && <LinkActivityDialog workoutId={workout.id} planId={workout.planId} open={linkDialogOpen} onOpenChange={setLinkDialogOpen} />}
     </Collapsible.Root>
   );
 }

@@ -1,14 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   activityLocalDate,
-  autoMatchActivityToWorkout,
   collapseStravaSportType,
   getStravaOauthConfig,
   getStravaVerifyToken,
   getValidStravaAccessToken,
+  matchAndStoreActivity,
   parseStravaTimezoneToIana,
   stravaFetch,
-  upsertStravaActivity,
 } from "../../server/lib/strava.ts";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { MOCK_USER_ID } from "../helpers/mock-env.ts";
@@ -17,6 +16,16 @@ const VALID_BINDINGS = {
   STRAVA_CLIENT_ID: "client-id",
   STRAVA_CLIENT_SECRET: "client-secret",
   PUBLIC_APP_URL: "https://example.com",
+};
+
+const SAMPLE_STRAVA_ACTIVITY = {
+  id: 12345,
+  sport_type: "TrailRun",
+  name: "Morning Trail Run",
+  start_date: "2024-06-15T07:00:00Z",
+  timezone: "(GMT+02:00) Europe/Warsaw",
+  elapsed_time: 3600,
+  distance: 10000,
 };
 
 let originalFetch: typeof globalThis.fetch;
@@ -140,49 +149,20 @@ describe("getValidStravaAccessToken", () => {
   });
 });
 
-describe("upsertStravaActivity", () => {
-  test("persists activities using the richer SportType values", async () => {
-    const activityRow = {
-      id: "activity-uuid",
-      user_id: MOCK_USER_ID,
-      strava_id: 12345,
-      sport: "TrailRun",
-      name: "Morning Trail Run",
-    };
+describe("matchAndStoreActivity", () => {
+  test("inserts a workout_activities row and flips the matched workout to completed", async () => {
     const mock = createMockSupabase({
       tables: {
-        activities: {
-          upsert: { data: activityRow, error: null },
+        workout_activities: {
+          select: [
+            { data: null, error: null }, // no existing row for this strava_id
+            { data: [], error: null }, // no candidate workouts already matched
+          ],
+          insert: { data: null, error: null },
         },
-      },
-    });
-
-    const result = await upsertStravaActivity(mock.client, MOCK_USER_ID, {
-      id: 12345,
-      sport_type: "TrailRun",
-      name: "Morning Trail Run",
-      start_date: "2024-06-15T07:00:00Z",
-      elapsed_time: 3600,
-      distance: 10000,
-    });
-
-    expect(result).toEqual(activityRow);
-  });
-});
-
-describe("autoMatchActivityToWorkout", () => {
-  test("matches workouts through label_activity_sports", async () => {
-    const updatedWorkout = {
-      id: "workout-uuid",
-      title: "Run 10k",
-      status: "completed",
-      activity_id: "activity-uuid",
-    };
-    const mock = createMockSupabase({
-      tables: {
         workouts: {
-          select: { data: [{ id: "workout-uuid", label_id: "label-1", sort_order: 1 }], error: null },
-          update: { data: updatedWorkout, error: null },
+          select: { data: [{ id: "workout-uuid", title: "Long Trail Run", label_id: "label-1", sort_order: 1 }], error: null },
+          update: { data: null, error: null },
         },
         label_activity_sports: {
           select: { data: [{ label_id: "label-1", activity_sport: "TrailRun" }], error: null },
@@ -190,21 +170,26 @@ describe("autoMatchActivityToWorkout", () => {
       },
     });
 
-    const result = await autoMatchActivityToWorkout(mock.client, MOCK_USER_ID, {
-      id: "activity-uuid",
-      sport: "TrailRun",
-      date: "2024-06-15T07:00:00Z",
-      timezone: "(GMT+02:00) Europe/Warsaw",
-    });
+    const result = await matchAndStoreActivity(mock.client, MOCK_USER_ID, SAMPLE_STRAVA_ACTIVITY);
 
-    expect(result).toEqual(updatedWorkout);
+    expect(result).toEqual({ workoutId: "workout-uuid", workoutTitle: "Long Trail Run" });
+    const insertCall = mock.calls.find((c) => c.table === "workout_activities" && c.operation === "insert");
+    expect(insertCall).toBeDefined();
+    const updateCall = mock.calls.find((c) => c.table === "workouts" && c.operation === "update");
+    expect(updateCall).toBeDefined();
   });
 
   test("returns null when no label supports the activity sport", async () => {
     const mock = createMockSupabase({
       tables: {
+        workout_activities: {
+          select: [
+            { data: null, error: null },
+            { data: [], error: null },
+          ],
+        },
         workouts: {
-          select: { data: [{ id: "workout-uuid", label_id: "label-1", sort_order: 1 }], error: null },
+          select: { data: [{ id: "workout-uuid", title: "Long Trail Run", label_id: "label-1", sort_order: 1 }], error: null },
         },
         label_activity_sports: {
           select: { data: [], error: null },
@@ -212,14 +197,19 @@ describe("autoMatchActivityToWorkout", () => {
       },
     });
 
-    await expect(
-      autoMatchActivityToWorkout(mock.client, MOCK_USER_ID, {
-        id: "activity-uuid",
-        sport: "TrailRun",
-        date: "2024-06-15T07:00:00Z",
-        timezone: null,
-      }),
-    ).resolves.toBeNull();
+    await expect(matchAndStoreActivity(mock.client, MOCK_USER_ID, SAMPLE_STRAVA_ACTIVITY)).resolves.toBeNull();
+  });
+
+  test("returns null when the activity is already linked to a workout", async () => {
+    const mock = createMockSupabase({
+      tables: {
+        workout_activities: {
+          select: { data: { workout_id: "existing-workout-uuid" }, error: null },
+        },
+      },
+    });
+
+    await expect(matchAndStoreActivity(mock.client, MOCK_USER_ID, SAMPLE_STRAVA_ACTIVITY)).resolves.toBeNull();
   });
 });
 

@@ -58,7 +58,6 @@ function buildExistingWorkout(overrides: Record<string, unknown> = {}) {
     status: "planned",
     completion_notes: null,
     trainer_notes: null,
-    activity_id: null,
     execution: null,
     metadata: null,
     created_at: "2024-01-01T00:00:00Z",
@@ -100,7 +99,6 @@ describe("MCP Workout Tools", () => {
                 status: "planned",
                 completion_notes: null,
                 trainer_notes: null,
-                activity_id: null,
                 execution: null,
                 metadata: null,
                 created_at: "2024-01-01T00:00:00Z",
@@ -160,7 +158,6 @@ describe("MCP Workout Tools", () => {
                 status: "planned",
                 completion_notes: null,
                 trainer_notes: null,
-                activity_id: null,
                 execution: null,
                 metadata: null,
                 created_at: "2024-01-01T00:00:00Z",
@@ -264,7 +261,6 @@ describe("MCP Workout Tools", () => {
                   status: "planned",
                   completion_notes: null,
                   trainer_notes: null,
-                  activity_id: null,
                   execution: null,
                   metadata: null,
                   created_at: "2024-01-01T00:00:00Z",
@@ -393,7 +389,6 @@ describe("MCP Workout Tools", () => {
                 status: "planned",
                 completion_notes: null,
                 trainer_notes: null,
-                activity_id: null,
                 execution: null,
                 metadata: null,
                 created_at: "2024-01-01T00:00:00Z",
@@ -906,19 +901,16 @@ describe("MCP Workout Tools", () => {
     );
   });
 
-  test("link_activity returns conflict when the activity is already linked elsewhere", async () => {
+  test("link_activity returns conflict when the workout already has a linked activity", async () => {
     setMockSupabase(
       createMockSupabase({
         auth: mockAuth(),
         tables: {
           workouts: {
-            select: [
-              { data: { id: VALID_WORKOUT_ID, activity_id: null }, error: null },
-              { data: { id: "a0000000-0000-4000-8000-000000000099" }, error: null },
-            ],
+            select: { data: { id: VALID_WORKOUT_ID }, error: null },
           },
-          activities: {
-            select: { data: { id: "a0000000-0000-4000-8000-000000000055" }, error: null },
+          workout_activities: {
+            select: { data: { workout_id: VALID_WORKOUT_ID }, error: null },
           },
         },
       }),
@@ -929,13 +921,13 @@ describe("MCP Workout Tools", () => {
         "link_activity",
         {
           workoutId: VALID_WORKOUT_ID,
-          activityId: "a0000000-0000-4000-8000-000000000055",
+          stravaActivityId: 1234567890,
         },
         {},
       ),
     );
     const error = extractToolError(parsed);
 
-    expect(error).toEqual({ code: "CONFLICT", message: "Activity is already linked to another workout" });
+    expect(error).toEqual({ code: "CONFLICT", message: "Workout already has a linked activity" });
   });
 });

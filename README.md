@@ -80,20 +80,21 @@ Schema defined in `db/schema.ts` with Drizzle ORM. Migrations in `db/migrations/
 
 ## API surface
 
-| Method | Path                                      | Auth      | Description                          |
-| ------ | ----------------------------------------- | --------- | ------------------------------------ |
-| GET    | `/api/health`                             | none      | Health check                         |
-| GET    | `/.well-known/oauth-authorization-server` | none      | OAuth 2.1 discovery metadata         |
-| GET    | `/api/strava/profile`                     | Supabase  | Athlete profile and connection state |
-| GET    | `/api/strava/auth`                        | Supabase  | Start Strava OAuth flow              |
-| GET    | `/api/strava/callback`                    | Supabase  | OAuth callback                       |
-| POST   | `/api/strava/disconnect`                  | Supabase  | Revoke Strava connection             |
-| GET    | `/api/strava/webhook/:secret`             | none      | Webhook verification                 |
-| POST   | `/api/strava/webhook/:secret`             | none      | Webhook events (activity CRUD)       |
-| POST   | `/api/strava/sync`                        | Supabase  | Manual sync (up to 90 days)          |
-| GET    | `/api/strava/streams/:id`                 | token     | Stream data with temporary token     |
-| GET    | `/api/shares/:shareId`                    | none      | Fetch shared plan (public)           |
-| ALL    | `/mcp`                                    | OAuth JWT | MCP server endpoint                  |
+| Method | Path                                      | Auth      | Description                                              |
+| ------ | ----------------------------------------- | --------- | -------------------------------------------------------- |
+| GET    | `/api/health`                             | none      | Health check                                             |
+| GET    | `/.well-known/oauth-authorization-server` | none      | OAuth 2.1 discovery metadata                             |
+| GET    | `/api/strava/profile`                     | Supabase  | Athlete profile and connection state                     |
+| GET    | `/api/strava/auth`                        | Supabase  | Start Strava OAuth flow                                  |
+| GET    | `/api/strava/callback`                    | Supabase  | OAuth callback                                           |
+| POST   | `/api/strava/disconnect`                  | Supabase  | Revoke Strava connection                                 |
+| GET    | `/api/strava/webhook/:secret`             | none      | Webhook verification                                     |
+| POST   | `/api/strava/webhook/:secret`             | none      | Webhook events (activity CRUD)                           |
+| GET    | `/api/strava/recent-activities`           | Supabase  | List recent unlinked Strava activities (manual matching) |
+| POST   | `/api/strava/link`                        | Supabase  | Manually link a Strava activity to a workout             |
+| GET    | `/api/strava/streams/:id`                 | token     | Stream data with temporary token                         |
+| GET    | `/api/shares/:shareId`                    | none      | Fetch shared plan (public)                               |
+| ALL    | `/mcp`                                    | OAuth JWT | MCP server endpoint                                      |
 
 ## MCP tools
 
@@ -102,7 +103,7 @@ Schema defined in `db/schema.ts` with Drizzle ORM. Migrations in `db/migrations/
 - **Plans** — `list_plans`, `get_plan`, `create_plan`, `update_plan`, `deactivate_plan`, `set_labels`, `update_label`, `add_phase`, `update_phase`, `remove_phase`
 - **Workouts** — `add_workouts`, `get_workouts`, `update_workout`, `remove_workouts`, `complete_workout`, `skip_workout`, `link_activity`, `unlink_activity`, `add_trainer_notes`
 - **Notes** — `add_plan_note`, `update_plan_note`, `delete_plan_note`, `get_plan_notes`
-- **Activities** — `get_activities`, `get_activity_streams`, `get_week_summary`, `get_plan_progress`, `compare_planned_vs_actual`
+- **Activities** — `get_workout_streams`, `get_week_summary`, `get_plan_progress`, `compare_planned_vs_actual`
 - **Athlete** — `get_profile`
 - **Icons** — `search_icons`
 
@@ -117,19 +118,22 @@ Two auth paths:
 
 ## Scripts
 
-| Script               | Description                                 |
-| -------------------- | ------------------------------------------- |
-| `pnpm dev`           | Run Cloudflare Pages locally (builds first) |
-| `pnpm build`         | Type-check and prepare `dist/`              |
-| `pnpm lint`          | Run OxLint                                  |
-| `pnpm format`        | Format with OxFmt                           |
-| `pnpm format:check`  | Check formatting                            |
-| `pnpm test`          | Run tests once                              |
-| `pnpm test:watch`    | Run tests in watch mode                     |
-| `pnpm test:coverage` | Run tests with coverage report              |
-| `pnpm db:generate`   | Generate Drizzle migrations                 |
-| `pnpm db:migrate`    | Apply Drizzle migrations                    |
-| `pnpm db:studio`     | Open Drizzle Studio GUI                     |
+| Script                         | Description                                                                                                       |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `pnpm dev`                     | Run Cloudflare Pages locally (builds first)                                                                       |
+| `pnpm build`                   | Type-check and prepare `dist/`                                                                                    |
+| `pnpm lint`                    | Run OxLint                                                                                                        |
+| `pnpm format`                  | Format with OxFmt                                                                                                 |
+| `pnpm format:check`            | Check formatting                                                                                                  |
+| `pnpm test`                    | Run tests once                                                                                                    |
+| `pnpm test:watch`              | Run tests in watch mode                                                                                           |
+| `pnpm test:coverage`           | Run tests with coverage report                                                                                    |
+| `pnpm db:generate`             | Generate Drizzle migrations                                                                                       |
+| `pnpm db:migrate`              | Apply Drizzle migrations                                                                                          |
+| `pnpm db:studio`               | Open Drizzle Studio GUI                                                                                           |
+| `pnpm strava:webhook list`     | List registered Strava push subscriptions                                                                         |
+| `pnpm strava:webhook register` | Idempotently register the webhook with the current `STRAVA_WEBHOOK_PATH_SECRET` (replaces any stale subscription) |
+| `pnpm strava:webhook delete`   | Delete all registered Strava push subscriptions                                                                   |
 
 ## Environment
 

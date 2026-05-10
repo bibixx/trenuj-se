@@ -18,7 +18,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "type-check": "tsc -p tsconfig.node.json && tsc -p tsconfig.app.json"
+    "type-check": "tsc -p tsconfig.node.json && tsc -p tsconfig.app.json",
+    "strava:webhook": "node scripts/strava-webhook.mjs"
   },
   "dependencies": {
     "@base-ui-components/react": "1.0.0-rc.0",

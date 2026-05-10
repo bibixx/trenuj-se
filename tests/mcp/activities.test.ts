@@ -51,15 +51,23 @@ describe("MCP Activity Tools", () => {
           workouts: {
             select: {
               data: [
-                { id: "w1", label_id: "label-1", status: "completed", target_duration_min: 60, target_distance_m: 10000, activity_id: "a1" },
-                { id: "w2", label_id: "label-1", status: "planned", target_duration_min: 45, target_distance_m: 8000, activity_id: null },
+                {
+                  id: "w1",
+                  label_id: "label-1",
+                  status: "completed",
+                  target_duration_min: 60,
+                  target_distance_m: 10000,
+                  workout_activities: { workout_id: "w1", strava_id: 1, sport: "Run", duration_sec: 3600, distance_m: 10000, name: "Run", start_date: "2024-03-04T07:00:00Z" },
+                },
+                {
+                  id: "w2",
+                  label_id: "label-1",
+                  status: "planned",
+                  target_duration_min: 45,
+                  target_distance_m: 8000,
+                  workout_activities: null,
+                },
               ],
-              error: null,
-            },
-          },
-          activities: {
-            select: {
-              data: [{ id: "a1", sport: "Run", duration_sec: 3600, distance_m: 10000 }],
               error: null,
             },
           },
@@ -85,14 +93,25 @@ describe("MCP Activity Tools", () => {
           workouts: {
             select: {
               data: [
-                { id: "w1", date: "2024-03-04", label_id: "label-1", title: "Easy Run", status: "completed", target_duration_min: 60, target_distance_m: 10000, activity_id: "a1" },
+                {
+                  id: "w1",
+                  date: "2024-03-04",
+                  label_id: "label-1",
+                  title: "Easy Run",
+                  status: "completed",
+                  target_duration_min: 60,
+                  target_distance_m: 10000,
+                  workout_activities: {
+                    workout_id: "w1",
+                    strava_id: 100,
+                    sport: "Run",
+                    duration_sec: 3500,
+                    distance_m: 9800,
+                    name: "Morning Run",
+                    start_date: "2024-03-04T07:00:00Z",
+                  },
+                },
               ],
-              error: null,
-            },
-          },
-          activities: {
-            select: {
-              data: [{ id: "a1", sport: "Run", duration_sec: 3500, distance_m: 9800, name: "Morning Run", date: "2024-03-04T07:00:00Z" }],
               error: null,
             },
           },

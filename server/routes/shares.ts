@@ -65,7 +65,7 @@ shareRoutes.get("/:shareId", async (c) => {
     }
 
     if (share.include_activities) {
-      workoutFields.push("activity_id", "activities(id, sport, name, date, timezone, duration_sec, distance_m, elevation_m, avg_hr, max_hr, avg_power, calories)");
+      workoutFields.push("workout_activities(strava_id, sport, name, start_date, timezone, duration_sec, distance_m, elevation_m, avg_hr, max_hr, avg_power, calories)");
     }
 
     const { data } = await supabase.from("workouts").select(workoutFields.join(", ")).eq("plan_id", planId).order("date").order("sort_order");

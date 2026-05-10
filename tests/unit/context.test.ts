@@ -1,6 +1,6 @@
 import { describe, test, expect } from "vitest";
 import { ZodError, z } from "zod";
-import { errorPayload, validateWorkoutMetadata, assertSingleTarget, AppError, hashToken } from "../../server/mcp/context.ts";
+import { errorPayload, validateWorkoutMetadata, AppError, hashToken } from "../../server/mcp/context.ts";
 
 // ─── errorPayload ────────────────────────────────────────────────────────────
 
@@ -155,42 +155,6 @@ describe("validateWorkoutMetadata", () => {
       zones: [{ zone: 1, duration_min: 15 }],
     };
     expect(validateWorkoutMetadata(metadata)).toEqual(metadata);
-  });
-});
-
-// ─── assertSingleTarget ───────────────────────────────────────────────────────
-
-describe("assertSingleTarget", () => {
-  test("workoutId only → no throw", () => {
-    expect(() => assertSingleTarget("workout-123", undefined)).not.toThrow();
-  });
-
-  test("activityId only → no throw", () => {
-    expect(() => assertSingleTarget(undefined, "activity-456")).not.toThrow();
-  });
-
-  test("both provided → throws AppError VALIDATION_ERROR", () => {
-    expect(() => assertSingleTarget("workout-123", "activity-456")).toThrow(AppError);
-    try {
-      assertSingleTarget("workout-123", "activity-456");
-    } catch (e) {
-      expect(e).toBeInstanceOf(AppError);
-      expect((e as AppError).code).toBe("VALIDATION_ERROR");
-    }
-  });
-
-  test("neither provided → throws AppError VALIDATION_ERROR", () => {
-    expect(() => assertSingleTarget(undefined, undefined)).toThrow(AppError);
-    try {
-      assertSingleTarget(undefined, undefined);
-    } catch (e) {
-      expect(e).toBeInstanceOf(AppError);
-      expect((e as AppError).code).toBe("VALIDATION_ERROR");
-    }
-  });
-
-  test("empty strings count as falsy (neither) → throws AppError VALIDATION_ERROR", () => {
-    expect(() => assertSingleTarget("", "")).toThrow(AppError);
   });
 });
 

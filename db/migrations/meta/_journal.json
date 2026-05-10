@@ -57,6 +57,13 @@
       "when": 1777226400001,
       "tag": "0007_add-mcp-connector-tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1778417980091,
+      "tag": "0008_cold_wallflower",
+      "breakpoints": true
     }
   ]
 }

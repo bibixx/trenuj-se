@@ -18,13 +18,7 @@ vi.mock("../../server/lib/strava.ts", async (importOriginal) => {
       max_heartrate: 162,
       calories: 420,
     })),
-    upsertStravaActivity: vi.fn(async () => ({
-      id: "activity-uuid-1",
-      sport: "run",
-      date: "2024-01-15T07:00:00Z",
-      timezone: "America/New_York",
-    })),
-    autoMatchActivityToWorkout: vi.fn(async () => null),
+    matchAndStoreActivity: vi.fn(async () => null),
     getValidStravaAccessToken: vi.fn(async () => "mock-access-token"),
   };
 });
@@ -33,7 +27,7 @@ import app from "../../server/index.ts";
 import { MOCK_ENV, MOCK_USER_ID } from "../helpers/mock-env.ts";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { setMockSupabase, clearMockSupabase } from "../helpers/setup.ts";
-import { stravaFetch, upsertStravaActivity, autoMatchActivityToWorkout } from "../../server/lib/strava.ts";
+import { stravaFetch, matchAndStoreActivity } from "../../server/lib/strava.ts";
 
 const VALID_SECRET = MOCK_ENV.STRAVA_WEBHOOK_PATH_SECRET; // "mock-webhook-secret"
 const VALID_VERIFY_TOKEN = MOCK_ENV.STRAVA_VERIFY_TOKEN; // "mock-verify-token"
@@ -174,7 +168,7 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     expect(body.ignored).toBe(true);
   });
 
-  test("activity create: fetches activity, upserts, and auto-matches workout", async () => {
+  test("activity create: fetches activity and runs match-and-store", async () => {
     const mock = createMockSupabase({
       tables: {
         profiles: { select: { data: MOCK_PROFILE, error: null } },
@@ -195,15 +189,14 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
-    expect(body.ignored).toBeUndefined();
+    expect(body.matched).toBeNull();
 
     expect(stravaFetch).toHaveBeenCalledOnce();
     expect(stravaFetch).toHaveBeenCalledWith(expect.anything(), MOCK_ENV, MOCK_USER_ID, "/activities/12345");
-    expect(upsertStravaActivity).toHaveBeenCalledOnce();
-    expect(autoMatchActivityToWorkout).toHaveBeenCalledOnce();
+    expect(matchAndStoreActivity).toHaveBeenCalledOnce();
   });
 
-  test("activity update: treated same as create — fetches, upserts, auto-matches", async () => {
+  test("activity update: same path as create — fetches, match-and-store", async () => {
     const mock = createMockSupabase({
       tables: {
         profiles: { select: { data: MOCK_PROFILE, error: null } },
@@ -223,15 +216,18 @@ describe("POST /api/strava/webhook/:secret — events", () => {
 
     expect(res.status).toBe(200);
     expect(stravaFetch).toHaveBeenCalledOnce();
-    expect(upsertStravaActivity).toHaveBeenCalledOnce();
-    expect(autoMatchActivityToWorkout).toHaveBeenCalledOnce();
+    expect(matchAndStoreActivity).toHaveBeenCalledOnce();
   });
 
-  test("activity delete: deletes activity from activities table", async () => {
+  test("activity delete: removes the workout_activities row and resets the workout to planned", async () => {
     const mock = createMockSupabase({
       tables: {
         profiles: { select: { data: MOCK_PROFILE, error: null } },
-        activities: { delete: { data: null, error: null } },
+        workout_activities: {
+          select: { data: { workout_id: "workout-uuid-1" }, error: null },
+          delete: { data: null, error: null },
+        },
+        workouts: { update: { data: null, error: null } },
       },
     });
     setMockSupabase(mock);
@@ -250,12 +246,11 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     const body = await res.json();
     expect(body.ok).toBe(true);
 
-    // stravaFetch should NOT be called for delete events
     expect(stravaFetch).not.toHaveBeenCalled();
-
-    // Verify delete was recorded
-    const activitiesDeleteCall = mock.calls.find((c) => c.table === "activities" && c.operation === "delete");
-    expect(activitiesDeleteCall).toBeDefined();
+    const deleteCall = mock.calls.find((c) => c.table === "workout_activities" && c.operation === "delete");
+    expect(deleteCall).toBeDefined();
+    const updateCall = mock.calls.find((c) => c.table === "workouts" && c.operation === "update");
+    expect(updateCall).toBeDefined();
   });
 
   test("athlete deauthorize event: deletes credentials and nulls strava_athlete_id", async () => {
@@ -298,7 +293,6 @@ describe("POST /api/strava/webhook/:secret — events", () => {
     const profileUpdateCall = mock.calls.find((c) => c.table === "profiles" && c.operation === "update");
     expect(profileUpdateCall).toBeDefined();
 
-    // No activity fetching should occur
     expect(stravaFetch).not.toHaveBeenCalled();
   });
 
@@ -328,12 +322,12 @@ describe("POST /api/strava/webhook/:secret — events", () => {
 
     expect(res.status).toBe(200);
     const body = await res.json();
-    // athlete + update without authorized=false falls through to non-activity check
     expect(body.ok).toBe(true);
     expect(body.ignored).toBe(true);
   });
 
-  test("500 when profiles lookup fails", async () => {
+  test("returns 200 even when handler throws — error is logged, Strava keeps subscription", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
     const mock = createMockSupabase({
       tables: {
         profiles: {
@@ -353,20 +347,23 @@ describe("POST /api/strava/webhook/:secret — events", () => {
       MOCK_ENV,
     );
 
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(200);
     const body = await res.json();
-    expect(body.code).toBe("INTERNAL_ERROR");
-    expect(body.message).toBe("Database error");
+    expect(body.ok).toBe(true);
+    expect(body.error?.code).toBe("INTERNAL_ERROR");
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
-  test("autoMatchActivityToWorkout receives the upserted activity", async () => {
-    const upsertedActivity = {
-      id: "activity-uuid-1",
-      sport: "run",
-      date: "2024-01-15T07:00:00Z",
-      timezone: "America/New_York",
+  test("matchAndStoreActivity receives the detailed activity from stravaFetch", async () => {
+    const detailedActivity = {
+      id: 12345,
+      sport_type: "Run",
+      start_date: "2024-01-15T07:00:00Z",
+      timezone: "(GMT-05:00) America/New_York",
+      elapsed_time: 2700,
     };
-    vi.mocked(upsertStravaActivity).mockResolvedValueOnce(upsertedActivity as Record<string, unknown>);
+    vi.mocked(stravaFetch).mockResolvedValueOnce(detailedActivity as Record<string, unknown>);
 
     const mock = createMockSupabase({
       tables: {
@@ -385,6 +382,6 @@ describe("POST /api/strava/webhook/:secret — events", () => {
       MOCK_ENV,
     );
 
-    expect(autoMatchActivityToWorkout).toHaveBeenCalledWith(expect.anything(), MOCK_USER_ID, upsertedActivity);
+    expect(matchAndStoreActivity).toHaveBeenCalledWith(expect.anything(), MOCK_USER_ID, detailedActivity);
   });
 });

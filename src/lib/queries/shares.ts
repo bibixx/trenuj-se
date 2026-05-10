@@ -1,8 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
+import type { SportType } from "../../../shared/activity.ts";
 import { safeParsePlanNoteMetadata } from "../../../shared/plan-note-metadata.ts";
 import { safeParseWorkoutExecution } from "../../../shared/workout-execution-schema.ts";
 import { safeParseWorkoutMetadata } from "../../../shared/workout-metadata.ts";
-import type { Label, Phase, PlanNote, Workout } from "../types.ts";
+import type { Label, Phase, PlanNote, Workout, WorkoutActivity } from "../types.ts";
 
 export interface SharedPlan {
   name: string;
@@ -64,7 +65,27 @@ function rowToLabel(row: Record<string, unknown>): Label {
   };
 }
 
+function rowToActivity(row: Record<string, unknown> | null): WorkoutActivity | null {
+  if (!row) return null;
+  return {
+    stravaId: row.strava_id as number,
+    sport: row.sport as SportType,
+    name: row.name as string,
+    startDate: row.start_date as string,
+    timezone: (row.timezone as string) ?? null,
+    durationSec: row.duration_sec as number,
+    distanceM: (row.distance_m as number) ?? null,
+    elevationM: (row.elevation_m as number) ?? null,
+    avgHr: (row.avg_hr as number) ?? null,
+    maxHr: (row.max_hr as number) ?? null,
+    avgPower: (row.avg_power as number) ?? null,
+    calories: (row.calories as number) ?? null,
+  };
+}
+
 function rowToWorkout(row: Record<string, unknown>): Workout {
+  const rawActivity = row.workout_activities;
+  const activityRow = Array.isArray(rawActivity) ? (rawActivity[0] ?? null) : (rawActivity as Record<string, unknown> | null);
   return {
     id: row.id as string,
     planId: "",
@@ -80,7 +101,7 @@ function rowToWorkout(row: Record<string, unknown>): Workout {
     status: row.status as Workout["status"],
     completionNotes: (row.completion_notes as string) ?? null,
     trainerNotes: (row.trainer_notes as string) ?? null,
-    activityId: (row.activity_id as string) ?? null,
+    activity: rowToActivity(activityRow),
     execution: safeParseWorkoutExecution(row.execution),
     metadata: safeParseWorkoutMetadata(row.metadata),
     createdAt: "",
