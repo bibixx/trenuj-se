@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { ALERT_METRICS, APPLE_WATCH_ACTIVITY_TYPES, PACE_SPEED_UNITS, PACE_TIME_UNITS, TARGET_TYPES, type WorkoutExecution } from "./workout-execution";
+import { ALERT_METRICS, APPLE_WATCH_ACTIVITY_TYPES, TARGET_TYPES, type WorkoutExecution } from "./workout-execution";
 import { paceTimeToSeconds } from "./workout-execution-pace";
 
 const PACE_TIME_PATTERN = /^\d{1,2}:\d{2}$/;
@@ -105,45 +105,69 @@ const heartRateRangeAlertSchema = z
     }
   });
 
-const paceRangeAlertSchema = z.union([
-  z
-    .strictObject({
+const paceRangeAlertSchema = z
+  .discriminatedUnion("unit", [
+    z.strictObject({
       type: z.literal("paceRange"),
-      unit: z.enum(PACE_TIME_UNITS).describe("Time-per-distance pace. Use M:SS strings for min/max."),
-      min: paceTimeString.describe("Faster bound as M:SS per unit, e.g. '4:50'."),
-      max: paceTimeString.describe("Slower bound as M:SS per unit, e.g. '5:10'."),
+      unit: z.literal("min/km").describe("Time-per-distance pace (min/km). Use M:SS strings for min/max."),
+      min: paceTimeString.describe("Faster bound as M:SS, e.g. '4:50'."),
+      max: paceTimeString.describe("Slower bound as M:SS, e.g. '5:10'."),
       metric: alertMetricSchema.optional(),
-    })
-    .superRefine((value, issueContext) => {
-      if (paceTimeToSeconds(value.min) > paceTimeToSeconds(value.max)) {
-        issueContext.addIssue({ code: "custom", message: "alert.min must be <= alert.max (faster pace ≤ slower pace)", input: undefined });
-      }
     }),
-  z
-    .strictObject({
+    z.strictObject({
       type: z.literal("paceRange"),
-      unit: z.enum(PACE_SPEED_UNITS).describe("Speed unit. Use positive numbers for min/max."),
+      unit: z.literal("min/mi").describe("Time-per-distance pace (min/mi). Use M:SS strings for min/max."),
+      min: paceTimeString.describe("Faster bound as M:SS, e.g. '4:50'."),
+      max: paceTimeString.describe("Slower bound as M:SS, e.g. '5:10'."),
+      metric: alertMetricSchema.optional(),
+    }),
+    z.strictObject({
+      type: z.literal("paceRange"),
+      unit: z.literal("km/h").describe("Speed (km/h). Use positive numbers for min/max."),
       min: z.number().positive().describe("Lower speed bound."),
       max: z.number().positive().describe("Upper speed bound."),
       metric: alertMetricSchema.optional(),
-    })
-    .superRefine((value, issueContext) => {
-      if (value.min > value.max) {
-        issueContext.addIssue({ code: "custom", message: "alert.min must be <= alert.max", input: undefined });
-      }
     }),
-]);
+    z.strictObject({
+      type: z.literal("paceRange"),
+      unit: z.literal("mph").describe("Speed (mph). Use positive numbers for min/max."),
+      min: z.number().positive().describe("Lower speed bound."),
+      max: z.number().positive().describe("Upper speed bound."),
+      metric: alertMetricSchema.optional(),
+    }),
+  ])
+  .superRefine((value, issueContext) => {
+    if (value.unit === "min/km" || value.unit === "min/mi") {
+      if (paceTimeToSeconds(value.min) > paceTimeToSeconds(value.max)) {
+        issueContext.addIssue({ code: "custom", message: "alert.min must be <= alert.max (faster pace ≤ slower pace)", input: undefined });
+      }
+    } else if (value.min > value.max) {
+      issueContext.addIssue({ code: "custom", message: "alert.min must be <= alert.max", input: undefined });
+    }
+  });
 
-const paceThresholdAlertSchema = z.union([
+const paceThresholdAlertSchema = z.discriminatedUnion("unit", [
   z.strictObject({
     type: z.literal("paceThreshold"),
-    unit: z.enum(PACE_TIME_UNITS).describe("Time-per-distance pace. Use an M:SS string for threshold."),
-    threshold: paceTimeString.describe("Pace threshold as M:SS per unit, e.g. '4:50'."),
+    unit: z.literal("min/km").describe("Time-per-distance pace (min/km). Use an M:SS string for threshold."),
+    threshold: paceTimeString.describe("Pace threshold as M:SS, e.g. '4:50'."),
     metric: alertMetricSchema.optional(),
   }),
   z.strictObject({
     type: z.literal("paceThreshold"),
-    unit: z.enum(PACE_SPEED_UNITS).describe("Speed unit. Use a positive number for threshold."),
+    unit: z.literal("min/mi").describe("Time-per-distance pace (min/mi). Use an M:SS string for threshold."),
+    threshold: paceTimeString.describe("Pace threshold as M:SS, e.g. '4:50'."),
+    metric: alertMetricSchema.optional(),
+  }),
+  z.strictObject({
+    type: z.literal("paceThreshold"),
+    unit: z.literal("km/h").describe("Speed (km/h). Use a positive number for threshold."),
+    threshold: z.number().positive().describe("Speed threshold."),
+    metric: alertMetricSchema.optional(),
+  }),
+  z.strictObject({
+    type: z.literal("paceThreshold"),
+    unit: z.literal("mph").describe("Speed (mph). Use a positive number for threshold."),
     threshold: z.number().positive().describe("Speed threshold."),
     metric: alertMetricSchema.optional(),
   }),
@@ -185,7 +209,7 @@ const cadenceThresholdAlertSchema = z.strictObject({
   threshold: z.number().nonnegative(),
 });
 
-const alertSchema = z.union([
+const alertSchema = z.discriminatedUnion("type", [
   heartRateZoneAlertSchema,
   heartRateRangeAlertSchema,
   paceRangeAlertSchema,

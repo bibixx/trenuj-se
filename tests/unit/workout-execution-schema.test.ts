@@ -80,6 +80,32 @@ describe("executionSchema — pace alerts", () => {
     const result = executionSchema.safeParse(executionWithAlert({ type: "paceRange", unit: "km/h", min: 30, max: 20 }));
     expect(result.success).toBe(false);
   });
+
+  it("reports invalid unit at the alert.unit path", () => {
+    const result = executionSchema.safeParse(executionWithAlert({ type: "paceRange", unit: "min/k", min: "4:50", max: "5:10" }));
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("Expected executionSchema.safeParse to fail");
+    const paths = result.error.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("structure.0.alert.unit");
+  });
+
+  it("reports value-type mismatch at alert.min/max for time-based pace ranges", () => {
+    const result = executionSchema.safeParse(executionWithAlert({ type: "paceRange", unit: "min/km", min: 290, max: 310 }));
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("Expected executionSchema.safeParse to fail");
+    const paths = result.error.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("structure.0.alert.min");
+    expect(paths).toContain("structure.0.alert.max");
+  });
+
+  it("reports value-type mismatch at alert.min/max for speed-based pace ranges", () => {
+    const result = executionSchema.safeParse(executionWithAlert({ type: "paceRange", unit: "km/h", min: "4:50", max: "5:10" }));
+    expect(result.success).toBe(false);
+    if (result.success) throw new Error("Expected executionSchema.safeParse to fail");
+    const paths = result.error.issues.map((issue) => issue.path.join("."));
+    expect(paths).toContain("structure.0.alert.min");
+    expect(paths).toContain("structure.0.alert.max");
+  });
 });
 
 describe("executionSchema — power alerts", () => {
