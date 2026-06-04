@@ -151,18 +151,18 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 
 ### Plans
 
-| Tool              | What it does                                                                                                                                                                                                                  |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_plans`      | List all plans. Optional filter: `status` (`active` / `inactive`).                                                                                                                                                            |
-| `get_plan`        | Get full plan with phases, labels, stats. Optional: `planId`.                                                                                                                                                                 |
-| `create_plan`     | Create a new plan. Required: `name`, `startDate`. Optional: `goal`, `endDate`, `status`, `metadata`. Defaults to `active` and deactivates the current active plan; pass `status: 'inactive'` to keep the current plan active. |
-| `update_plan`     | Update plan fields. Optional: `planId`, `name`, `goal`, `startDate`, `endDate`, `status`, `metadata`.                                                                                                                         |
-| `deactivate_plan` | Set plan to inactive. Optional: `planId`.                                                                                                                                                                                     |
-| `set_labels`      | **Replace all** labels on a plan. Required: `labels` array. Each label needs `key`, `label`, `hue`. Optional per label: `icon`, `metadata`, `activitySports`.                                                                 |
-| `update_label`    | Update one label by `key`. Optional fields: `label`, `hue`, `icon`, `metadata`, `activitySports`.                                                                                                                             |
-| `add_phase`       | Add a training phase. Required: `name`, `startDate`, `endDate`. Optional: `planId`, `description`, `sortOrder`, `metadata`. Dates must be within plan range.                                                                  |
-| `update_phase`    | Update a phase. Required: `phaseId`. Optional: `name`, `description`, `startDate`, `endDate`, `sortOrder`, `metadata`.                                                                                                        |
-| `remove_phase`    | Delete a phase. Required: `phaseId`. Workouts in this phase become unlinked (not deleted).                                                                                                                                    |
+| Tool              | What it does                                                                                                                                                                                                                                 |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_plans`      | List all plans. Optional filter: `status` (`active` / `inactive`).                                                                                                                                                                           |
+| `get_plan`        | Get full plan with phases, labels, stats, and the plan's agent memory notepad (`agent_memory`). Optional: `planId`.                                                                                                                          |
+| `create_plan`     | Create a new plan. Required: `name`, `startDate`. Optional: `goal`, `endDate`, `status`, `agentMemory`, `metadata`. Defaults to `active` and deactivates the current active plan; pass `status: 'inactive'` to keep the current plan active. |
+| `update_plan`     | Update plan fields. Optional: `planId`, `name`, `goal`, `startDate`, `endDate`, `status`, `agentMemory` (plan notepad; null to clear), `metadata`.                                                                                           |
+| `deactivate_plan` | Set plan to inactive. Optional: `planId`.                                                                                                                                                                                                    |
+| `set_labels`      | **Replace all** labels on a plan. Required: `labels` array. Each label needs `key`, `label`, `hue`. Optional per label: `icon`, `metadata`, `activitySports`.                                                                                |
+| `update_label`    | Update one label by `key`. Optional fields: `label`, `hue`, `icon`, `metadata`, `activitySports`.                                                                                                                                            |
+| `add_phase`       | Add a training phase. Required: `name`, `startDate`, `endDate`. Optional: `planId`, `description`, `sortOrder`, `metadata`. Dates must be within plan range.                                                                                 |
+| `update_phase`    | Update a phase. Required: `phaseId`. Optional: `name`, `description`, `startDate`, `endDate`, `sortOrder`, `metadata`.                                                                                                                       |
+| `remove_phase`    | Delete a phase. Required: `phaseId`. Workouts in this phase become unlinked (not deleted).                                                                                                                                                   |
 
 ### Workouts
 
@@ -215,7 +215,7 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 When starting a new conversation with a connected server:
 
 1. Call `get_profile` to understand the athlete's current state.
-2. Call `get_plan` (no args) to load the active plan with its phases, labels, and stats.
+2. Call `get_plan` (no args) to load the active plan with its phases, labels, stats, and agent memory (`agent_memory` — the plan's freeform notepad; read it before making changes).
 3. Read the `training-plan-guide` resource if you'll be creating or modifying workouts.
 4. Use `get_workouts` with date filters to see what's coming up or what was recently completed.
 5. Use `get_week_summary` to see the current week's planned vs actual workload.

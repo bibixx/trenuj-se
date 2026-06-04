@@ -47,6 +47,7 @@ export const plans = pgTable(
     startDate: date("start_date").notNull(),
     endDate: date("end_date"),
     status: text("status").default("active").notNull(),
+    agentMemory: text("agent_memory"),
     metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

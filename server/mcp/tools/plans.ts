@@ -30,6 +30,13 @@ const createPlanSchema = z
       .describe(
         "Status for the new plan. 'active' (default) deactivates the current active plan; 'inactive' creates it without touching the current active plan. Only one plan can be active at a time.",
       ),
+    agentMemory: z
+      .string()
+      .max(50_000)
+      .optional()
+      .describe(
+        "Freeform markdown notepad scoped to THIS plan — your working notes about the plan itself (pace/HR zones, plan-specific constraints, reminders for future changes to this plan). It is a plan notepad, NOT general agent memory: keep user-specific or cross-plan info in your own memory, not here.",
+      ),
     metadata: z.record(z.string(), z.unknown()).optional().describe("Arbitrary key-value data."),
   })
   .strict();
@@ -42,6 +49,14 @@ const updatePlanSchema = z
     startDate: z.string().date().optional().describe("Plan start date (YYYY-MM-DD)."),
     endDate: z.string().date().nullable().optional().describe("Plan end date (YYYY-MM-DD). Set to null to clear."),
     status: planStatusSchema.optional().describe("Plan status: 'active' or 'inactive'."),
+    agentMemory: z
+      .string()
+      .max(50_000)
+      .nullable()
+      .optional()
+      .describe(
+        "Freeform markdown notepad scoped to THIS plan (pace/HR zones, plan-specific constraints, reminders for future changes). Curate it — this replaces the whole field, so send the full document. It is a plan notepad, NOT general agent memory; keep user-specific or cross-plan info in your own memory. Set to null to clear.",
+      ),
     metadata: z.record(z.string(), z.unknown()).nullable().optional().describe("Arbitrary key-value data. Set to null to clear."),
   })
   .strict();
@@ -339,9 +354,10 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
             start_date: params.startDate,
             end_date: params.endDate ?? null,
             status: params.status,
+            agent_memory: params.agentMemory ?? null,
             metadata: params.metadata ?? null,
           })
-          .select("id, name, goal, status, start_date, end_date, metadata, created_at, updated_at")
+          .select("id, name, goal, status, agent_memory, start_date, end_date, metadata, created_at, updated_at")
           .single();
 
         if (error || !data) throw new AppError("INTERNAL_ERROR", error?.message ?? "Failed to create plan");
@@ -376,6 +392,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
           start_date: params.startDate,
           end_date: params.endDate,
           status: params.status,
+          agent_memory: params.agentMemory,
           metadata: params.metadata,
         };
 
@@ -385,7 +402,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
           .update(cleanedPatch)
           .eq("id", plan.id)
           .eq("user_id", ctx.userId)
-          .select("id, name, goal, status, start_date, end_date, metadata, created_at, updated_at")
+          .select("id, name, goal, status, agent_memory, start_date, end_date, metadata, created_at, updated_at")
           .single();
 
         if (error || !data) throw new AppError("INTERNAL_ERROR", error?.message ?? "Failed to update plan");

@@ -14,6 +14,7 @@ const MOCK_PLAN = {
   end_date: "2024-12-31",
   name: "Test Plan",
   goal: "Test goal",
+  agent_memory: null,
   metadata: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
@@ -39,7 +40,7 @@ describe("MCP Plan Tools", () => {
       createMockSupabase({
         auth: mockAuth(),
         tables: {
-          plans: { select: { data: MOCK_PLAN, error: null } },
+          plans: { select: { data: { ...MOCK_PLAN, agent_memory: "## Zones\n- Z2 easy runs" }, error: null } },
           phases: {
             select: {
               data: [{ id: MOCK_PHASE_ID, name: "Base", description: null, start_date: "2024-01-01", end_date: "2024-03-31", metadata: null, created_at: "2024-01-01T00:00:00Z" }],
@@ -94,6 +95,7 @@ describe("MCP Plan Tools", () => {
       },
     ]);
     expect(result?.result.summary.totalWorkouts).toBe(2);
+    expect(result?.result.agent_memory).toBe("## Zones\n- Z2 easy runs");
   });
 
   test("set_labels syncs labels by key, preserves existing ids, and warns when activitySports are missing", async () => {
@@ -449,5 +451,65 @@ describe("MCP Plan Tools", () => {
     );
     const result = extractToolResult(parsed);
     expect(result?.result.icon).toBe("run");
+  });
+
+  test("update_plan sets agent memory", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: {
+          select: { data: MOCK_PLAN, error: null },
+          update: { data: { ...MOCK_PLAN, agent_memory: "Threshold pace 4:15/km" }, error: null },
+        },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("update_plan", { planId: VALID_PLAN_ID, agentMemory: "Threshold pace 4:15/km" }, {}));
+    const result = extractToolResult(parsed);
+
+    expect(result?.result.agent_memory).toBe("Threshold pace 4:15/km");
+    const updateCall = mock.calls.find((call) => call.table === "plans" && call.operation === "update");
+    expect(updateCall?.args[0]).toEqual({ agent_memory: "Threshold pace 4:15/km" });
+  });
+
+  test("update_plan clears agent memory when set to null", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: {
+          select: { data: MOCK_PLAN, error: null },
+          update: { data: { ...MOCK_PLAN, agent_memory: null }, error: null },
+        },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("update_plan", { planId: VALID_PLAN_ID, agentMemory: null }, {}));
+    const result = extractToolResult(parsed);
+
+    expect(result?.result.agent_memory).toBeNull();
+    const updateCall = mock.calls.find((call) => call.table === "plans" && call.operation === "update");
+    expect(updateCall?.args[0]).toEqual({ agent_memory: null });
+  });
+
+  test("create_plan persists agent memory", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: {
+          update: { data: null, error: null },
+          insert: { data: { ...MOCK_PLAN, id: "new-plan", agent_memory: "Plan notepad" }, error: null },
+        },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("create_plan", { name: "New Plan", startDate: "2024-06-01", agentMemory: "Plan notepad" }, {}));
+    const result = extractToolResult(parsed);
+
+    expect(result?.result.agent_memory).toBe("Plan notepad");
+    const insertCall = mock.calls.find((call) => call.table === "plans" && call.operation === "insert");
+    expect(insertCall?.args[0]).toMatchObject({ agent_memory: "Plan notepad" });
   });
 });

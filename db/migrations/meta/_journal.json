@@ -64,6 +64,13 @@
       "when": 1778417980091,
       "tag": "0008_cold_wallflower",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780601797836,
+      "tag": "0009_cold_yellow_claw",
+      "breakpoints": true
     }
   ]
 }
