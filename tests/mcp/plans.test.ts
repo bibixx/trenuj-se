@@ -342,6 +342,45 @@ describe("MCP Plan Tools", () => {
     expect(parsed.error ?? parsed.result).toBeDefined();
   });
 
+  test("create_plan deactivates the current active plan by default", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: {
+          update: { data: null, error: null },
+          insert: { data: { ...MOCK_PLAN, id: "new-plan", name: "New Plan", status: "active", end_date: null, goal: null }, error: null },
+        },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("create_plan", { name: "New Plan", startDate: "2024-06-01" }, {}));
+    const result = extractToolResult(parsed);
+
+    expect(result?.result.status).toBe("active");
+    const planUpdates = mock.calls.filter((call) => call.table === "plans" && call.operation === "update");
+    expect(planUpdates).toHaveLength(1);
+  });
+
+  test("create_plan with status 'inactive' leaves the current active plan untouched", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: {
+          insert: { data: { ...MOCK_PLAN, id: "side-plan", name: "Side Plan", status: "inactive", end_date: null, goal: null }, error: null },
+        },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("create_plan", { name: "Side Plan", startDate: "2024-06-01", status: "inactive" }, {}));
+    const result = extractToolResult(parsed);
+
+    expect(result?.result.status).toBe("inactive");
+    const planUpdates = mock.calls.filter((call) => call.table === "plans" && call.operation === "update");
+    expect(planUpdates).toHaveLength(0);
+  });
+
   test("add_label rejects an unknown Tabler icon name", async () => {
     setMockSupabase(createMockSupabase({ auth: mockAuth(), tables: { plans: { select: { data: MOCK_PLAN, error: null } } } }));
 

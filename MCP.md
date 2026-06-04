@@ -151,18 +151,18 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 
 ### Plans
 
-| Tool              | What it does                                                                                                                                                  |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_plans`      | List all plans. Optional filter: `status` (`active` / `inactive`).                                                                                            |
-| `get_plan`        | Get full plan with phases, labels, stats. Optional: `planId`.                                                                                                 |
-| `create_plan`     | Create a new plan. Required: `name`, `startDate`. Optional: `goal`, `endDate`, `metadata`. Auto-deactivates current active plan.                              |
-| `update_plan`     | Update plan fields. Optional: `planId`, `name`, `goal`, `startDate`, `endDate`, `status`, `metadata`.                                                         |
-| `deactivate_plan` | Set plan to inactive. Optional: `planId`.                                                                                                                     |
-| `set_labels`      | **Replace all** labels on a plan. Required: `labels` array. Each label needs `key`, `label`, `hue`. Optional per label: `icon`, `metadata`, `activitySports`. |
-| `update_label`    | Update one label by `key`. Optional fields: `label`, `hue`, `icon`, `metadata`, `activitySports`.                                                             |
-| `add_phase`       | Add a training phase. Required: `name`, `startDate`, `endDate`. Optional: `planId`, `description`, `sortOrder`, `metadata`. Dates must be within plan range.  |
-| `update_phase`    | Update a phase. Required: `phaseId`. Optional: `name`, `description`, `startDate`, `endDate`, `sortOrder`, `metadata`.                                        |
-| `remove_phase`    | Delete a phase. Required: `phaseId`. Workouts in this phase become unlinked (not deleted).                                                                    |
+| Tool              | What it does                                                                                                                                                                                                                  |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_plans`      | List all plans. Optional filter: `status` (`active` / `inactive`).                                                                                                                                                            |
+| `get_plan`        | Get full plan with phases, labels, stats. Optional: `planId`.                                                                                                                                                                 |
+| `create_plan`     | Create a new plan. Required: `name`, `startDate`. Optional: `goal`, `endDate`, `status`, `metadata`. Defaults to `active` and deactivates the current active plan; pass `status: 'inactive'` to keep the current plan active. |
+| `update_plan`     | Update plan fields. Optional: `planId`, `name`, `goal`, `startDate`, `endDate`, `status`, `metadata`.                                                                                                                         |
+| `deactivate_plan` | Set plan to inactive. Optional: `planId`.                                                                                                                                                                                     |
+| `set_labels`      | **Replace all** labels on a plan. Required: `labels` array. Each label needs `key`, `label`, `hue`. Optional per label: `icon`, `metadata`, `activitySports`.                                                                 |
+| `update_label`    | Update one label by `key`. Optional fields: `label`, `hue`, `icon`, `metadata`, `activitySports`.                                                                                                                             |
+| `add_phase`       | Add a training phase. Required: `name`, `startDate`, `endDate`. Optional: `planId`, `description`, `sortOrder`, `metadata`. Dates must be within plan range.                                                                  |
+| `update_phase`    | Update a phase. Required: `phaseId`. Optional: `name`, `description`, `startDate`, `endDate`, `sortOrder`, `metadata`.                                                                                                        |
+| `remove_phase`    | Delete a phase. Required: `phaseId`. Workouts in this phase become unlinked (not deleted).                                                                                                                                    |
 
 ### Workouts
 

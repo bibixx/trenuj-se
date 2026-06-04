@@ -25,6 +25,11 @@ const createPlanSchema = z
     goal: z.string().trim().min(1).optional().describe("High-level training goal."),
     startDate: z.string().date().describe("Plan start date (YYYY-MM-DD)."),
     endDate: z.string().date().optional().describe("Plan end date (YYYY-MM-DD)."),
+    status: planStatusSchema
+      .default("active")
+      .describe(
+        "Status for the new plan. 'active' (default) deactivates the current active plan; 'inactive' creates it without touching the current active plan. Only one plan can be active at a time.",
+      ),
     metadata: z.record(z.string(), z.unknown()).optional().describe("Arbitrary key-value data."),
   })
   .strict();
@@ -309,7 +314,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
     {
       title: "Create Plan",
       description:
-        "Create a new training plan and deactivate the current active plan. ⚠️ NOT idempotent — use list_plans first to check if the plan already exists before creating.",
+        "Create a new training plan. By default it becomes the active plan and the current active plan is deactivated (only one plan can be active at a time). Pass status: 'inactive' to create it without touching the current active plan. ⚠️ NOT idempotent — use list_plans first to check if the plan already exists before creating.",
       inputSchema: createPlanSchema,
       annotations: { idempotentHint: false },
     },
@@ -320,8 +325,10 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
           throw new AppError("VALIDATION_ERROR", "endDate must be on or after startDate");
         }
 
-        const { error: deactivateError } = await ctx.supabase.from("plans").update({ status: "inactive" }).eq("user_id", ctx.userId).eq("status", "active");
-        if (deactivateError) throw new AppError("INTERNAL_ERROR", deactivateError.message);
+        if (params.status === "active") {
+          const { error: deactivateError } = await ctx.supabase.from("plans").update({ status: "inactive" }).eq("user_id", ctx.userId).eq("status", "active");
+          if (deactivateError) throw new AppError("INTERNAL_ERROR", deactivateError.message);
+        }
 
         const { data, error } = await ctx.supabase
           .from("plans")
@@ -331,7 +338,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
             goal: params.goal ?? null,
             start_date: params.startDate,
             end_date: params.endDate ?? null,
-            status: "active",
+            status: params.status,
             metadata: params.metadata ?? null,
           })
           .select("id, name, goal, status, start_date, end_date, metadata, created_at, updated_at")

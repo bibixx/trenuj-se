@@ -39,7 +39,7 @@ If anything is ambiguous or incomplete — dates are missing, workout details ar
 
 Follow this exact order:
 
-1. **`create_plan`** — create the plan (`name`, `startDate` required; optional: `goal`, `endDate`, `metadata`). Auto-deactivates any current active plan.
+1. **`create_plan`** — create the plan (`name`, `startDate` required; optional: `goal`, `endDate`, `status`, `metadata`). Defaults to `active` and deactivates any current active plan; pass `status: 'inactive'` to create it without touching the current active plan.
 2. **`set_labels`** — define workout type labels for the plan.
 3. **`add_phase`** — add training phases if the plan has them. Dates must fall within the plan range.
 4. **`add_workouts`** — add workouts in batches (e.g. per week). Each workout needs `date`, `title`, `description`, `sortOrder`, and a label reference (`labelKey` or `labelId`).
