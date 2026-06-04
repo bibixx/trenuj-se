@@ -13,7 +13,7 @@
     "format": "oxfmt .",
     "format:check": "oxfmt --check .",
     "cf:dev": "pnpm run build && wrangler dev",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "drizzle-kit generate && oxfmt db/migrations/meta",
     "db:migrate": "drizzle-kit migrate",
     "test": "vitest run",
     "test:watch": "vitest",
