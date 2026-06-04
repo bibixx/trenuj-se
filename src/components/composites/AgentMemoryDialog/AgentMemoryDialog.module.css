@@ -1,0 +1,5 @@
+.empty {
+  composes: typography-sm from global;
+  color: var(--text-muted);
+  margin: 0;
+}

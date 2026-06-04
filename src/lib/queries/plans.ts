@@ -16,6 +16,7 @@ function rowToPlan(row: Record<string, unknown>): Plan {
     startDate: row.start_date as string,
     endDate: (row.end_date as string) ?? null,
     status: row.status as Plan["status"],
+    agentMemory: (row.agent_memory as string) ?? null,
     metadata: (row.metadata as Record<string, unknown>) ?? null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
@@ -25,7 +26,7 @@ function rowToPlan(row: Record<string, unknown>): Plan {
 async function fetchPlans(): Promise<Plan[]> {
   const { data, error } = await supabase
     .from("plans")
-    .select("id, name, goal, start_date, end_date, status, metadata, created_at, updated_at")
+    .select("id, name, goal, start_date, end_date, status, agent_memory, metadata, created_at, updated_at")
     .order("created_at", { ascending: false });
 
   if (error) throw error;
@@ -35,7 +36,7 @@ async function fetchPlans(): Promise<Plan[]> {
 async function fetchActivePlan(): Promise<Plan | null> {
   const { data, error } = await supabase
     .from("plans")
-    .select("id, name, goal, start_date, end_date, status, metadata, created_at, updated_at")
+    .select("id, name, goal, start_date, end_date, status, agent_memory, metadata, created_at, updated_at")
     .eq("status", "active")
     .maybeSingle();
 
@@ -44,7 +45,11 @@ async function fetchActivePlan(): Promise<Plan | null> {
 }
 
 async function fetchPlan(planId: string): Promise<Plan | null> {
-  const { data, error } = await supabase.from("plans").select("id, name, goal, start_date, end_date, status, metadata, created_at, updated_at").eq("id", planId).maybeSingle();
+  const { data, error } = await supabase
+    .from("plans")
+    .select("id, name, goal, start_date, end_date, status, agent_memory, metadata, created_at, updated_at")
+    .eq("id", planId)
+    .maybeSingle();
 
   if (error) throw error;
   return data ? rowToPlan(data) : null;

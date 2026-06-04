@@ -87,6 +87,8 @@ export interface Plan {
   startDate: string;
   endDate: string | null;
   status: "active" | "inactive";
+  /** Agent-authored, plan-scoped markdown notepad. Read-only in the UI; only agents write it (via the MCP `update_plan` tool). */
+  agentMemory: string | null;
   metadata: Record<string, unknown> | null;
   createdAt: string;
   updatedAt: string;

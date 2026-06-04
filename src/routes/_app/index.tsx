@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { IconHistory, IconShare, IconSettings } from "@tabler/icons-react";
+import { IconHistory, IconShare, IconSettings, IconNotebook } from "@tabler/icons-react";
 import { Badge } from "../../components/primitives/Badge/Badge.tsx";
 import { Button } from "../../components/primitives/Button/Button.tsx";
 import { Tooltip } from "../../components/primitives/Tooltip/Tooltip.tsx";
+import { AgentMemoryDialog } from "../../components/composites/AgentMemoryDialog/AgentMemoryDialog.tsx";
 import { PastPlansDialog } from "../../components/composites/PastPlansDialog/PastPlansDialog.tsx";
 import { PlanHeader } from "../../components/composites/PlanHeader/PlanHeader.tsx";
 import { SessionList } from "../../components/composites/SessionList/SessionList.tsx";
@@ -52,6 +53,7 @@ function PlanView() {
   const navigate = useNavigate({ from: "/" });
   const [shareOpen, setShareOpen] = useState(false);
   const [pastPlansOpen, setPastPlansOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
 
   // --- Data queries ---
   const { data: activePlan, isLoading: activePlanLoading } = useQuery({
@@ -124,6 +126,11 @@ function PlanView() {
           <Button icon={<IconShare />} variant="ghost" onClick={() => setShareOpen(true)} />
         </Tooltip>
       )}
+      {plan && (
+        <Tooltip label="Agent notes">
+          <Button icon={<IconNotebook />} variant="ghost" onClick={() => setMemoryOpen(true)} />
+        </Tooltip>
+      )}
       <Tooltip label="Settings">
         <Button icon={<IconSettings />} variant="ghost" nativeButton={false} render={<Link to="/settings" />} />
       </Tooltip>
@@ -162,6 +169,7 @@ function PlanView() {
 
       <PastPlansDialog open={pastPlansOpen} onOpenChange={setPastPlansOpen} />
       {!isInactive && <ShareDialog planId={plan.id} open={shareOpen} onOpenChange={setShareOpen} />}
+      <AgentMemoryDialog plan={plan} open={memoryOpen} onOpenChange={setMemoryOpen} />
 
       {weeks.length > 0 && (
         <>
