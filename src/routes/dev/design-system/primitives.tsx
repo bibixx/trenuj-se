@@ -146,7 +146,7 @@ function PrimitivesSection() {
         <Dialog.Content>
           <Dialog.Close />
           <Dialog.Title>Past Plans</Dialog.Title>
-          <Dialog.Description>Select a plan to view its archived workouts.</Dialog.Description>
+          <Dialog.Description>Select a plan to view its workouts.</Dialog.Description>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             <Card>
               <strong style={{ fontSize: "var(--text-sm)" }}>Trail 50K Prep</strong>

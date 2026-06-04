@@ -66,7 +66,7 @@ function PlanView() {
 
   const plan = planIdParam ? selectedPlan : activePlan;
   const planLoading = planIdParam ? selectedPlanLoading : activePlanLoading;
-  const isArchived = plan?.status === "inactive";
+  const isInactive = plan?.status === "inactive";
 
   const planId = plan?.id ?? null;
 
@@ -119,7 +119,7 @@ function PlanView() {
       <Tooltip label="Past plans">
         <Button icon={<IconHistory />} variant="ghost" onClick={() => setPastPlansOpen(true)} />
       </Tooltip>
-      {!isArchived && (
+      {!isInactive && (
         <Tooltip label="Share">
           <Button icon={<IconShare />} variant="ghost" onClick={() => setShareOpen(true)} />
         </Tooltip>
@@ -155,13 +155,13 @@ function PlanView() {
       <PlanHeader.Root className={styles.header}>
         <PlanHeader.Name>
           {plan.name}
-          {isArchived && <Badge className={styles.archivedBadge}>Archived</Badge>}
+          {isInactive && <Badge className={styles.inactiveBadge}>Inactive</Badge>}
         </PlanHeader.Name>
         {plan.goal && <PlanHeader.Goal>{plan.goal}</PlanHeader.Goal>}
       </PlanHeader.Root>
 
       <PastPlansDialog open={pastPlansOpen} onOpenChange={setPastPlansOpen} />
-      {!isArchived && <ShareDialog planId={plan.id} open={shareOpen} onOpenChange={setShareOpen} />}
+      {!isInactive && <ShareDialog planId={plan.id} open={shareOpen} onOpenChange={setShareOpen} />}
 
       {weeks.length > 0 && (
         <>
@@ -187,8 +187,8 @@ function PlanView() {
                 workouts={weekWorkouts}
                 labels={labels}
                 dateRange={week}
-                onToggleComplete={isArchived ? undefined : (id, completed) => toggleCompletion.mutate({ workoutId: id, completed })}
-                readOnly={isArchived}
+                onToggleComplete={isInactive ? undefined : (id, completed) => toggleCompletion.mutate({ workoutId: id, completed })}
+                readOnly={isInactive}
                 debug={debug}
               />
             </>
