@@ -14,7 +14,7 @@ export function AgentMemoryDialog({ plan, open, onOpenChange }: AgentMemoryDialo
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
-      <Dialog.Content>
+      <Dialog.Content className={styles.dialog}>
         <Dialog.Close />
         <Dialog.Title>Agent notes</Dialog.Title>
 

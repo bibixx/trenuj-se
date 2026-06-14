@@ -1,3 +1,8 @@
+.dialog {
+  width: min(calc(100vw - 32px), 640px);
+  max-height: 60dvh;
+}
+
 .empty {
   composes: typography-sm from global;
   color: var(--text-muted);
