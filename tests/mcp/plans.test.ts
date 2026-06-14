@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "vitest";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { clearMockSupabase, setMockSupabase } from "../helpers/setup.ts";
 import { MOCK_PHASE_ID, MOCK_PLAN_ID, MOCK_USER_ID } from "../helpers/mock-env.ts";
-import { extractToolResult, mcpCallTool, parseMcpResponse, resetMcpIds } from "../helpers/mcp.ts";
+import { extractToolError, extractToolResult, mcpCallTool, parseMcpResponse, resetMcpIds } from "../helpers/mcp.ts";
 
 const VALID_PLAN_ID = "a0000000-0000-4000-8000-000000000010";
 
@@ -24,6 +24,28 @@ function mockAuth() {
   return {
     getUser: { data: { user: { id: MOCK_USER_ID } }, error: null },
   };
+}
+
+function editMemoryMock(current: string | null, update: { data: unknown; error: unknown }) {
+  const mock = createMockSupabase({
+    auth: mockAuth(),
+    tables: {
+      plans: {
+        select: { data: { ...MOCK_PLAN, agent_memory: current }, error: null },
+        update,
+      },
+    },
+  });
+  setMockSupabase(mock);
+  return mock;
+}
+
+function casOk(agentMemory: string) {
+  return { data: { id: MOCK_PLAN_ID, agent_memory: agentMemory, updated_at: "2024-01-02T00:00:00Z" }, error: null };
+}
+
+function planUpdatePatch(mock: ReturnType<typeof createMockSupabase>) {
+  return mock.calls.find((call) => call.table === "plans" && call.operation === "update")?.args[0];
 }
 
 describe("MCP Plan Tools", () => {
@@ -453,44 +475,117 @@ describe("MCP Plan Tools", () => {
     expect(result?.result.icon).toBe("run");
   });
 
-  test("update_plan sets agent memory", async () => {
-    const mock = createMockSupabase({
-      auth: mockAuth(),
-      tables: {
-        plans: {
-          select: { data: MOCK_PLAN, error: null },
-          update: { data: { ...MOCK_PLAN, agent_memory: "Threshold pace 4:15/km" }, error: null },
-        },
-      },
-    });
-    setMockSupabase(mock);
+  test("edit_plan_memory replace swaps an exact section", async () => {
+    const current = "## Zones\n- Z2 easy\n\n## Notes\n- hydrate";
+    const next = "## Zones\n- Z2 5:30/km\n\n## Notes\n- hydrate";
+    const mock = editMemoryMock(current, casOk(next));
 
-    const parsed = await parseMcpResponse(await mcpCallTool("update_plan", { planId: VALID_PLAN_ID, agentMemory: "Threshold pace 4:15/km" }, {}));
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "- Z2 easy", newText: "- Z2 5:30/km" }, {}));
     const result = extractToolResult(parsed);
 
-    expect(result?.result.agent_memory).toBe("Threshold pace 4:15/km");
-    const updateCall = mock.calls.find((call) => call.table === "plans" && call.operation === "update");
-    expect(updateCall?.args[0]).toEqual({ agent_memory: "Threshold pace 4:15/km" });
+    expect(result?.result.agent_memory).toBe(next);
+    expect(planUpdatePatch(mock)).toEqual({ agent_memory: next });
   });
 
-  test("update_plan clears agent memory when set to null", async () => {
-    const mock = createMockSupabase({
-      auth: mockAuth(),
-      tables: {
-        plans: {
-          select: { data: MOCK_PLAN, error: null },
-          update: { data: { ...MOCK_PLAN, agent_memory: null }, error: null },
-        },
-      },
-    });
-    setMockSupabase(mock);
+  test("edit_plan_memory replace deletes a section with an empty newText", async () => {
+    const current = "## Zones\n- Z2 easy\n\n## Notes\n- hydrate";
+    const next = "## Zones\n- Z2 easy";
+    const mock = editMemoryMock(current, casOk(next));
 
-    const parsed = await parseMcpResponse(await mcpCallTool("update_plan", { planId: VALID_PLAN_ID, agentMemory: null }, {}));
-    const result = extractToolResult(parsed);
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "\n\n## Notes\n- hydrate", newText: "" }, {}));
 
-    expect(result?.result.agent_memory).toBeNull();
-    const updateCall = mock.calls.find((call) => call.table === "plans" && call.operation === "update");
-    expect(updateCall?.args[0]).toEqual({ agent_memory: null });
+    expect(extractToolResult(parsed)?.result.agent_memory).toBe(next);
+    expect(planUpdatePatch(mock)).toEqual({ agent_memory: next });
+  });
+
+  test("edit_plan_memory replace rewrites the whole document", async () => {
+    const current = "old document";
+    const next = "brand new document";
+    const mock = editMemoryMock(current, casOk(next));
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: current, newText: next }, {}));
+
+    expect(extractToolResult(parsed)?.result.agent_memory).toBe(next);
+    expect(planUpdatePatch(mock)).toEqual({ agent_memory: next });
+  });
+
+  test("edit_plan_memory replace returns CONFLICT when oldText is not found", async () => {
+    editMemoryMock("## Zones", { data: null, error: null });
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "## Missing", newText: "x" }, {}));
+
+    expect(extractToolError(parsed)?.code).toBe("CONFLICT");
+  });
+
+  test("edit_plan_memory replace returns VALIDATION_ERROR for an ambiguous match", async () => {
+    const mock = editMemoryMock("rep\nrep", { data: null, error: null });
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "rep", newText: "set" }, {}));
+
+    expect(extractToolError(parsed)?.code).toBe("VALIDATION_ERROR");
+    // ambiguity is caught before any write
+    expect(planUpdatePatch(mock)).toBeUndefined();
+  });
+
+  test("edit_plan_memory replace with replaceAll swaps every occurrence", async () => {
+    const mock = editMemoryMock("rep\nrep", casOk("set\nset"));
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "rep", newText: "set", replaceAll: true }, {}));
+
+    expect(extractToolResult(parsed)?.result.agent_memory).toBe("set\nset");
+    expect(planUpdatePatch(mock)).toEqual({ agent_memory: "set\nset" });
+  });
+
+  test("edit_plan_memory replace requires oldText and newText", async () => {
+    editMemoryMock("## Zones", { data: null, error: null });
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace" }, {}));
+
+    expect(extractToolError(parsed)?.code).toBe("VALIDATION_ERROR");
+  });
+
+  test("edit_plan_memory append adds to existing memory with a blank-line separator", async () => {
+    const next = "## Zones\n\n## Notes";
+    const mock = editMemoryMock("## Zones", casOk(next));
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "append", text: "## Notes" }, {}));
+
+    expect(extractToolResult(parsed)?.result.agent_memory).toBe(next);
+    expect(planUpdatePatch(mock)).toEqual({ agent_memory: next });
+  });
+
+  test("edit_plan_memory append sets the initial memory on an empty plan", async () => {
+    const mock = editMemoryMock(null, casOk("first note"));
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "append", text: "first note" }, {}));
+
+    expect(extractToolResult(parsed)?.result.agent_memory).toBe("first note");
+    // empty memory writes the text verbatim (no leading separator)
+    expect(planUpdatePatch(mock)).toEqual({ agent_memory: "first note" });
+  });
+
+  test("edit_plan_memory append requires text", async () => {
+    editMemoryMock("## Zones", { data: null, error: null });
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "append" }, {}));
+
+    expect(extractToolError(parsed)?.code).toBe("VALIDATION_ERROR");
+  });
+
+  test("edit_plan_memory returns CONFLICT when the compare-and-swap updates no rows", async () => {
+    editMemoryMock("## Zones", { data: null, error: null });
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "## Zones", newText: "## Zone" }, {}));
+
+    expect(extractToolError(parsed)?.code).toBe("CONFLICT");
+  });
+
+  test("edit_plan_memory surfaces a supabase error as INTERNAL_ERROR", async () => {
+    editMemoryMock("## Zones", { data: null, error: { message: "boom" } });
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "## Zones", newText: "## Zone" }, {}));
+
+    expect(extractToolError(parsed)?.code).toBe("INTERNAL_ERROR");
   });
 
   test("create_plan persists agent memory", async () => {

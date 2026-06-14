@@ -149,7 +149,7 @@ export async function resolvePlanId(ctx: McpContext, planId?: string) {
 
   const { data, error } = await ctx.supabase
     .from("plans")
-    .select("id, user_id, status, start_date, end_date, name, goal, metadata, created_at, updated_at")
+    .select("id, user_id, status, start_date, end_date, name, goal, agent_memory, metadata, created_at, updated_at")
     .eq("user_id", ctx.userId)
     .eq("status", "active")
     .maybeSingle();

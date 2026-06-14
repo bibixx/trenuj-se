@@ -35,7 +35,7 @@ const createPlanSchema = z
       .max(50_000)
       .optional()
       .describe(
-        "Freeform markdown notepad scoped to THIS plan — your working notes about the plan itself (pace/HR zones, plan-specific constraints, reminders for future changes to this plan). It is a plan notepad, NOT general agent memory: keep user-specific or cross-plan info in your own memory, not here.",
+        "Optional seed for the plan's freeform markdown notepad scoped to THIS plan (pace/HR zones, plan-specific constraints, reminders for future changes to this plan). It is a plan notepad, NOT general agent memory: keep user-specific or cross-plan info in your own memory, not here. After creation, change it with edit_plan_memory (not update_plan).",
       ),
     metadata: z.record(z.string(), z.unknown()).optional().describe("Arbitrary key-value data."),
   })
@@ -49,15 +49,36 @@ const updatePlanSchema = z
     startDate: z.string().date().optional().describe("Plan start date (YYYY-MM-DD)."),
     endDate: z.string().date().nullable().optional().describe("Plan end date (YYYY-MM-DD). Set to null to clear."),
     status: planStatusSchema.optional().describe("Plan status: 'active' or 'inactive'."),
-    agentMemory: z
+    metadata: z.record(z.string(), z.unknown()).nullable().optional().describe("Arbitrary key-value data. Set to null to clear."),
+  })
+  .strict();
+
+const editPlanMemorySchema = z
+  .object({
+    planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
+    op: z
+      .enum(["replace", "append"])
+      .describe(
+        "'replace' swaps an exact oldText for newText — use it to edit a section, delete one (newText: ''), or rewrite the whole document (oldText = the entire current content). 'append' adds text to the end and is also how you set the initial memory on an empty plan.",
+      ),
+    oldText: z
       .string()
-      .max(50_000)
-      .nullable()
+      .min(1)
       .optional()
       .describe(
-        "Freeform markdown notepad scoped to THIS plan (pace/HR zones, plan-specific constraints, reminders for future changes). Curate it — this replaces the whole field, so send the full document. It is a plan notepad, NOT general agent memory; keep user-specific or cross-plan info in your own memory. Set to null to clear.",
+        "op='replace' only (required). Exact substring of the current memory to replace, matched verbatim including whitespace. Read the current content with get_plan first — if it no longer matches, the edit is refused so you can't clobber unseen changes.",
       ),
-    metadata: z.record(z.string(), z.unknown()).nullable().optional().describe("Arbitrary key-value data. Set to null to clear."),
+    newText: z.string().max(50_000).optional().describe("op='replace' only (required). Replacement text; pass an empty string to delete the matched text."),
+    replaceAll: z
+      .boolean()
+      .default(false)
+      .describe("op='replace' only. When oldText occurs more than once, replace every occurrence. Default false requires oldText to match exactly once."),
+    text: z
+      .string()
+      .min(1)
+      .max(50_000)
+      .optional()
+      .describe("op='append' only (required). Markdown added at the end of the memory; a blank line is inserted before it when the memory is non-empty."),
   })
   .strict();
 
@@ -392,7 +413,6 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
           start_date: params.startDate,
           end_date: params.endDate,
           status: params.status,
-          agent_memory: params.agentMemory,
           metadata: params.metadata,
         };
 
@@ -402,10 +422,68 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
           .update(cleanedPatch)
           .eq("id", plan.id)
           .eq("user_id", ctx.userId)
-          .select("id, name, goal, status, agent_memory, start_date, end_date, metadata, created_at, updated_at")
+          .select("id, name, goal, status, start_date, end_date, metadata, created_at, updated_at")
           .single();
 
         if (error || !data) throw new AppError("INTERNAL_ERROR", error?.message ?? "Failed to update plan");
+        return toolSuccess(data);
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
+  server.registerTool(
+    "edit_plan_memory",
+    {
+      title: "Edit Plan Memory",
+      description:
+        "Edit a plan's agent memory notepad (`agent_memory`) in place instead of overwriting the whole document. op='replace' swaps an exact oldText for newText (edit or delete a section, or rewrite the whole doc); op='append' adds text at the end (and seeds the initial memory on an empty plan). Staleness-safe: oldText must match the current content verbatim and the write is a compare-and-swap, so if the memory changed since you read it the edit is refused with CONFLICT — re-read with get_plan and retry. Defaults to the active plan when planId is omitted.",
+      inputSchema: editPlanMemorySchema,
+      annotations: { idempotentHint: false },
+    },
+    async (input) => {
+      try {
+        const params = editPlanMemorySchema.parse(input);
+        const plan = await resolvePlanId(ctx, params.planId);
+        const current = plan.agent_memory ?? "";
+
+        let next: string;
+        if (params.op === "append") {
+          if (params.text === undefined) {
+            throw new AppError("VALIDATION_ERROR", "append requires 'text'");
+          }
+          const base = current.trimEnd();
+          next = base === "" ? params.text : `${base}\n\n${params.text}`;
+        } else {
+          if (params.oldText === undefined || params.newText === undefined) {
+            throw new AppError("VALIDATION_ERROR", "replace requires 'oldText' and 'newText'");
+          }
+          const occurrences = current.split(params.oldText).length - 1;
+          if (occurrences === 0) {
+            throw new AppError("CONFLICT", "oldText not found in the current memory; call get_plan to re-read the latest content and retry.");
+          }
+          if (occurrences > 1 && !params.replaceAll) {
+            throw new AppError("VALIDATION_ERROR", `oldText matches ${occurrences} times; add surrounding context to make it unique, or set replaceAll: true.`);
+          }
+          if (params.replaceAll) {
+            next = current.split(params.oldText).join(params.newText);
+          } else {
+            const index = current.indexOf(params.oldText);
+            next = current.slice(0, index) + params.newText + current.slice(index + params.oldText.length);
+          }
+        }
+
+        // Compare-and-swap on the content itself: supabase-js has no transactions, so this is how we
+        // guard against a concurrent write clobbering memory the agent never saw. 0 rows updated = stale.
+        let query = ctx.supabase.from("plans").update({ agent_memory: next }).eq("id", plan.id).eq("user_id", ctx.userId);
+        query = plan.agent_memory === null ? query.is("agent_memory", null) : query.eq("agent_memory", plan.agent_memory);
+        const { data, error } = await query.select("id, agent_memory, updated_at").maybeSingle();
+
+        if (error) throw new AppError("INTERNAL_ERROR", error.message);
+        if (!data) {
+          throw new AppError("CONFLICT", "The plan memory changed since you read it; call get_plan to re-read the latest content and retry.");
+        }
         return toolSuccess(data);
       } catch (error) {
         return toolError(error);
