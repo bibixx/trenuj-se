@@ -20,6 +20,7 @@ import { Route as AppSignupRouteImport } from './routes/_app/signup'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppLoginRouteImport } from './routes/_app/login'
 import { Route as DevDesignSystemIndexRouteImport } from './routes/dev/design-system/index'
+import { Route as DevDesignSystemWorkoutCardRouteImport } from './routes/dev/design-system/workout-card'
 import { Route as DevDesignSystemTooltipRouteImport } from './routes/dev/design-system/tooltip'
 import { Route as DevDesignSystemTokensRouteImport } from './routes/dev/design-system/tokens'
 import { Route as DevDesignSystemToastsRouteImport } from './routes/dev/design-system/toasts'
@@ -85,6 +86,12 @@ const DevDesignSystemIndexRoute = DevDesignSystemIndexRouteImport.update({
   path: '/',
   getParentRoute: () => DevDesignSystemRoute,
 } as any)
+const DevDesignSystemWorkoutCardRoute =
+  DevDesignSystemWorkoutCardRouteImport.update({
+    id: '/workout-card',
+    path: '/workout-card',
+    getParentRoute: () => DevDesignSystemRoute,
+  } as any)
 const DevDesignSystemTooltipRoute = DevDesignSystemTooltipRouteImport.update({
   id: '/tooltip',
   path: '/tooltip',
@@ -159,6 +166,7 @@ export interface FileRoutesByFullPath {
   '/dev/design-system/toasts': typeof DevDesignSystemToastsRoute
   '/dev/design-system/tokens': typeof DevDesignSystemTokensRoute
   '/dev/design-system/tooltip': typeof DevDesignSystemTooltipRoute
+  '/dev/design-system/workout-card': typeof DevDesignSystemWorkoutCardRoute
   '/dev/design-system/': typeof DevDesignSystemIndexRoute
 }
 export interface FileRoutesByTo {
@@ -180,6 +188,7 @@ export interface FileRoutesByTo {
   '/dev/design-system/toasts': typeof DevDesignSystemToastsRoute
   '/dev/design-system/tokens': typeof DevDesignSystemTokensRoute
   '/dev/design-system/tooltip': typeof DevDesignSystemTooltipRoute
+  '/dev/design-system/workout-card': typeof DevDesignSystemWorkoutCardRoute
   '/dev/design-system': typeof DevDesignSystemIndexRoute
 }
 export interface FileRoutesById {
@@ -204,6 +213,7 @@ export interface FileRoutesById {
   '/dev/design-system/toasts': typeof DevDesignSystemToastsRoute
   '/dev/design-system/tokens': typeof DevDesignSystemTokensRoute
   '/dev/design-system/tooltip': typeof DevDesignSystemTooltipRoute
+  '/dev/design-system/workout-card': typeof DevDesignSystemWorkoutCardRoute
   '/dev/design-system/': typeof DevDesignSystemIndexRoute
 }
 export interface FileRouteTypes {
@@ -228,6 +238,7 @@ export interface FileRouteTypes {
     | '/dev/design-system/toasts'
     | '/dev/design-system/tokens'
     | '/dev/design-system/tooltip'
+    | '/dev/design-system/workout-card'
     | '/dev/design-system/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -249,6 +260,7 @@ export interface FileRouteTypes {
     | '/dev/design-system/toasts'
     | '/dev/design-system/tokens'
     | '/dev/design-system/tooltip'
+    | '/dev/design-system/workout-card'
     | '/dev/design-system'
   id:
     | '__root__'
@@ -272,6 +284,7 @@ export interface FileRouteTypes {
     | '/dev/design-system/toasts'
     | '/dev/design-system/tokens'
     | '/dev/design-system/tooltip'
+    | '/dev/design-system/workout-card'
     | '/dev/design-system/'
   fileRoutesById: FileRoutesById
 }
@@ -361,6 +374,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/dev/design-system/'
       preLoaderRoute: typeof DevDesignSystemIndexRouteImport
+      parentRoute: typeof DevDesignSystemRoute
+    }
+    '/dev/design-system/workout-card': {
+      id: '/dev/design-system/workout-card'
+      path: '/workout-card'
+      fullPath: '/dev/design-system/workout-card'
+      preLoaderRoute: typeof DevDesignSystemWorkoutCardRouteImport
       parentRoute: typeof DevDesignSystemRoute
     }
     '/dev/design-system/tooltip': {
@@ -463,6 +483,7 @@ interface DevDesignSystemRouteChildren {
   DevDesignSystemToastsRoute: typeof DevDesignSystemToastsRoute
   DevDesignSystemTokensRoute: typeof DevDesignSystemTokensRoute
   DevDesignSystemTooltipRoute: typeof DevDesignSystemTooltipRoute
+  DevDesignSystemWorkoutCardRoute: typeof DevDesignSystemWorkoutCardRoute
   DevDesignSystemIndexRoute: typeof DevDesignSystemIndexRoute
 }
 
@@ -477,6 +498,7 @@ const DevDesignSystemRouteChildren: DevDesignSystemRouteChildren = {
   DevDesignSystemToastsRoute: DevDesignSystemToastsRoute,
   DevDesignSystemTokensRoute: DevDesignSystemTokensRoute,
   DevDesignSystemTooltipRoute: DevDesignSystemTooltipRoute,
+  DevDesignSystemWorkoutCardRoute: DevDesignSystemWorkoutCardRoute,
   DevDesignSystemIndexRoute: DevDesignSystemIndexRoute,
 }
 

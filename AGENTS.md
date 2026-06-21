@@ -174,3 +174,9 @@ All inputs are validated with Zod schemas. Define the schema inline in the tool/
 3. Run `pnpm db:generate` to create a migration.
 4. Write the RLS policies in the generated migration SQL (follow existing patterns: `select_own`, `insert_own`, `update_own`, `delete_own`).
 5. Run `pnpm db:migrate` to apply.
+
+### Changing the WorkoutCard
+
+`WorkoutCard` (`src/components/composites/WorkoutCard/`) has a dedicated playground at `/dev/design-system/workout-card` (`src/routes/dev/design-system/workout-card.tsx`) — a live preview driven by a "Create workout" controls panel that exercises every prop, variant, status, and visual state.
+
+When you change `WorkoutCard` (add or rename a prop, add a variant or status, change a visual state), reflect it in the playground so the new behavior stays exercisable there. The card also appears in the static gallery on `/dev/design-system/composites`.

@@ -1,0 +1,144 @@
+/* Storybook-like playground: full-height, two panes that scroll independently. */
+.storybook {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  width: 100%;
+}
+
+/* Left: live preview canvas (own scroller) */
+.canvasPane {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  border-right: 1px solid var(--border-subtle);
+}
+
+.canvasInner {
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.canvasHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 720px;
+  margin-inline: auto;
+  width: 100%;
+}
+
+.previewFrame {
+  max-width: 720px;
+  width: 100%;
+  margin-inline: auto;
+}
+
+/* Right: "Create" controls panel (own scroller) */
+.controlsPane {
+  flex: 0 0 360px;
+  min-height: 0;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--bg-card) 72%, transparent);
+}
+
+.controlsInner {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.controlsTitle {
+  composes: typography-lg from global;
+  font-weight: var(--weight-semibold);
+  color: var(--text-primary);
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.groupTitle {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: var(--weight-semibold);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fieldLabel {
+  composes: typography-xs from global;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Mirrors Input/Select control styling for a multi-line field */
+.textarea {
+  composes: typography-sm from global;
+  min-height: 72px;
+  padding: 8px 12px;
+  background: var(--bg-inset);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius);
+  color: var(--text-primary);
+  outline: none;
+  resize: vertical;
+  font-family: inherit;
+  transition: border-color var(--motion-timing-fast) var(--motion-function);
+
+  &::placeholder {
+    color: var(--text-muted);
+  }
+
+  &:hover,
+  &:focus {
+    border-color: var(--control-border-hover);
+  }
+}
+
+.twoCol {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Mobile: stack the panes vertically, each keeps its own scroller */
+@media (max-width: 900px) {
+  .storybook {
+    flex-direction: column;
+  }
+
+  .canvasPane {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+
+  .controlsPane {
+    flex: 1 1 0;
+  }
+
+  .canvasInner,
+  .controlsInner {
+    padding: 16px;
+  }
+}

@@ -1,4 +1,5 @@
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useMatchRoute } from "@tanstack/react-router";
+import clsx from "clsx";
 import { triggerHaptic } from "tactus";
 import { ScrollAreaComponent as ScrollArea } from "../../components/primitives/ScrollArea/ScrollArea.tsx";
 import { ToggleGroup } from "../../components/primitives/ToggleGroup/ToggleGroup.tsx";
@@ -17,6 +18,7 @@ const SECTIONS = [
   { label: "Primitives", to: "/dev/design-system/primitives" },
   { label: "Domain", to: "/dev/design-system/domain" },
   { label: "Composites", to: "/dev/design-system/composites" },
+  { label: "Workout Card", to: "/dev/design-system/workout-card" },
   { label: "Markdown", to: "/dev/design-system/markdown" },
   { label: "Charts", to: "/dev/design-system/charts" },
   { label: "Colors", to: "/dev/design-system/colors" },
@@ -27,6 +29,8 @@ const SECTIONS = [
 
 function DesignSystemLayout() {
   const [preference, resolved, setTheme] = useTheme();
+  const matchRoute = useMatchRoute();
+  const flush = !!matchRoute({ to: "/dev/design-system/workout-card" });
 
   return (
     <div className={styles.themeRoot} data-theme={resolved}>
@@ -64,16 +68,24 @@ function DesignSystemLayout() {
             <ScrollArea.Scrollbar />
           </ScrollArea.Root>
         </nav>
-        <ScrollArea.Root style={{ width: "100%", height: "100%" }}>
-          <ScrollArea.Viewport fadeout={{ sizeTop: 64, sizeBottom: 0 }}>
-            <ScrollArea.Content>
-              <main className={styles.main}>
-                <Outlet />
-              </main>
-            </ScrollArea.Content>
-          </ScrollArea.Viewport>
-          <ScrollArea.Scrollbar />
-        </ScrollArea.Root>
+        {flush ? (
+          // Full-height pages own their own scrollers — render main directly so it's locked to the
+          // viewport height instead of growing inside (and scrolling with) the shell's scroll area.
+          <main className={clsx(styles.main, styles.mainFlush)}>
+            <Outlet />
+          </main>
+        ) : (
+          <ScrollArea.Root style={{ width: "100%", height: "100%" }}>
+            <ScrollArea.Viewport fadeout={{ sizeTop: 64, sizeBottom: 0 }}>
+              <ScrollArea.Content>
+                <main className={styles.main}>
+                  <Outlet />
+                </main>
+              </ScrollArea.Content>
+            </ScrollArea.Viewport>
+            <ScrollArea.Scrollbar />
+          </ScrollArea.Root>
+        )}
       </div>
     </div>
   );
