@@ -148,6 +148,14 @@ All inputs are validated with Zod schemas. Define the schema inline in the tool/
 
 - Ignores: `dist/`, `.wrangler/`.
 
+## CSS conventions
+
+- **Use modern CSS, and target the Baseline _Newly available_ tier.** If a feature has reached Baseline "Newly available" — it works in the current stable release of every major engine (Chrome, Edge, Firefox, Safari) — it's fair game. Don't wait for "Widely available," and don't reach for JavaScript to do what CSS can now do declaratively. This app already ships modern CSS (`oklch()`, container queries, container units) and targets evergreen browsers.
+- **Prefer the declarative CSS feature.** Actively encouraged: container queries (`@container`) and container units (`cqw`/`cqi`); the range syntax for query conditions (`width >= 700px`, not `min-width: 700px`); `clamp()`/`min()`/`max()`; `:has()`; native nesting; `color-mix()`; logical properties; `@property`; `text-wrap: balance`/`pretty`.
+- **Modern isn't magic — know the limits.** For example, `calc()` can't turn a length into a `<time>`, so the loading bar's width-driven sweep durations are _stepped_ via `@container` rules rather than computed. When CSS genuinely can't express something, a small JS escape hatch is fine — but verify CSS can't do it first.
+- **Still progressively enhance.** Honor `prefers-reduced-motion`, give decorative features a sensible fallback, and if you're unsure a feature has hit _Newly available_, check its Baseline status (MDN / web.dev) before depending on it without a fallback.
+- Neither OxLint nor OxFmt enforces any of this — it's a judgment call. Default to the modern feature.
+
 ## Common tasks
 
 ### Adding a new MCP tool

@@ -484,7 +484,7 @@
 }
 
 /* Responsive */
-@media (max-width: 640px) {
+@media (width <= 640px) {
   .layout {
     flex-direction: column;
   }
