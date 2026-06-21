@@ -16,36 +16,85 @@
   width: 100%;
   height: 100%;
   overflow: hidden;
+  /* Inline-size container, doing double duty: the sweep travels in container-relative units
+     (100cqw, below) so the indicator fully crosses regardless of its own clamped width, and the
+     @container queries below step the sweep duration to the available width. */
+  container-type: inline-size;
+  /* Breathe lives on the track (not the indicator) so the indicator's only animation is the
+     position sweep — that makes onAnimationIteration a clean once-per-cycle signal we can hang
+     the exit off. The track is empty apart from the indicator, so pulsing its opacity is
+     visually identical to pulsing the indicator. */
+  animation: breathe 1.5s var(--motion-function) infinite;
+  animation-play-state: paused;
 }
 
 .indicator {
   position: absolute;
   top: 0;
-  width: 35%;
+  /* Scale the chunk with available width, but keep it sane on phones and ultrawides. */
+  width: clamp(80px, 32%, 360px);
   height: 100%;
   background: var(--accent);
   border-radius: var(--radius-full);
   box-shadow: 0 0 8px oklch(var(--accent-base) / 0.6);
   /* Continuous indeterminate loop — not a one-shot UI transition, so it owns its own duration. */
-  /* Sweep travels the track; breathe gives it a subtle pulse as it moves. */
-  animation:
-    sweep 2.5s cubic-bezier(0.6, 0, 0.5, 1) infinite,
-    breathe 1.5s var(--motion-function) infinite;
+  /* Position sweep only; the opacity "breathe" lives on the track (see above). Keeping sweep as
+     the indicator's sole animation means each animationiteration is exactly one completed cycle,
+     so the bar can defer its exit to a cycle boundary instead of freezing mid-track. */
+  /* Base (narrow) pace; the @container rules below scale it up on wider tracks. */
+  animation: sweep 1.6s cubic-bezier(0.6, 0, 0.5, 1) infinite;
   animation-play-state: paused;
 }
 
+/* Scale the sweep's pace to the bar's width — pure CSS via container size queries against the
+   track. Stepped, but duration differences this small read as continuous: phones get a snappy
+   sweep, ultrawides an unhurried one, and ~1300–1700px keeps the familiar 2.5s desktop feel. */
+@container (width >= 700px) {
+  .indicator {
+    animation-duration: 1.9s;
+  }
+}
+
+@container (width >= 1000px) {
+  .indicator {
+    animation-duration: 2.2s;
+  }
+}
+
+@container (width >= 1300px) {
+  .indicator {
+    animation-duration: 2.5s;
+  }
+}
+
+@container (width >= 1700px) {
+  .indicator {
+    animation-duration: 2.9s;
+  }
+}
+
+@container (width >= 2200px) {
+  .indicator {
+    animation-duration: 3.2s;
+  }
+}
+
 /* Don't burn CPU animating while the bar is faded out. */
-.root[data-visible] .indicator {
+.root[data-visible] .indicator,
+.root[data-visible] .track {
   animation-play-state: running;
 }
 
+/* Start fully off the left (-100% of the indicator's own width), end fully off the right
+   (100cqw = the track's full width). Both ends are off-screen, so deferring the exit to a
+   cycle boundary stays seamless. */
 @keyframes sweep {
   0% {
-    transform: translateX(-105%);
+    transform: translateX(-100%);
   }
 
   100% {
-    transform: translateX(300%);
+    transform: translateX(100cqw);
   }
 }
 
@@ -85,5 +134,11 @@
     animation-name: pulse;
     animation-duration: 1.4s;
     animation-timing-function: var(--motion-function);
+  }
+
+  /* No traveling sweep here, so the indicator's `pulse` is the only opacity animation —
+     turn the track's breathe off so the two don't compound. */
+  .track {
+    animation: none;
   }
 }

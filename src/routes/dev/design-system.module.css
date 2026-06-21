@@ -350,6 +350,10 @@
   border-radius: var(--radius-lg);
   background: var(--bg-elevated);
   box-shadow: var(--border-shine);
+  /* Resizable so the width-driven sweep scaling is demonstrable. */
+  resize: horizontal;
+  min-width: 280px;
+  max-width: 100%;
 }
 
 /* Composites: dialog-mimicking frame for DialogList demos */

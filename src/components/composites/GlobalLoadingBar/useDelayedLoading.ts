@@ -4,6 +4,11 @@ import { useEffect, useRef, useState } from "react";
  * Gates a loading flag to avoid flicker. The bar only appears if `active` stays
  * true past `showDelayMs`, and once shown it stays visible at least `minVisibleMs`.
  * This keeps sub-100ms revalidations (common over the warm IndexedDB cache) from flashing.
+ *
+ * `minVisibleMs` now mainly matters under `prefers-reduced-motion`: the animated bar's
+ * sweep-completion (see useLingerUntilIteration) already holds it up for a full cycle, but
+ * reduced motion has no sweep to finish and hides immediately — so this is what stops short
+ * (180–480ms) refreshes from fading in partway and aborting there.
  */
 export function useDelayedLoading(active: boolean, showDelayMs = 180, minVisibleMs = 450): boolean {
   const [visible, setVisible] = useState(false);

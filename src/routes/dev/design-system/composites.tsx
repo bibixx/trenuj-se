@@ -5,6 +5,7 @@ import { WeekNavigation } from "../../../components/composites/WeekNavigation/We
 import { WeekSummary } from "../../../components/composites/WeekSummary/WeekSummary.tsx";
 import { PlanNote } from "../../../components/composites/PlanNote/PlanNote.tsx";
 import { GlobalLoadingBar } from "../../../components/composites/GlobalLoadingBar/GlobalLoadingBar.tsx";
+import { useLingerUntilIteration } from "../../../components/composites/GlobalLoadingBar/useLingerUntilIteration.ts";
 import { Badge } from "../../../components/primitives/Badge/Badge.tsx";
 import { Checkbox } from "../../../components/primitives/Checkbox/Checkbox.tsx";
 import { DialogList } from "../../../components/primitives/DialogList/DialogList.tsx";
@@ -19,20 +20,24 @@ export const Route = createFileRoute("/dev/design-system/composites")({
 
 function CompositesSection() {
   const [selectedWeek, setSelectedWeek] = useState(8);
-  const [barVisible, setBarVisible] = useState(true);
+  const [barActive, setBarActive] = useState(true);
+  const { visible: barVisible, onAnimationIteration } = useLingerUntilIteration(barActive);
 
   return (
     <div className={styles.section}>
       <h1 className={styles.sectionTitle}>Key Composites</h1>
 
       <h2 className={styles.subTitle}>Global Loading Bar</h2>
-      <p className={styles.description}>Indeterminate bar shown while stale data revalidates. Pinned to the top of whatever surface it's mounted in — here, a stand-in screen.</p>
+      <p className={styles.description}>
+        Indeterminate bar shown while stale data revalidates. Pinned to the top of whatever surface it's mounted in — here, a stand-in screen. Uncheck to watch it finish its
+        current sweep before hiding, rather than freezing mid-track. Drag the panel's right edge to resize — the chunk width and sweep speed scale with the available width.
+      </p>
       <label className={styles.checkLabel}>
-        <Checkbox checked={barVisible} onCheckedChange={(v) => setBarVisible(!!v)} />
-        Visible
+        <Checkbox checked={barActive} onCheckedChange={(v) => setBarActive(!!v)} />
+        Loading active
       </label>
       <div className={styles.loadingBarScreen}>
-        <GlobalLoadingBar visible={barVisible} />
+        <GlobalLoadingBar visible={barVisible} onAnimationIteration={onAnimationIteration} />
       </div>
 
       <h2 className={styles.subTitle}>Week Navigation</h2>

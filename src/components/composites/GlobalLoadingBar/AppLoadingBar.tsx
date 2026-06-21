@@ -1,6 +1,7 @@
 import { useIsFetching } from "@tanstack/react-query";
 import { GlobalLoadingBar } from "./GlobalLoadingBar.tsx";
 import { useDelayedLoading } from "./useDelayedLoading.ts";
+import { useLingerUntilIteration } from "./useLingerUntilIteration.ts";
 import styles from "./GlobalLoadingBar.module.css";
 
 /**
@@ -10,7 +11,9 @@ import styles from "./GlobalLoadingBar.module.css";
  */
 export function AppLoadingBar() {
   const isRevalidating = useIsFetching({ predicate: (query) => query.state.data !== undefined && query.isStale() }) > 0;
-  const visible = useDelayedLoading(isRevalidating);
+  const active = useDelayedLoading(isRevalidating);
+  // Once shown, let the sweep finish its current cycle rather than freezing mid-track on hide.
+  const { visible, onAnimationIteration } = useLingerUntilIteration(active);
 
-  return <GlobalLoadingBar visible={visible} className={styles.fixed} />;
+  return <GlobalLoadingBar visible={visible} onAnimationIteration={onAnimationIteration} className={styles.fixed} />;
 }
