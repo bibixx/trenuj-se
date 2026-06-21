@@ -32,7 +32,7 @@ function workout(id: string, date: string): Workout {
     status: "planned",
     completionNotes: null,
     trainerNotes: null,
-    activityId: null,
+    activity: null,
     execution: null,
     metadata: null,
     createdAt: "",
