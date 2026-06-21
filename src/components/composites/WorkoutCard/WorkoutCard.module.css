@@ -153,8 +153,10 @@
   --accent: var(--session-accent, var(--accent));
 }
 
-.editorialPanel .content {
-  padding-top: 2px;
+/* First block in the panel sits under .content's border-top — don't draw a second divider. */
+.content > :first-child {
+  margin-top: 0;
+  border-top: none;
 }
 
 .details {
