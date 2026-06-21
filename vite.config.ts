@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { execSync } from "node:child_process";
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
@@ -34,6 +35,20 @@ function loadDevVars(): { env: Record<string, string>; allEnv: Record<string, st
   }
 }
 
+/**
+ * Resolve the current commit hash for display in-app. Prefers the local git
+ * checkout (available locally and in Cloudflare Workers Builds), falling back
+ * to a CI-provided SHA, then "unknown".
+ */
+function getCommitHash(): string {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
+  } catch {
+    const ciSha = process.env.WORKERS_CI_COMMIT_SHA ?? process.env.CF_PAGES_COMMIT_SHA ?? process.env.GITHUB_SHA;
+    return ciSha?.slice(0, 7) ?? "unknown";
+  }
+}
+
 export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
   const { env: devVars, allEnv } = loadDevVars();
@@ -45,6 +60,8 @@ export default defineConfig(({ mode }) => {
       viteEnv[key] = value;
     }
   }
+
+  viteEnv.VITE_COMMIT_HASH = getCommitHash();
 
   return {
     define: Object.fromEntries(Object.entries(viteEnv).map(([key, value]) => [`import.meta.env.${key}`, JSON.stringify(value)])),

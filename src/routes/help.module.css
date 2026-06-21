@@ -19,3 +19,8 @@
     text-decoration: underline;
   }
 }
+
+.version {
+  composes: typography-xs from global;
+  color: var(--text-muted);
+}

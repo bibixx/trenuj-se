@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageLayout } from "../components/composites/PageLayout/PageLayout.tsx";
+import { commitHash } from "../lib/commit-hash.ts";
 import styles from "./help.module.css";
 
 export const Route = createFileRoute("/help")({
@@ -14,6 +15,9 @@ function HelpPage() {
       <a className={styles.link} href="mailto:help@trenuj.se">
         help@trenuj.se
       </a>
+      <p className={styles.version}>
+        Version <code>{commitHash}</code>
+      </p>
     </PageLayout>
   );
 }
