@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { createRootRouteWithContext, Navigate, Outlet, useLocation } from "@tanstack/react-router";
+import { AppLoadingBar } from "../components/composites/GlobalLoadingBar/AppLoadingBar.tsx";
 import { ToastProvider } from "../components/primitives/Toast/Toast.tsx";
 import { useAuth } from "../lib/auth.ts";
 import { activePlanQueryOptions } from "../lib/queries/plans.ts";
@@ -53,6 +54,7 @@ function RootLayout() {
 
   return (
     <ToastProvider>
+      <AppLoadingBar />
       <Outlet />
     </ToastProvider>
   );

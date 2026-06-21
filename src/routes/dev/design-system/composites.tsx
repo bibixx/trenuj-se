@@ -4,7 +4,9 @@ import { WorkoutCard } from "../../../components/composites/WorkoutCard/WorkoutC
 import { WeekNavigation } from "../../../components/composites/WeekNavigation/WeekNavigation.tsx";
 import { WeekSummary } from "../../../components/composites/WeekSummary/WeekSummary.tsx";
 import { PlanNote } from "../../../components/composites/PlanNote/PlanNote.tsx";
+import { GlobalLoadingBar } from "../../../components/composites/GlobalLoadingBar/GlobalLoadingBar.tsx";
 import { Badge } from "../../../components/primitives/Badge/Badge.tsx";
+import { Checkbox } from "../../../components/primitives/Checkbox/Checkbox.tsx";
 import { DialogList } from "../../../components/primitives/DialogList/DialogList.tsx";
 import { WorkoutTypeIcon } from "../../../components/domain/WorkoutTypeIcon/WorkoutTypeIcon.tsx";
 import { Markdown } from "../../../components/markdown/Markdown/Markdown.tsx";
@@ -17,10 +19,21 @@ export const Route = createFileRoute("/dev/design-system/composites")({
 
 function CompositesSection() {
   const [selectedWeek, setSelectedWeek] = useState(8);
+  const [barVisible, setBarVisible] = useState(true);
 
   return (
     <div className={styles.section}>
       <h1 className={styles.sectionTitle}>Key Composites</h1>
+
+      <h2 className={styles.subTitle}>Global Loading Bar</h2>
+      <p className={styles.description}>Indeterminate bar shown while stale data revalidates. Pinned to the top of whatever surface it's mounted in — here, a stand-in screen.</p>
+      <label className={styles.checkLabel}>
+        <Checkbox checked={barVisible} onCheckedChange={(v) => setBarVisible(!!v)} />
+        Visible
+      </label>
+      <div className={styles.loadingBarScreen}>
+        <GlobalLoadingBar visible={barVisible} />
+      </div>
 
       <h2 className={styles.subTitle}>Week Navigation</h2>
       <WeekNavigation totalWeeks={20} selectedWeek={selectedWeek} currentWeek={8} onWeekChange={setSelectedWeek} />

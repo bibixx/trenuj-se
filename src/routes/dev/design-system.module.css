@@ -334,6 +334,16 @@
   gap: 6px;
 }
 
+/* Composites: stand-in screen for the global loading bar */
+.loadingBarScreen {
+  position: relative;
+  overflow: hidden;
+  height: 260px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  box-shadow: var(--border-shine);
+}
+
 /* Composites: dialog-mimicking frame for DialogList demos */
 .dialogDemoFrame {
   width: 100%;
