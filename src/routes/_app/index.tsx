@@ -23,8 +23,8 @@ import { labelsQueryOptions } from "../../lib/queries/labels.ts";
 import { phasesQueryOptions } from "../../lib/queries/phases.ts";
 import { workoutsQueryOptions, useToggleCompletion } from "../../lib/queries/workouts.ts";
 import { planNotesQueryOptions } from "../../lib/queries/plan-notes.ts";
-import { getPlanWeeks, getCurrentWeekIndex, getTodayWeekIndex, getWeekDateRange, getWorkoutsForWeek, matchesPlanWeek } from "../../lib/week-utils.ts";
-import { getUiVariant, isCheckable, type Phase, type Workout } from "../../lib/types.ts";
+import { computeProgress, getPlanWeeks, getCurrentWeekIndex, getTodayWeekIndex, getWeekDateRange, getWorkoutsForWeek, matchesPlanWeek } from "../../lib/week-utils.ts";
+import type { Phase } from "../../lib/types.ts";
 import type { PlanWeek } from "../../lib/week-utils.ts";
 import styles from "./index.module.css";
 
@@ -228,11 +228,4 @@ function findPhaseForWeek(phases: Phase[], week: PlanWeek): Phase | null {
     }
   }
   return null;
-}
-
-function computeProgress(workouts: Workout[]): number {
-  const checkable = workouts.filter((w) => isCheckable(getUiVariant(w)));
-  if (checkable.length === 0) return 0;
-  const completed = checkable.filter((w) => w.status === "completed").length;
-  return (completed / checkable.length) * 100;
 }

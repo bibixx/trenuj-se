@@ -35,7 +35,8 @@
     }
   }
 
-  &.completed {
+  &.completed,
+  &.skipped {
     &::before {
       opacity: 0.4;
     }
@@ -44,10 +45,14 @@
     .duration {
       opacity: 0.5;
     }
+  }
 
-    .title {
-      color: var(--session-accent, var(--success));
-    }
+  &.completed .title {
+    color: var(--session-accent, var(--success));
+  }
+
+  &.skipped .title {
+    text-decoration: line-through;
   }
 }
 

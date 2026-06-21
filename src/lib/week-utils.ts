@@ -1,5 +1,5 @@
 import type { PlanNoteMetadata } from "../../shared/plan-note-metadata.ts";
-import type { Workout } from "./types.ts";
+import { getUiVariant, isCheckable, type Workout } from "./types.ts";
 
 export interface PlanWeek {
   /** 1-based week number */
@@ -163,6 +163,19 @@ export function getWorkoutDateGroups(workouts: Workout[], range?: DateRange | nu
 /** Filter workouts to those within a given week's date range. */
 export function getWorkoutsForWeek(workouts: Workout[], week: PlanWeek): Workout[] {
   return workouts.filter((w) => w.date >= week.startDate && w.date <= week.endDate);
+}
+
+/**
+ * Percentage of checkable workouts completed.
+ * Skipped workouts are excluded from the denominator — a skip is a resolved
+ * outcome, not an outstanding workout, so it neither counts toward nor against
+ * completion. Returns 0 when no checkable, non-skipped workouts remain.
+ */
+export function computeProgress(workouts: Workout[]): number {
+  const eligible = workouts.filter((w) => isCheckable(getUiVariant(w)) && w.status !== "skipped");
+  if (eligible.length === 0) return 0;
+  const completed = eligible.filter((w) => w.status === "completed").length;
+  return (completed / eligible.length) * 100;
 }
 
 function toDateString(date: Date): string {

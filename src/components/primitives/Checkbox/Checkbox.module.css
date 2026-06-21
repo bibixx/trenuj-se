@@ -23,6 +23,11 @@
     border-color: var(--checkbox-color);
   }
 
+  &[data-skipped] {
+    background: var(--text-muted);
+    border-color: transparent;
+  }
+
   &[data-checked]:hover,
   &[data-indeterminate]:hover {
     --checkbox-color: oklch(from var(--checkbox-base-color, var(--accent)) calc(l * 1.2) calc(c * 0.95) h);

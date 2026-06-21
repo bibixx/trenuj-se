@@ -58,6 +58,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
   const hue = resolveHue(workout.label);
   const editorial = variant === "note";
   const isCompleted = workout.status === "completed";
+  const isSkipped = workout.status === "skipped";
   const isOptional = variant === "optional";
   const workoutFile = useMemo(() => buildWorkoutFile(workout), [workout]);
   const showActivityActions = !editorial && !readOnly && checkable && workout.planId !== "";
@@ -125,7 +126,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
 
   return (
     <Collapsible.Root open={expanded} onOpenChange={expandable ? handleOpenChange : undefined}>
-      <article className={clsx(styles.card, styles[rowClass], { [styles.completed!]: isCompleted, [styles.today!]: isToday })} style={hueStyle}>
+      <article className={clsx(styles.card, styles[rowClass], { [styles.completed!]: isCompleted, [styles.skipped!]: isSkipped, [styles.today!]: isToday })} style={hueStyle}>
         <Collapsible.Trigger className={clsx(styles.row, { [styles.expandable!]: expandable })}>
           <div className={styles.day}>{dateLabel}</div>
           <WorkoutTypeIcon icon={workout.label?.icon ?? null} />
@@ -141,7 +142,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
           {workout.activity && <StravaPill stravaActivityId={workout.activity.stravaId} onClick={(e) => e.stopPropagation()} />}
           {checkable ? (
             <div onClick={(e) => e.stopPropagation()} className={styles.checkboxWrapper}>
-              <Checkbox checked={isCompleted} onCheckedChange={(checked) => onToggleComplete?.(workout.id, !!checked)} hue={hue} readOnly={readOnly} />
+              <Checkbox checked={isCompleted} skipped={isSkipped} onCheckedChange={(checked) => onToggleComplete?.(workout.id, !!checked)} hue={hue} readOnly={readOnly} />
             </div>
           ) : (
             <div className={styles.checkPlaceholder} />

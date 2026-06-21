@@ -102,6 +102,10 @@ function PrimitivesSection() {
           <span>Indeterminate (hue 250)</span>
         </label>
         <label className={styles.checkLabel}>
+          <Checkbox skipped />
+          <span>Skipped</span>
+        </label>
+        <label className={styles.checkLabel}>
           <Checkbox disabled />
           <span>Disabled</span>
         </label>
