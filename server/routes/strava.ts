@@ -18,6 +18,7 @@ import {
   verifyStravaSignature,
 } from "../lib/strava";
 import { consumeStreamToken } from "../lib/stream-tokens";
+import { buildGpx, type StravaStream } from "../lib/gpx";
 
 type Variables = {
   userId: string;
@@ -415,6 +416,46 @@ stravaRoutes.get("/streams/:stravaActivityId", async (c) => {
   } catch (error) {
     const payload = errorPayload(error);
     const status = payload.code === "AUTH_ERROR" ? 401 : 500;
+    return c.json(payload, status);
+  }
+});
+
+stravaRoutes.get("/gpx/:workoutId", requireUser, async (c) => {
+  try {
+    const userId = c.get("userId");
+    const { workoutId } = z.object({ workoutId: z.string().uuid() }).parse({ workoutId: c.req.param("workoutId") });
+    const supabase = createServerSupabase(c);
+
+    const { data: activity, error } = await supabase
+      .from("workout_activities")
+      .select("strava_id, name, sport, start_date")
+      .eq("workout_id", workoutId)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) throw new AppError("INTERNAL_ERROR", error.message);
+    if (!activity) throw new AppError("NOT_FOUND", "Workout has no linked Strava activity");
+
+    const streams = await stravaFetch<StravaStream[]>(
+      supabase,
+      c.env,
+      userId,
+      `/activities/${activity.strava_id}/streams?keys=time,latlng,altitude,heartrate,cadence&key_type=time`,
+    );
+    const gpx = buildGpx(streams, { name: activity.name, sport: activity.sport, startDate: activity.start_date });
+    if (!gpx) {
+      throw new AppError("VALIDATION_ERROR", "This activity has no GPS data to export as GPX");
+    }
+
+    return new Response(gpx, {
+      status: 200,
+      headers: {
+        "Content-Type": "application/gpx+xml; charset=utf-8",
+        "Content-Disposition": `attachment; filename="activity-${activity.strava_id}.gpx"`,
+      },
+    });
+  } catch (error) {
+    const payload = errorPayload(error);
+    const status = payload.code === "AUTH_ERROR" ? 401 : payload.code === "VALIDATION_ERROR" ? 400 : payload.code === "NOT_FOUND" ? 404 : 500;
     return c.json(payload, status);
   }
 });

@@ -51,7 +51,7 @@ function CompositesSection() {
             workout={workout}
             dateLabel={workout.dateLabel}
             isToday={workout.id === "w1"}
-            defaultExpanded={workout.id === "w1"}
+            defaultExpanded={workout.id === "w1" || workout.id === "w7"}
             renderDescription={(desc) => <Markdown>{desc}</Markdown>}
           />
         ))}

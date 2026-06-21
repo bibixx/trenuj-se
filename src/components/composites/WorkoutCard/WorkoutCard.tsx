@@ -1,10 +1,12 @@
 import { Collapsible } from "@base-ui/react/collapsible";
+import { Toast } from "@base-ui/react/toast";
 import clsx from "clsx";
-import { IconBrandStrava, IconDownload, IconTriangleInvertedFilled, IconUnlink } from "@tabler/icons-react";
+import { IconBrandStrava, IconDownload, IconLoader2, IconTriangleInvertedFilled, IconUnlink } from "@tabler/icons-react";
 import { type CSSProperties, useCallback, useMemo, useState } from "react";
 import { triggerHaptic } from "tactus";
 import { Badge } from "../../primitives/Badge/Badge.tsx";
 import { Button } from "../../primitives/Button/Button.tsx";
+import { IconGpx } from "../../primitives/icons/IconGpx.tsx";
 import { Checkbox } from "../../primitives/Checkbox/Checkbox.tsx";
 import { LinkActivityDialog } from "../LinkActivityDialog/LinkActivityDialog.tsx";
 import { StravaPill } from "../../domain/StravaPill/StravaPill.tsx";
@@ -13,7 +15,8 @@ import type { Workout } from "../../../lib/types.ts";
 import { getUiVariant, isCheckable } from "../../../lib/types.ts";
 import { useUnlinkActivity } from "../../../lib/queries/workouts.ts";
 import { resolveHue } from "../../../lib/color.ts";
-import { buildWorkoutFile } from "../../../lib/workout-file.ts";
+import { buildWorkoutFile, gpxFilename } from "../../../lib/workout-file.ts";
+import { apiFetch } from "../../../lib/api.ts";
 import styles from "./WorkoutCard.module.css";
 
 interface WorkoutCardProps {
@@ -63,6 +66,8 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
   const expandable = !editorial && hasContent;
 
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [gpxPending, setGpxPending] = useState(false);
+  const toastManager = Toast.useToastManager();
   const unlink = useUnlinkActivity(workout.planId);
 
   const handleDownload = useCallback(() => {
@@ -77,9 +82,37 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
     URL.revokeObjectURL(url);
   }, [workoutFile]);
 
+  const handleDownloadGpx = useCallback(async () => {
+    if (!workout.activity) return;
+    setGpxPending(true);
+    try {
+      const res = await apiFetch(`/api/strava/gpx/${workout.id}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = gpxFilename(workout);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toastManager.add({ title: "Couldn't download GPX", description: err instanceof Error ? err.message : undefined, type: "error" });
+    } finally {
+      setGpxPending(false);
+    }
+  }, [workout, toastManager]);
+
   const handleUnlink = useCallback(() => {
-    unlink.mutate({ workoutId: workout.id });
-  }, [unlink, workout.id]);
+    unlink.mutate(
+      { workoutId: workout.id },
+      {
+        onError: (err) => {
+          toastManager.add({ title: "Couldn't unlink activity", description: err instanceof Error ? err.message : undefined, type: "error" });
+        },
+      },
+    );
+  }, [unlink, workout.id, toastManager]);
 
   const [expanded, setExpanded] = useState(defaultExpanded || editorial);
   const handleOpenChange = useCallback((open: boolean) => {
@@ -146,8 +179,25 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
                     </Button>
                   )}
                   {showActivityActions && workout.activity && (
-                    <Button variant="secondary" size="sm" icon={<IconUnlink size={16} />} onClick={handleUnlink} disabled={unlink.isPending}>
-                      {unlink.isPending ? "Unlinking…" : "Unlink activity"}
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={gpxPending ? <IconLoader2 size={16} className="spin" /> : <IconGpx size={16} />}
+                      onClick={handleDownloadGpx}
+                      disabled={gpxPending}
+                    >
+                      Download GPX
+                    </Button>
+                  )}
+                  {showActivityActions && workout.activity && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      icon={unlink.isPending ? <IconLoader2 size={16} className="spin" /> : <IconUnlink size={16} />}
+                      onClick={handleUnlink}
+                      disabled={unlink.isPending}
+                    >
+                      Unlink activity
                     </Button>
                   )}
                   {showActivityActions && !workout.activity && (

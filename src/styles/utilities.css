@@ -1,1 +1,12 @@
 /* Utility classes — @layer utilities (assigned by PostCSS) */
+
+/* Continuous rotation for loading spinners (e.g. Tabler's IconLoader2). */
+.spin {
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

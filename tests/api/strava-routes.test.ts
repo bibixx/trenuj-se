@@ -634,3 +634,85 @@ describe("GET /api/strava/callback", () => {
     expect(location).toContain("strava=error");
   });
 });
+
+// ─── GET /api/strava/gpx/:workoutId ──────────────────────────────────────────
+
+describe("GET /api/strava/gpx/:workoutId", () => {
+  const WORKOUT_ID = "a0000000-0000-4000-8000-000000000001";
+
+  afterEach(() => {
+    clearMockSupabase();
+    vi.clearAllMocks();
+  });
+
+  test("401 without auth", async () => {
+    const mock = makeAuthMock();
+    setMockSupabase(mock);
+
+    const res = await app.request(`/api/strava/gpx/${WORKOUT_ID}`, {}, MOCK_ENV);
+    expect(res.status).toBe(401);
+  });
+
+  test("400 when workoutId is not a uuid", async () => {
+    const mock = makeAuthMock();
+    setMockSupabase(mock);
+
+    const res = await app.request("/api/strava/gpx/not-a-uuid", { headers: AUTH_HEADER }, MOCK_ENV);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe("VALIDATION_ERROR");
+  });
+
+  test("404 when the workout has no linked activity", async () => {
+    const mock = makeAuthMock({ workout_activities: { select: { data: null, error: null } } });
+    setMockSupabase(mock);
+
+    const res = await app.request(`/api/strava/gpx/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
+    expect(res.status).toBe(404);
+    const body = await res.json();
+    expect(body.code).toBe("NOT_FOUND");
+  });
+
+  test("200 returns a GPX attachment built from the activity streams", async () => {
+    vi.mocked(stravaFetch).mockResolvedValueOnce([
+      {
+        type: "latlng",
+        data: [
+          [50.06, 19.93],
+          [50.07, 19.94],
+        ],
+      },
+      { type: "time", data: [0, 5] },
+      { type: "altitude", data: [210, 212] },
+      { type: "heartrate", data: [138, 140] },
+    ] as unknown[]);
+
+    const mock = makeAuthMock({
+      workout_activities: { select: { data: { strava_id: 12345, name: "Morning Run", sport: "Run", start_date: "2026-06-20T06:00:00Z" }, error: null } },
+    });
+    setMockSupabase(mock);
+
+    const res = await app.request(`/api/strava/gpx/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/gpx+xml");
+    expect(res.headers.get("content-disposition")).toContain(".gpx");
+    const text = await res.text();
+    expect(text).toContain("<gpx");
+    expect(text).toContain("<trkpt");
+    expect(text).toContain("<gpxtpx:hr>138</gpxtpx:hr>");
+  });
+
+  test("400 when the activity has no GPS data (no latlng stream)", async () => {
+    vi.mocked(stravaFetch).mockResolvedValueOnce([{ type: "time", data: [0, 1, 2] }] as unknown[]);
+
+    const mock = makeAuthMock({
+      workout_activities: { select: { data: { strava_id: 12345, name: "Treadmill", sport: "Run", start_date: "2026-06-20T06:00:00Z" }, error: null } },
+    });
+    setMockSupabase(mock);
+
+    const res = await app.request(`/api/strava/gpx/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe("VALIDATION_ERROR");
+  });
+});

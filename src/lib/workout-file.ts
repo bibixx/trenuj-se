@@ -72,6 +72,10 @@ export function buildWorkoutFile(workout: Workout): WorkoutFile | null {
   };
 }
 
+export function gpxFilename(workout: Pick<Workout, "title" | "date">): string {
+  return `${slug(workout.title)}-${workout.date}.gpx`;
+}
+
 function buildWorkoutPlanFromExecution(referenceId: string, title: string, execution: WorkoutExecution): WorkoutPlan | null {
   const activity = ACTIVITY_MAP[execution.appleWatch?.activityType ?? "other"];
   const location: Location = execution.appleWatch?.location ?? "unknown";
