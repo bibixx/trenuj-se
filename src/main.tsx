@@ -10,6 +10,7 @@ import "./styles/global.css";
 import { initTheme } from "./lib/theme.ts";
 import { queryClient } from "./lib/query-client.ts";
 import { routeTree } from "./routeTree.gen";
+import { registerSW } from "virtual:pwa-register";
 
 // Ignore modifier keys (defaults) + Escape + arrow keys so they
 // don't flip the intent to "keyboard" when navigating within components.
@@ -39,6 +40,11 @@ declare module "@tanstack/react-router" {
 }
 
 initTheme();
+
+// A freshly deployed SW takes control immediately (skipWaiting + clientsClaim, forced
+// by registerType: "autoUpdate"); reload so the user lands on the new version. Edits are
+// agent-driven, so reloading mid-edit is not a concern.
+registerSW({ immediate: true });
 
 const persistOptions = {
   persister: indexedDbPersister,

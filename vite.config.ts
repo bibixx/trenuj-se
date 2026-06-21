@@ -59,20 +59,13 @@ export default defineConfig(({ mode }) => {
           skipWaiting: true,
           clientsClaim: true,
           cleanupOutdatedCaches: true,
-          globPatterns: ["**/*.{html,css}"],
+          // Precache the app shell (build chunks + fonts) → cache-first for hashed assets + full offline.
+          globPatterns: ["**/*.{js,css,html,woff2}"],
           navigateFallback: "/index.html",
           navigateFallbackDenylist: [/^\/api\//, /^\/mcp/],
           runtimeCaching: [
             {
-              urlPattern: /\/assets\/.+\.js$/,
-              handler: "StaleWhileRevalidate",
-              options: {
-                cacheName: "js-chunks",
-                expiration: { maxEntries: 500, maxAgeSeconds: 30 * 24 * 60 * 60 },
-              },
-            },
-            {
-              urlPattern: /\/icons\/outline\/.+\.svg$/,
+              urlPattern: /\/icons\/(outline|filled)\/.+\.svg$/,
               handler: "CacheFirst",
               options: {
                 cacheName: "icons",
