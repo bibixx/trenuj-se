@@ -635,10 +635,64 @@ describe("GET /api/strava/callback", () => {
   });
 });
 
-// ─── GET /api/strava/gpx/:workoutId ──────────────────────────────────────────
+// ─── GET /api/strava/fit/:workoutId ──────────────────────────────────────────
 
-describe("GET /api/strava/gpx/:workoutId", () => {
+describe("GET /api/strava/fit/:workoutId", () => {
   const WORKOUT_ID = "a0000000-0000-4000-8000-000000000001";
+  // The stored DetailedActivity (raw_data) carries the summary metrics + laps — the route reads them without an extra API call.
+  const RAW_DATA = {
+    moving_time: 1750,
+    average_speed: 2.78,
+    max_speed: 4.2,
+    average_cadence: 88,
+    weighted_average_watts: 255,
+    max_watts: 400,
+    average_temp: 21,
+    kilojoules: 500,
+    elev_high: 220,
+    elev_low: 180,
+    laps: [
+      {
+        start_date: "2026-06-20T06:00:00Z",
+        elapsed_time: 300,
+        moving_time: 295,
+        distance: 1000,
+        average_heartrate: 165,
+        max_heartrate: 178,
+        average_speed: 3.33,
+        max_speed: 4.1,
+        average_cadence: 90,
+        average_watts: 260,
+        total_elevation_gain: 12,
+      },
+      {
+        start_date: "2026-06-20T06:05:00Z",
+        elapsed_time: 120,
+        moving_time: 120,
+        distance: 200,
+        average_heartrate: 130,
+        max_heartrate: 150,
+        average_speed: 1.67,
+        max_speed: 2.0,
+        average_cadence: 78,
+        average_watts: 150,
+        total_elevation_gain: 0,
+      },
+    ],
+  };
+  const ACTIVITY_ROW = {
+    strava_id: 12345,
+    sport: "Run",
+    start_date: "2026-06-20T06:00:00Z",
+    duration_sec: 1800,
+    distance_m: 5000,
+    elevation_m: 40,
+    avg_hr: 150,
+    max_hr: 175,
+    avg_power: 240,
+    calories: 350,
+    raw_data: RAW_DATA,
+  };
 
   afterEach(() => {
     clearMockSupabase();
@@ -649,7 +703,7 @@ describe("GET /api/strava/gpx/:workoutId", () => {
     const mock = makeAuthMock();
     setMockSupabase(mock);
 
-    const res = await app.request(`/api/strava/gpx/${WORKOUT_ID}`, {}, MOCK_ENV);
+    const res = await app.request(`/api/strava/fit/${WORKOUT_ID}`, {}, MOCK_ENV);
     expect(res.status).toBe(401);
   });
 
@@ -657,7 +711,7 @@ describe("GET /api/strava/gpx/:workoutId", () => {
     const mock = makeAuthMock();
     setMockSupabase(mock);
 
-    const res = await app.request("/api/strava/gpx/not-a-uuid", { headers: AUTH_HEADER }, MOCK_ENV);
+    const res = await app.request("/api/strava/fit/not-a-uuid", { headers: AUTH_HEADER }, MOCK_ENV);
     expect(res.status).toBe(400);
     const body = await res.json();
     expect(body.code).toBe("VALIDATION_ERROR");
@@ -667,13 +721,13 @@ describe("GET /api/strava/gpx/:workoutId", () => {
     const mock = makeAuthMock({ workout_activities: { select: { data: null, error: null } } });
     setMockSupabase(mock);
 
-    const res = await app.request(`/api/strava/gpx/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
+    const res = await app.request(`/api/strava/fit/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
     expect(res.status).toBe(404);
     const body = await res.json();
     expect(body.code).toBe("NOT_FOUND");
   });
 
-  test("200 returns a GPX attachment built from the activity streams", async () => {
+  test("200 returns a FIT attachment built from the activity streams", async () => {
     vi.mocked(stravaFetch).mockResolvedValueOnce([
       {
         type: "latlng",
@@ -683,36 +737,78 @@ describe("GET /api/strava/gpx/:workoutId", () => {
         ],
       },
       { type: "time", data: [0, 5] },
-      { type: "altitude", data: [210, 212] },
       { type: "heartrate", data: [138, 140] },
     ] as unknown[]);
 
-    const mock = makeAuthMock({
-      workout_activities: { select: { data: { strava_id: 12345, name: "Morning Run", sport: "Run", start_date: "2026-06-20T06:00:00Z" }, error: null } },
-    });
+    const mock = makeAuthMock({ workout_activities: { select: { data: ACTIVITY_ROW, error: null } } });
     setMockSupabase(mock);
 
-    const res = await app.request(`/api/strava/gpx/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
+    const res = await app.request(`/api/strava/fit/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
     expect(res.status).toBe(200);
-    expect(res.headers.get("content-type")).toContain("application/gpx+xml");
-    expect(res.headers.get("content-disposition")).toContain(".gpx");
-    const text = await res.text();
-    expect(text).toContain("<gpx");
-    expect(text).toContain("<trkpt");
-    expect(text).toContain("<gpxtpx:hr>138</gpxtpx:hr>");
+    expect(res.headers.get("content-type")).toContain("application/vnd.ant.fit");
+    expect(res.headers.get("content-disposition")).toContain(".fit");
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect(bytes.byteLength).toBeGreaterThan(12);
+    // The FIT header carries the ".FIT" signature at bytes 8–11.
+    expect(String.fromCharCode(...bytes.slice(8, 12))).toBe(".FIT");
   });
 
-  test("400 when the activity has no GPS data (no latlng stream)", async () => {
-    vi.mocked(stravaFetch).mockResolvedValueOnce([{ type: "time", data: [0, 1, 2] }] as unknown[]);
+  test("200 for an indoor activity with no GPS (no latlng stream still exports)", async () => {
+    vi.mocked(stravaFetch).mockResolvedValueOnce([
+      { type: "time", data: [0, 1, 2] },
+      { type: "heartrate", data: [120, 121, 122] },
+    ] as unknown[]);
 
-    const mock = makeAuthMock({
-      workout_activities: { select: { data: { strava_id: 12345, name: "Treadmill", sport: "Run", start_date: "2026-06-20T06:00:00Z" }, error: null } },
-    });
+    const mock = makeAuthMock({ workout_activities: { select: { data: { ...ACTIVITY_ROW, sport: "Ride" }, error: null } } });
     setMockSupabase(mock);
 
-    const res = await app.request(`/api/strava/gpx/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
-    expect(res.status).toBe(400);
-    const body = await res.json();
-    expect(body.code).toBe("VALIDATION_ERROR");
+    const res = await app.request(`/api/strava/fit/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/vnd.ant.fit");
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect(String.fromCharCode(...bytes.slice(8, 12))).toBe(".FIT");
+  });
+
+  test("200 sources laps + summary from raw_data with a single Strava call (streams only)", async () => {
+    vi.mocked(stravaFetch).mockResolvedValueOnce([
+      { type: "time", data: [0, 5, 10] },
+      { type: "heartrate", data: [140, 150, 160] },
+      { type: "distance", data: [0, 500, 1000] },
+    ] as unknown[]);
+
+    const mock = makeAuthMock({ workout_activities: { select: { data: ACTIVITY_ROW, error: null } } });
+    setMockSupabase(mock);
+
+    const res = await app.request(`/api/strava/fit/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/vnd.ant.fit");
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect(String.fromCharCode(...bytes.slice(8, 12))).toBe(".FIT");
+    // Only streams — laps + summary come from the stored raw_data.
+    expect(stravaFetch).toHaveBeenCalledTimes(1);
+  });
+
+  test("200 falls back to /laps when raw_data is absent (legacy row → 2nd Strava call)", async () => {
+    vi.mocked(stravaFetch)
+      .mockResolvedValueOnce([
+        { type: "time", data: [0, 5, 10] },
+        { type: "heartrate", data: [140, 150, 160] },
+        { type: "distance", data: [0, 500, 1000] },
+      ] as unknown[])
+      .mockResolvedValueOnce([
+        { start_date: "2026-06-20T06:00:00Z", elapsed_time: 300, moving_time: 295, distance: 1000, average_heartrate: 165, max_heartrate: 178 },
+        { start_date: "2026-06-20T06:05:00Z", elapsed_time: 120, moving_time: 120, distance: 200, average_heartrate: 130, max_heartrate: 150 },
+      ] as unknown[]);
+
+    const mock = makeAuthMock({ workout_activities: { select: { data: { ...ACTIVITY_ROW, raw_data: null }, error: null } } });
+    setMockSupabase(mock);
+
+    const res = await app.request(`/api/strava/fit/${WORKOUT_ID}`, { headers: AUTH_HEADER }, MOCK_ENV);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("application/vnd.ant.fit");
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    expect(String.fromCharCode(...bytes.slice(8, 12))).toBe(".FIT");
+    // streams + /laps fallback
+    expect(stravaFetch).toHaveBeenCalledTimes(2);
   });
 });

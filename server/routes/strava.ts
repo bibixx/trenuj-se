@@ -18,7 +18,7 @@ import {
   verifyStravaSignature,
 } from "../lib/strava";
 import { consumeStreamToken } from "../lib/stream-tokens";
-import { buildGpx, type StravaStream } from "../lib/gpx";
+import { buildFit, type FitLap, type StravaStream } from "../lib/fit";
 
 type Variables = {
   userId: string;
@@ -420,7 +420,7 @@ stravaRoutes.get("/streams/:stravaActivityId", async (c) => {
   }
 });
 
-stravaRoutes.get("/gpx/:workoutId", requireUser, async (c) => {
+stravaRoutes.get("/fit/:workoutId", requireUser, async (c) => {
   try {
     const userId = c.get("userId");
     const { workoutId } = z.object({ workoutId: z.string().uuid() }).parse({ workoutId: c.req.param("workoutId") });
@@ -428,7 +428,7 @@ stravaRoutes.get("/gpx/:workoutId", requireUser, async (c) => {
 
     const { data: activity, error } = await supabase
       .from("workout_activities")
-      .select("strava_id, name, sport, start_date")
+      .select("strava_id, sport, start_date, duration_sec, distance_m, elevation_m, avg_hr, max_hr, avg_power, calories, raw_data")
       .eq("workout_id", workoutId)
       .eq("user_id", userId)
       .maybeSingle();
@@ -439,18 +439,69 @@ stravaRoutes.get("/gpx/:workoutId", requireUser, async (c) => {
       supabase,
       c.env,
       userId,
-      `/activities/${activity.strava_id}/streams?keys=time,latlng,altitude,heartrate,cadence&key_type=time`,
+      `/activities/${activity.strava_id}/streams?keys=time,distance,latlng,altitude,velocity_smooth,heartrate,cadence,watts,temp,grade_smooth&key_type=time`,
     );
-    const gpx = buildGpx(streams, { name: activity.name, sport: activity.sport, startDate: activity.start_date });
-    if (!gpx) {
-      throw new AppError("VALIDATION_ERROR", "This activity has no GPS data to export as GPX");
-    }
 
-    return new Response(gpx, {
+    // The full Strava detail is already stored in raw_data (synced by webhook) — read the summary metrics + laps from it, no extra API call.
+    const raw = (activity.raw_data ?? {}) as Record<string, unknown>;
+    const rawNum = (key: string): number | null => {
+      const value = raw[key];
+      return typeof value === "number" && Number.isFinite(value) ? value : null;
+    };
+
+    // Laps live in the stored detail; only hit /laps for legacy rows that predate raw_data.
+    const rawLaps: Array<Record<string, unknown>> = Array.isArray(raw["laps"])
+      ? (raw["laps"] as Array<Record<string, unknown>>)
+      : activity.raw_data != null
+        ? []
+        : await stravaFetch<Array<Record<string, unknown>>>(supabase, c.env, userId, `/activities/${activity.strava_id}/laps`).catch(() => []);
+    const laps: FitLap[] = rawLaps
+      .filter((lap) => typeof lap["start_date"] === "string" && typeof lap["elapsed_time"] === "number")
+      .map((lap) => ({
+        startDate: lap["start_date"] as string,
+        elapsedTime: lap["elapsed_time"] as number,
+        movingTime: typeof lap["moving_time"] === "number" ? lap["moving_time"] : null,
+        distanceM: typeof lap["distance"] === "number" ? lap["distance"] : null,
+        avgHr: typeof lap["average_heartrate"] === "number" ? Math.round(lap["average_heartrate"]) : null,
+        maxHr: typeof lap["max_heartrate"] === "number" ? Math.round(lap["max_heartrate"]) : null,
+        avgSpeed: typeof lap["average_speed"] === "number" ? lap["average_speed"] : null,
+        maxSpeed: typeof lap["max_speed"] === "number" ? lap["max_speed"] : null,
+        avgCadence: typeof lap["average_cadence"] === "number" ? lap["average_cadence"] : null,
+        avgPower: typeof lap["average_watts"] === "number" ? lap["average_watts"] : null,
+        totalAscent: typeof lap["total_elevation_gain"] === "number" ? lap["total_elevation_gain"] : null,
+      }));
+
+    const fit = buildFit(
+      streams,
+      {
+        sport: activity.sport,
+        startDate: activity.start_date,
+        durationSec: activity.duration_sec,
+        movingSec: rawNum("moving_time"),
+        distanceM: activity.distance_m,
+        elevationM: activity.elevation_m,
+        elevHigh: rawNum("elev_high"),
+        elevLow: rawNum("elev_low"),
+        avgHr: activity.avg_hr,
+        maxHr: activity.max_hr,
+        avgPower: activity.avg_power,
+        maxPower: rawNum("max_watts"),
+        normalizedPower: rawNum("weighted_average_watts"),
+        calories: activity.calories,
+        avgSpeed: rawNum("average_speed"),
+        maxSpeed: rawNum("max_speed"),
+        avgCadence: rawNum("average_cadence"),
+        avgTemp: rawNum("average_temp"),
+        kilojoules: rawNum("kilojoules"),
+      },
+      laps,
+    );
+
+    return new Response(fit, {
       status: 200,
       headers: {
-        "Content-Type": "application/gpx+xml; charset=utf-8",
-        "Content-Disposition": `attachment; filename="activity-${activity.strava_id}.gpx"`,
+        "Content-Type": "application/vnd.ant.fit",
+        "Content-Disposition": `attachment; filename="activity-${activity.strava_id}.fit"`,
       },
     });
   } catch (error) {

@@ -72,8 +72,8 @@ export function buildWorkoutFile(workout: Workout): WorkoutFile | null {
   };
 }
 
-export function gpxFilename(workout: Pick<Workout, "title" | "date">): string {
-  return `${slug(workout.title)}-${workout.date}.gpx`;
+export function fitFilename(workout: Pick<Workout, "title" | "date">): string {
+  return `${slug(workout.title)}-${workout.date}.fit`;
 }
 
 function buildWorkoutPlanFromExecution(referenceId: string, title: string, execution: WorkoutExecution): WorkoutPlan | null {

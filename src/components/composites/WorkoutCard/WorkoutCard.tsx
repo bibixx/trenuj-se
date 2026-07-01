@@ -6,7 +6,7 @@ import { type CSSProperties, useCallback, useMemo, useState } from "react";
 import { triggerHaptic } from "tactus";
 import { Badge } from "../../primitives/Badge/Badge.tsx";
 import { Button } from "../../primitives/Button/Button.tsx";
-import { IconGpx } from "../../primitives/icons/IconGpx.tsx";
+import { IconFit } from "../../primitives/icons/IconFit.tsx";
 import { Checkbox } from "../../primitives/Checkbox/Checkbox.tsx";
 import { LinkActivityDialog } from "../LinkActivityDialog/LinkActivityDialog.tsx";
 import { StravaPill } from "../../domain/StravaPill/StravaPill.tsx";
@@ -15,7 +15,7 @@ import type { Workout } from "../../../lib/types.ts";
 import { getUiVariant, isCheckable } from "../../../lib/types.ts";
 import { useUnlinkActivity } from "../../../lib/queries/workouts.ts";
 import { resolveHue } from "../../../lib/color.ts";
-import { buildWorkoutFile, gpxFilename } from "../../../lib/workout-file.ts";
+import { buildWorkoutFile, fitFilename } from "../../../lib/workout-file.ts";
 import { apiFetch } from "../../../lib/api.ts";
 import styles from "./WorkoutCard.module.css";
 
@@ -67,7 +67,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
   const expandable = !editorial && hasContent;
 
   const [linkDialogOpen, setLinkDialogOpen] = useState(false);
-  const [gpxPending, setGpxPending] = useState(false);
+  const [fitPending, setFitPending] = useState(false);
   const toastManager = Toast.useToastManager();
   const unlink = useUnlinkActivity(workout.planId);
 
@@ -83,24 +83,24 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
     URL.revokeObjectURL(url);
   }, [workoutFile]);
 
-  const handleDownloadGpx = useCallback(async () => {
+  const handleDownloadFit = useCallback(async () => {
     if (!workout.activity) return;
-    setGpxPending(true);
+    setFitPending(true);
     try {
-      const res = await apiFetch(`/api/strava/gpx/${workout.id}`);
+      const res = await apiFetch(`/api/strava/fit/${workout.id}`);
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = gpxFilename(workout);
+      a.download = fitFilename(workout);
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      toastManager.add({ title: "Couldn't download GPX", description: err instanceof Error ? err.message : undefined, type: "error" });
+      toastManager.add({ title: "Couldn't download FIT", description: err instanceof Error ? err.message : undefined, type: "error" });
     } finally {
-      setGpxPending(false);
+      setFitPending(false);
     }
   }, [workout, toastManager]);
 
@@ -183,11 +183,11 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
                     <Button
                       variant="secondary"
                       size="sm"
-                      icon={gpxPending ? <IconLoader2 size={16} className="spin" /> : <IconGpx size={16} />}
-                      onClick={handleDownloadGpx}
-                      disabled={gpxPending}
+                      icon={fitPending ? <IconLoader2 size={16} className="spin" /> : <IconFit size={16} />}
+                      onClick={handleDownloadFit}
+                      disabled={fitPending}
                     >
-                      Download GPX
+                      Download FIT
                     </Button>
                   )}
                   {showActivityActions && workout.activity && (

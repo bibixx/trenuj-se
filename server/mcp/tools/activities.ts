@@ -74,7 +74,7 @@ export function registerActivityTools(server: McpServer, ctx: McpContext) {
     "get_workout_streams",
     {
       title: "Get Workout Streams",
-      description: "Return a short-lived URL for fetching detailed Strava activity streams for a linked workout (use this to build GPX, analyze pacing, etc.).",
+      description: "Return a short-lived URL for fetching detailed Strava activity streams for a linked workout (use this to build FIT files, analyze pacing, etc.).",
       inputSchema: z.object({ workoutId: z.string().uuid().describe("Workout UUID. The workout must have a linked Strava activity.") }),
       annotations: { readOnlyHint: true },
     },

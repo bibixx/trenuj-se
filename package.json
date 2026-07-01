@@ -26,6 +26,7 @@
     "@bibixx/workoutkit": "0.2.0",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
+    "@markw65/fit-file-writer": "^0.1.10",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@supabase/supabase-js": "^2.57.4",
     "@tabler/icons": "^3.44.0",
@@ -48,6 +49,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@garmin/fitsdk": "^21.208.0",
     "@tanstack/router-plugin": "^1.167.12",
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
