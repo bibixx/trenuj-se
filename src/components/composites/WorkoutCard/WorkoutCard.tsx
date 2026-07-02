@@ -18,6 +18,7 @@ import { resolveHue } from "../../../lib/color.ts";
 import { buildWorkoutFile, fitFilename } from "../../../lib/workout-file.ts";
 import { apiFetch } from "../../../lib/api.ts";
 import styles from "./WorkoutCard.module.css";
+import { ScrollAreaComponent as ScrollArea } from "../../primitives/ScrollArea/ScrollArea.tsx";
 
 interface WorkoutCardProps {
   workout: Workout;
@@ -173,39 +174,46 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
                 </div>
               )}
               {(workoutFile || hasActivityAction) && (
-                <div className={styles.actions}>
-                  {workoutFile && (
-                    <Button variant="secondary" size="sm" icon={<IconDownload size={16} />} onClick={handleDownload}>
-                      Save to Apple Watch
-                    </Button>
-                  )}
-                  {showActivityActions && workout.activity && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={fitPending ? <IconLoader2 size={16} className="spin" /> : <IconFit size={16} />}
-                      onClick={handleDownloadFit}
-                      disabled={fitPending}
-                    >
-                      Download FIT
-                    </Button>
-                  )}
-                  {showActivityActions && workout.activity && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={unlink.isPending ? <IconLoader2 size={16} className="spin" /> : <IconUnlink size={16} />}
-                      onClick={handleUnlink}
-                      disabled={unlink.isPending}
-                    >
-                      Unlink activity
-                    </Button>
-                  )}
-                  {showActivityActions && !workout.activity && (
-                    <Button variant="secondary" size="sm" icon={<IconBrandStrava size={16} />} onClick={() => setLinkDialogOpen(true)}>
-                      Link Strava activity
-                    </Button>
-                  )}
+                <div className={styles.actionsWrapper}>
+                  <ScrollArea.Root className={styles.actions}>
+                    <ScrollArea.Viewport fadeout={{ direction: "horizontal", size: 40 }} className={styles.actionsViewport}>
+                      <ScrollArea.Content style={{ flexDirection: "row", gap: 8 }} className={styles.actionsContent}>
+                        {workoutFile && (
+                          <Button variant="secondary" size="sm" icon={<IconDownload size={16} />} onClick={handleDownload}>
+                            Save to Apple Watch
+                          </Button>
+                        )}
+                        {showActivityActions && workout.activity && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={fitPending ? <IconLoader2 size={16} className="spin" /> : <IconFit size={16} />}
+                            onClick={handleDownloadFit}
+                            disabled={fitPending}
+                          >
+                            Download FIT
+                          </Button>
+                        )}
+                        {showActivityActions && workout.activity && (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            icon={unlink.isPending ? <IconLoader2 size={16} className="spin" /> : <IconUnlink size={16} />}
+                            onClick={handleUnlink}
+                            disabled={unlink.isPending}
+                          >
+                            Unlink activity
+                          </Button>
+                        )}
+                        {showActivityActions && !workout.activity && (
+                          <Button variant="secondary" size="sm" icon={<IconBrandStrava size={16} />} onClick={() => setLinkDialogOpen(true)}>
+                            Link Strava activity
+                          </Button>
+                        )}
+                      </ScrollArea.Content>
+                    </ScrollArea.Viewport>
+                    <ScrollArea.Scrollbar orientation="horizontal" />
+                  </ScrollArea.Root>
                 </div>
               )}
             </div>
