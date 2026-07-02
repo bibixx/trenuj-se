@@ -23,6 +23,7 @@ html {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
   /* Chrome (UI) is non-selectable by default.
    * User content opts back in with user-select: text. */
   user-select: none;
@@ -81,6 +82,14 @@ button {
   background: none;
   border: none;
   cursor: pointer;
+}
+
+button,
+a,
+[role="button"],
+label,
+summary {
+  touch-action: manipulation;
 }
 
 input,
