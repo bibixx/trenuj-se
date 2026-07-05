@@ -49,12 +49,27 @@ function getCommitHash(): string {
   }
 }
 
+/**
+ * Public, build-time client config baked into the browser bundle.
+ *
+ * Safe to commit: `VITE_SUPABASE_URL` is public and the anon key is a Supabase
+ * *publishable* key (security is enforced by RLS, not key secrecy) — both already
+ * ship in the client JS. Keeping them here as defaults means a CI build can never
+ * emit a bundle that's missing them, which is what threw
+ * "Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY" in production. `.dev.vars`
+ * and `process.env` still override these (e.g. to point a preview at another project).
+ */
+const PUBLIC_DEFAULTS: Record<string, string> = {
+  VITE_SUPABASE_URL: "https://bjyrrqtzzywauescjmhr.supabase.co",
+  VITE_SUPABASE_ANON_KEY: "sb_publishable_xDr64w3C_jsGn-AAXltRow_9AhtydeC",
+};
+
 export default defineConfig(({ mode }) => {
   const isDev = mode === "development";
   const { env: devVars, allEnv } = loadDevVars();
 
-  // In CI / production builds, VITE_* vars come from process.env instead of .dev.vars.
-  const viteEnv: Record<string, string> = { ...devVars };
+  // Precedence (low → high): PUBLIC_DEFAULTS < .dev.vars < process.env (CI build vars).
+  const viteEnv: Record<string, string> = { ...PUBLIC_DEFAULTS, ...devVars };
   for (const [key, value] of Object.entries(process.env)) {
     if (key.startsWith("VITE_") && value !== undefined) {
       viteEnv[key] = value;
