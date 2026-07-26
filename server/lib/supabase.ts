@@ -12,6 +12,7 @@ export type AppBindings = {
   STRAVA_VERIFY_TOKEN?: string;
   STRAVA_WEBHOOK_PATH_SECRET?: string;
   STRAVA_WEBHOOK_SIGNING_SECRET?: string;
+  WATCH_TOKEN_SECRET?: string;
   PUBLIC_APP_URL?: string;
 };
 
