@@ -4,6 +4,7 @@ import oauthProtectedResourceRoutes from "./routes/oauth-protected-resource";
 import mcpConnectorTokenRoutes from "./routes/mcp-connector-tokens";
 import shareRoutes from "./routes/shares";
 import stravaRoutes from "./routes/strava";
+import watchRoutes from "./routes/watch";
 import type { AppBindings } from "./lib/supabase";
 import { handleClaudeMcpRequest, handleMcpRequest } from "./mcp/handler";
 
@@ -15,6 +16,7 @@ app.route("/.well-known/oauth-protected-resource", oauthProtectedResourceRoutes)
 app.route("/api/mcp/connector-tokens", mcpConnectorTokenRoutes);
 app.route("/api/shares", shareRoutes);
 app.route("/api/strava", stravaRoutes);
+app.route("/api/watch", watchRoutes);
 app.all("/mcp", handleMcpRequest);
 app.all("/mcp/", handleMcpRequest);
 app.all("/mcp/claude/:connectorToken", handleClaudeMcpRequest);

@@ -10,4 +10,5 @@ STRAVA_CLIENT_SECRET=
 STRAVA_VERIFY_TOKEN=
 STRAVA_WEBHOOK_PATH_SECRET=      # Random string, used as webhook URL path segment
 STRAVA_WEBHOOK_SIGNING_SECRET=   # Strava-issued HMAC-SHA256 signing secret; leave empty until Strava surfaces it
+WATCH_TOKEN_SECRET=              # Random string; signs long-lived tokens the iOS companion uses to fetch the workout feed
 PUBLIC_APP_URL=
