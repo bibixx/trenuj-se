@@ -14,10 +14,9 @@ run_worker_first = ["/api/*", "/mcp", "/mcp/*", "/.well-known/*"]
 PUBLIC_APP_URL = "https://www.trenuj.se"
 VITE_SUPABASE_URL = "https://bjyrrqtzzywauescjmhr.supabase.co"
 
-[observability]
 [observability.logs]
 enabled = true
 invocation_logs = true
 
 [observability.traces]
-enabled = false
+enabled = true
