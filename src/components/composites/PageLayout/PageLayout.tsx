@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import clsx from "clsx";
 import type { ReactNode } from "react";
 import { profileQueryOptions } from "../../../lib/queries/profile.ts";
+import { hasFlag } from "../../../lib/types.ts";
 import { Badge } from "../../primitives/Badge/Badge.tsx";
 import { ScrollAreaComponent as ScrollArea } from "../../primitives/ScrollArea/ScrollArea.tsx";
 import { ChromeHeader } from "../ChromeHeader/ChromeHeader.tsx";
@@ -23,7 +24,7 @@ export function PageLayout({ children, headerActions, centerHeader }: PageLayout
         <ScrollArea.Content className={clsx(styles.content, centerHeader && styles.centerHeader)}>
           <ChromeHeader.Root>
             <ChromeHeader.Actions>
-              {profile?.isPremium && <Badge variant="premium">Premium</Badge>}
+              {hasFlag(profile, "is_premium") && <Badge variant="premium">Premium</Badge>}
               {headerActions}
             </ChromeHeader.Actions>
           </ChromeHeader.Root>

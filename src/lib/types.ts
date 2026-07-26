@@ -1,5 +1,6 @@
 import type { SportType } from "../../shared/activity";
 import type { PlanNoteMetadata } from "../../shared/plan-note-metadata";
+import type { UserFlags } from "../../shared/user-flags";
 import type { WorkoutExecution } from "../../shared/workout-execution";
 import type { WorkoutMetadata } from "../../shared/workout-metadata";
 
@@ -108,9 +109,13 @@ export interface PlanShare {
 export interface Profile {
   id: string;
   stravaAthleteId: number | null;
-  isPremium: boolean;
+  userFlags: UserFlags;
   createdAt: string;
   updatedAt: string;
+}
+
+export function hasFlag(profile: Profile | null | undefined, flag: keyof UserFlags): boolean {
+  return profile?.userFlags?.[flag] === true;
 }
 
 export type UiVariant = "standard" | "optional" | "rest" | "note";

@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, date, index, integer, jsonb, pgSchema, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
 import { STRAVA_SPORT_TYPES } from "../shared/activity";
+import type { UserFlags } from "../shared/user-flags";
 import type { WorkoutExecution } from "../shared/workout-execution";
 
 const authSchema = pgSchema("auth");
@@ -19,7 +20,7 @@ export const profiles = pgTable("profiles", {
     .primaryKey()
     .references(() => authUsers.id, { onDelete: "cascade" }),
   stravaAthleteId: bigint("strava_athlete_id", { mode: "number" }),
-  isPremium: boolean("is_premium").default(false).notNull(),
+  userFlags: jsonb("user_flags").$type<UserFlags>().default({}).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 });

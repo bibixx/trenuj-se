@@ -1,4 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
+import { parseUserFlags } from "../../../shared/user-flags.ts";
 import { supabase } from "../supabase.ts";
 import type { Profile } from "../types.ts";
 
@@ -12,7 +13,7 @@ async function fetchProfile(): Promise<Profile | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  const { data, error } = await supabase.from("profiles").select("id, strava_athlete_id, is_premium, created_at, updated_at").eq("id", user.id).maybeSingle();
+  const { data, error } = await supabase.from("profiles").select("id, strava_athlete_id, user_flags, created_at, updated_at").eq("id", user.id).maybeSingle();
 
   if (error) throw error;
   if (!data) return null;
@@ -20,7 +21,7 @@ async function fetchProfile(): Promise<Profile | null> {
   return {
     id: data.id as string,
     stravaAthleteId: (data.strava_athlete_id as number) ?? null,
-    isPremium: (data.is_premium as boolean) ?? false,
+    userFlags: parseUserFlags(data.user_flags),
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
   };
