@@ -15,7 +15,7 @@ import { useAuth } from "../../lib/auth.ts";
 import { profileKeys, profileQueryOptions } from "../../lib/queries/profile.ts";
 import { queryClient } from "../../lib/query-client.ts";
 import { supabase } from "../../lib/supabase.ts";
-import type { Profile } from "../../lib/types.ts";
+import { hasFlag, type Profile } from "../../lib/types.ts";
 import styles from "./settings.module.css";
 
 interface SettingsSearch {
@@ -48,6 +48,7 @@ function SettingsPage() {
         <AccountSection user={user} />
         <AppearanceSection />
         <StravaSection profile={profile ?? null} stravaParam={stravaParam} />
+        {hasFlag(profile, "companion_app") && <AppleWatchSection />}
       </div>
     </PageLayout>
   );
@@ -246,6 +247,61 @@ function StravaSection({ profile, stravaParam }: { profile: Profile | null; stra
           </div>
         </Dialog.Content>
       </Dialog.Root>
+    </section>
+  );
+}
+
+// --- Apple Watch Section (gated behind the companion_app flag) ---
+
+function AppleWatchSection() {
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const rootUrl = `${window.location.origin}/api/watch/index.json`;
+  const authHeader = token ? `Bearer ${token}` : "";
+
+  const handleGenerate = async () => {
+    setLoading(true);
+    setError(null);
+    setCopied(false);
+    try {
+      const res = await apiFetch("/api/watch/token");
+      const { token: value } = (await res.json()) as { token: string };
+      setToken(value);
+      try {
+        await navigator.clipboard.writeText(`Bearer ${value}`);
+        setCopied(true);
+      } catch {
+        // Clipboard can be unavailable (e.g. insecure context); the values are shown below to copy manually.
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to generate token");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <section className={styles.section}>
+      <h2 className={styles.sectionTitle}>Apple Watch</h2>
+      <p className={styles.sectionDescription}>
+        Sync your planned workouts to the Apple Watch via the Trenuj Companion app. Generate a token, then paste the Root URL and Authorization values into the app.
+      </p>
+      <div className={styles.buttonRow}>
+        <Button onClick={handleGenerate} disabled={loading}>
+          {loading ? "Generating…" : token ? "Regenerate token" : "Generate watch token"}
+        </Button>
+      </div>
+      {token && (
+        <>
+          <Input label="Root URL" value={rootUrl} readOnly />
+          <Input label="Authorization" value={authHeader} readOnly />
+        </>
+      )}
+      {copied && <p className={styles.hint}>Authorization copied to clipboard ✓</p>}
+      {error && <p className={styles.error}>{error}</p>}
     </section>
   );
 }

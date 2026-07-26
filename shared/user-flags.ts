@@ -2,11 +2,12 @@ import { z } from "zod";
 
 export interface UserFlags {
   is_premium?: boolean;
-  // future: companion_app?: boolean;
+  companion_app?: boolean;
 }
 
 export const userFlagsSchema = z.object({
   is_premium: z.boolean().optional(),
+  companion_app: z.boolean().optional(),
 }) satisfies z.ZodType<UserFlags>;
 
 /** Parse an untrusted JSONB value into typed flags; malformed input → {}. */
