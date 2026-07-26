@@ -75,6 +75,7 @@ export function createMockSupabase(
   config: {
     tables?: Record<string, TableConfig>;
     auth?: AuthConfig;
+    rpc?: Record<string, SupabaseResponseConfig>;
   } = {},
 ) {
   const tables = config.tables ?? {};
@@ -130,12 +131,20 @@ export function createMockSupabase(
     }),
   };
 
+  const rpcConfig = config.rpc ?? {};
+  const rpc = vi.fn((fn: string, args?: unknown) => {
+    calls.push({ table: `rpc:${fn}`, operation: "rpc", args: args === undefined ? [] : [args] });
+    const resolveRpc = createOperationResolver({ select: rpcConfig[fn] }, "select", { data: null, error: null });
+    return createChain(resolveRpc);
+  });
+
   return {
-    // Single centralized cast — mock structurally satisfies SupabaseClient's
-    // .from() and .auth.getUser() which are the only APIs used in production code
-    client: { from, auth } as unknown as SupabaseClient,
+    // Single centralized cast — mock structurally satisfies SupabaseClient's .from(),
+    // .auth.getUser(), and .rpc() which are the only APIs used in production code
+    client: { from, auth, rpc } as unknown as SupabaseClient,
     from,
     auth,
+    rpc,
     calls,
   };
 }

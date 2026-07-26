@@ -26,15 +26,15 @@ function mockAuth() {
   };
 }
 
-function editMemoryMock(current: string | null, update: { data: unknown; error: unknown }) {
+function editMemoryMock(current: string | null, casResponse: { data: unknown; error: unknown }) {
   const mock = createMockSupabase({
     auth: mockAuth(),
     tables: {
       plans: {
         select: { data: { ...MOCK_PLAN, agent_memory: current }, error: null },
-        update,
       },
     },
+    rpc: { edit_plan_memory_cas: casResponse },
   });
   setMockSupabase(mock);
   return mock;
@@ -44,8 +44,8 @@ function casOk(agentMemory: string) {
   return { data: { id: MOCK_PLAN_ID, agent_memory: agentMemory, updated_at: "2024-01-02T00:00:00Z" }, error: null };
 }
 
-function planUpdatePatch(mock: ReturnType<typeof createMockSupabase>) {
-  return mock.calls.find((call) => call.table === "plans" && call.operation === "update")?.args[0];
+function rpcParams(mock: ReturnType<typeof createMockSupabase>) {
+  return mock.calls.find((call) => call.table === "rpc:edit_plan_memory_cas" && call.operation === "rpc")?.args[0];
 }
 
 describe("MCP Plan Tools", () => {
@@ -484,7 +484,7 @@ describe("MCP Plan Tools", () => {
     const result = extractToolResult(parsed);
 
     expect(result?.result.agent_memory).toBe(next);
-    expect(planUpdatePatch(mock)).toEqual({ agent_memory: next });
+    expect(rpcParams(mock)).toMatchObject({ p_expected: current, p_next: next });
   });
 
   test("edit_plan_memory replace deletes a section with an empty newText", async () => {
@@ -495,7 +495,7 @@ describe("MCP Plan Tools", () => {
     const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "\n\n## Notes\n- hydrate", newText: "" }, {}));
 
     expect(extractToolResult(parsed)?.result.agent_memory).toBe(next);
-    expect(planUpdatePatch(mock)).toEqual({ agent_memory: next });
+    expect(rpcParams(mock)).toMatchObject({ p_expected: current, p_next: next });
   });
 
   test("edit_plan_memory replace rewrites the whole document", async () => {
@@ -506,7 +506,7 @@ describe("MCP Plan Tools", () => {
     const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: current, newText: next }, {}));
 
     expect(extractToolResult(parsed)?.result.agent_memory).toBe(next);
-    expect(planUpdatePatch(mock)).toEqual({ agent_memory: next });
+    expect(rpcParams(mock)).toMatchObject({ p_expected: current, p_next: next });
   });
 
   test("edit_plan_memory replace returns CONFLICT when oldText is not found", async () => {
@@ -524,7 +524,7 @@ describe("MCP Plan Tools", () => {
 
     expect(extractToolError(parsed)?.code).toBe("VALIDATION_ERROR");
     // ambiguity is caught before any write
-    expect(planUpdatePatch(mock)).toBeUndefined();
+    expect(rpcParams(mock)).toBeUndefined();
   });
 
   test("edit_plan_memory replace with replaceAll swaps every occurrence", async () => {
@@ -533,7 +533,7 @@ describe("MCP Plan Tools", () => {
     const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "rep", newText: "set", replaceAll: true }, {}));
 
     expect(extractToolResult(parsed)?.result.agent_memory).toBe("set\nset");
-    expect(planUpdatePatch(mock)).toEqual({ agent_memory: "set\nset" });
+    expect(rpcParams(mock)).toMatchObject({ p_expected: "rep\nrep", p_next: "set\nset" });
   });
 
   test("edit_plan_memory replace requires oldText and newText", async () => {
@@ -551,7 +551,7 @@ describe("MCP Plan Tools", () => {
     const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "append", text: "## Notes" }, {}));
 
     expect(extractToolResult(parsed)?.result.agent_memory).toBe(next);
-    expect(planUpdatePatch(mock)).toEqual({ agent_memory: next });
+    expect(rpcParams(mock)).toMatchObject({ p_expected: "## Zones", p_next: next });
   });
 
   test("edit_plan_memory append sets the initial memory on an empty plan", async () => {
@@ -561,7 +561,38 @@ describe("MCP Plan Tools", () => {
 
     expect(extractToolResult(parsed)?.result.agent_memory).toBe("first note");
     // empty memory writes the text verbatim (no leading separator)
-    expect(planUpdatePatch(mock)).toEqual({ agent_memory: "first note" });
+    expect(rpcParams(mock)).toMatchObject({ p_expected: null, p_next: "first note" });
+  });
+
+  test("edit_plan_memory rejects an append that grows the notepad past the cap", async () => {
+    const mock = editMemoryMock("a".repeat(49_990), { data: null, error: null });
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "append", text: "b".repeat(100) }, {}));
+
+    expect(extractToolError(parsed)?.code).toBe("VALIDATION_ERROR");
+    // rejected before any write reaches the database
+    expect(rpcParams(mock)).toBeUndefined();
+  });
+
+  test("edit_plan_memory allows a shrinking edit even when the result is still over the cap", async () => {
+    const current = "a".repeat(55_000) + "REMOVE_ME";
+    const next = "a".repeat(55_000);
+    const mock = editMemoryMock(current, casOk(next));
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: "REMOVE_ME", newText: "" }, {}));
+
+    expect(extractToolResult(parsed)?.result.agent_memory).toBe(next);
+    expect(rpcParams(mock)).toMatchObject({ p_expected: current, p_next: next });
+  });
+
+  test("edit_plan_memory clears the notepad by replacing the whole document with an empty string", async () => {
+    const current = "## Zones\n- Z2 easy";
+    const mock = editMemoryMock(current, casOk(""));
+
+    const parsed = await parseMcpResponse(await mcpCallTool("edit_plan_memory", { planId: VALID_PLAN_ID, op: "replace", oldText: current, newText: "" }, {}));
+
+    expect(extractToolResult(parsed)?.result.agent_memory).toBe("");
+    expect(rpcParams(mock)).toMatchObject({ p_expected: current, p_next: "" });
   });
 
   test("edit_plan_memory append requires text", async () => {

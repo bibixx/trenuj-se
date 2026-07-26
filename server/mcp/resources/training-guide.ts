@@ -8,7 +8,7 @@ export const trainingGuideMarkdown = [
   "- **Edit it with `edit_plan_memory`** (not `update_plan`):",
   "  - `op: 'replace'` — change a section (exact `oldText` → `newText`), delete one (`newText: ''`), or rewrite the whole document (`oldText` = the entire current content).",
   "  - `op: 'append'` — add to the end; also how you set the first note on an empty plan. `create_plan` can seed initial content too.",
-  "- **Staleness is enforced by exact match.** `oldText` must match the current content verbatim, and the write only lands if the memory hasn't changed since you read it. A refused edit (`CONFLICT`) means: call `get_plan` to re-read, then retry against the latest content. Curate as you go — prune stale notes rather than appending endlessly.",
+  "- **Staleness is enforced by exact match.** `oldText` must match the current content verbatim, and the write only lands if the memory hasn't changed since you read it. A refused edit (`CONFLICT`) means: call `get_plan` to re-read, then retry against the latest content. Curate as you go — prune stale notes rather than appending endlessly. The notepad is capped at 50,000 characters; an edit that would grow it past that is rejected (shrinking edits are always allowed, even from over the cap).",
   "- It is private to the athlete: it is **not** included in public plan shares.",
   "- It is markdown and may include `chart` code blocks (e.g. a zone table).",
   "- This is distinct from plan notes (`add_plan_note`): notes are a dated, append-only log; agent memory is a single, living document.",

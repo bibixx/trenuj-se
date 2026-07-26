@@ -19,6 +19,10 @@ const iconValueSchema = z
     if (!result.valid) ctx.addIssue({ code: "custom", message: result.message });
   });
 
+// Character cap for a plan's agent_memory notepad — applied both to each write input and to the
+// resulting document (see edit_plan_memory), so repeated appends can't grow it without bound.
+const MAX_PLAN_MEMORY_CHARS = 50_000;
+
 const createPlanSchema = z
   .object({
     name: z.string().trim().min(1).describe("Plan name."),
@@ -32,7 +36,7 @@ const createPlanSchema = z
       ),
     agentMemory: z
       .string()
-      .max(50_000)
+      .max(MAX_PLAN_MEMORY_CHARS)
       .optional()
       .describe(
         "Optional seed for the plan's freeform markdown notepad scoped to THIS plan (pace/HR zones, plan-specific constraints, reminders for future changes to this plan). It is a plan notepad, NOT general agent memory: keep user-specific or cross-plan info in your own memory, not here. After creation, change it with edit_plan_memory (not update_plan).",
@@ -68,7 +72,7 @@ const editPlanMemorySchema = z
       .describe(
         "op='replace' only (required). Exact substring of the current memory to replace, matched verbatim including whitespace. Read the current content with get_plan first — if it no longer matches, the edit is refused so you can't clobber unseen changes.",
       ),
-    newText: z.string().max(50_000).optional().describe("op='replace' only (required). Replacement text; pass an empty string to delete the matched text."),
+    newText: z.string().max(MAX_PLAN_MEMORY_CHARS).optional().describe("op='replace' only (required). Replacement text; pass an empty string to delete the matched text."),
     replaceAll: z
       .boolean()
       .default(false)
@@ -76,7 +80,7 @@ const editPlanMemorySchema = z
     text: z
       .string()
       .min(1)
-      .max(50_000)
+      .max(MAX_PLAN_MEMORY_CHARS)
       .optional()
       .describe("op='append' only (required). Markdown added at the end of the memory; a blank line is inserted before it when the memory is non-empty."),
   })
@@ -474,11 +478,24 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
           }
         }
 
-        // Compare-and-swap on the content itself: supabase-js has no transactions, so this is how we
-        // guard against a concurrent write clobbering memory the agent never saw. 0 rows updated = stale.
-        let query = ctx.supabase.from("plans").update({ agent_memory: next }).eq("id", plan.id).eq("user_id", ctx.userId);
-        query = plan.agent_memory === null ? query.is("agent_memory", null) : query.eq("agent_memory", plan.agent_memory);
-        const { data, error } = await query.select("id, agent_memory, updated_at").maybeSingle();
+        // Cap the resulting document, not just each input chunk — otherwise repeated appends grow it
+        // unbounded. Always allow shrinking so this guard can never block a recovery/cleanup edit.
+        if (next.length > MAX_PLAN_MEMORY_CHARS && next.length > current.length) {
+          throw new AppError("VALIDATION_ERROR", `Resulting memory would be ${next.length} characters (limit ${MAX_PLAN_MEMORY_CHARS}). Trim it, or move content into plan notes.`);
+        }
+
+        // Compare-and-swap done inside a SQL function so the expected (old) content travels in the
+        // request BODY, not the URL. A .eq('agent_memory', <whole doc>) filter here puts the entire
+        // notepad in the query string and 400s once it passes the gateway URL limit — see the
+        // 0010_edit_plan_memory_cas migration.
+        const { data, error } = await ctx.supabase
+          .rpc("edit_plan_memory_cas", {
+            p_plan_id: plan.id,
+            p_user_id: ctx.userId,
+            p_expected: plan.agent_memory,
+            p_next: next,
+          })
+          .maybeSingle();
 
         if (error) throw new AppError("INTERNAL_ERROR", error.message);
         if (!data) {
