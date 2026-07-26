@@ -1,0 +1,45 @@
+name: TrenujCompanion
+options:
+  bundleIdPrefix: se.trenuj
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+schemes:
+  TrenujCompanion:
+    build:
+      targets:
+        TrenujCompanion: all
+    run:
+      config: Debug
+targets:
+  TrenujCompanion:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Workout Feed
+        UILaunchScreen: {}
+        # Background App Refresh top-up (see SyncEngine.refreshTaskID).
+        BGTaskSchedulerPermittedIdentifiers:
+          - se.trenuj.companion.refresh
+        UIBackgroundModes:
+          - fetch
+        # Allow http to a LAN dev server (e.g. wrangler on your Mac's IP). Public https is unaffected.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+        # WorkoutScheduler mostly uses its own runtime prompt; these are here in case iOS asks.
+        NSHealthShareUsageDescription: Used to schedule planned workouts onto your Apple Watch.
+        NSHealthUpdateUsageDescription: Used to schedule planned workouts onto your Apple Watch.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: se.trenuj.companion
+        # Signing lives here so `xcodegen generate` never wipes it. Other developers: change to your own team.
+        DEVELOPMENT_TEAM: 49FAWJ5CQ9
+        CODE_SIGN_STYLE: Automatic
+        MARKETING_VERSION: "0.2"
+        CURRENT_PROJECT_VERSION: "4"
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
