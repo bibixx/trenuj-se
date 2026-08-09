@@ -3,7 +3,7 @@ import { AppError } from "../mcp/context";
 import { getValidStravaAccessToken, type StravaBindings } from "./strava";
 
 // Lazy hydration of the activity warehouse (activities / activity_laps / activity_streams /
-// activity_best_efforts / athlete_zones) for the run_sql MCP tool.
+// activity_best_efforts) for the run_sql MCP tool.
 //
 // The Worker never parses Strava payloads: responses are passed as raw text to the
 // strava_ingest_* Postgres RPCs (migration 0013), which do all JSON parsing and inserts.
@@ -77,7 +77,7 @@ export function rateLimitActive(state: SyncStateRow | null, nowMs = Date.now()):
 }
 
 export type HydrateItemStatus = "synced" | "already" | "unavailable" | "not_found" | "rate_limited" | "error";
-export type HydrateResult = { stravaId: number; status: HydrateItemStatus; samples?: number; message?: string };
+export type HydrateResult = { stravaId: number; status: HydrateItemStatus; samples?: number; channels?: string[]; message?: string };
 
 // Hydrate detail (laps + best efforts) and streams for specific activities. Sequential on
 // purpose: a 429 stops the batch cleanly, and the ≤3-activity cap bounds Worker CPU per call.
@@ -168,7 +168,7 @@ export async function hydrateActivities(supabase: SupabaseClient, bindings: Stra
           results.push({ stravaId, status: "error", message: `Strava streams fetch failed with HTTP ${streams.status}` });
           continue;
         }
-        const { data: samples, error: streamsError } = await supabase.rpc("strava_ingest_activity_streams", {
+        const { data: ingested, error: streamsError } = await supabase.rpc("strava_ingest_activity_streams", {
           p_user_id: userId,
           p_strava_id: stravaId,
           p_payload: streams.text,
@@ -176,9 +176,12 @@ export async function hydrateActivities(supabase: SupabaseClient, bindings: Stra
         if (streamsError) {
           throw new AppError("INTERNAL_ERROR", streamsError.message);
         }
-        const sampleCount = typeof samples === "number" ? samples : 0;
+        const report = (ingested ?? {}) as { samples?: number; channels?: string[] };
+        const sampleCount = typeof report.samples === "number" ? report.samples : 0;
         results.push(
-          sampleCount > 0 ? { stravaId, status: "synced", samples: sampleCount } : { stravaId, status: "unavailable", message: "Streams response contained no usable time series" },
+          sampleCount > 0
+            ? { stravaId, status: "synced", samples: sampleCount, ...(Array.isArray(report.channels) ? { channels: report.channels } : {}) }
+            : { stravaId, status: "unavailable", message: "Streams response contained no usable time series" },
         );
         continue;
       }
@@ -190,32 +193,4 @@ export async function hydrateActivities(supabase: SupabaseClient, bindings: Stra
   }
 
   return results;
-}
-
-export async function syncAthleteZones(
-  supabase: SupabaseClient,
-  bindings: StravaBindings,
-  userId: string,
-): Promise<{ status: "synced" | "rate_limited"; inserted: number; rateLimitedUntil?: string }> {
-  const state = await getSyncState(supabase, userId);
-  const activeLimit = rateLimitActive(state);
-  if (activeLimit) {
-    return { status: "rate_limited", inserted: 0, rateLimitedUntil: activeLimit };
-  }
-
-  const response = await stravaFetchRaw(supabase, bindings, userId, "/athlete/zones");
-  if (response.status === 429) {
-    const until = stravaRateLimitedUntil(response.headers);
-    await patchSyncState(supabase, userId, { rate_limited_until: until });
-    return { status: "rate_limited", inserted: 0, rateLimitedUntil: until };
-  }
-  if (!response.ok) {
-    throw new AppError("INTERNAL_ERROR", `Strava zones fetch failed with HTTP ${response.status}`);
-  }
-
-  const { data, error } = await supabase.rpc("strava_ingest_athlete_zones", { p_user_id: userId, p_payload: response.text });
-  if (error) {
-    throw new AppError("INTERNAL_ERROR", error.message);
-  }
-  return { status: "synced", inserted: typeof data === "number" ? data : 0 };
 }

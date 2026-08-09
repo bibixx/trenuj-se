@@ -407,27 +407,6 @@ export const activityBestEfforts = pgTable(
   ],
 );
 
-// Versioned zone boundaries (from GET /athlete/zones); time-in-zone queries pick the latest
-// effective_from <= the activity's local_date.
-export const athleteZones = pgTable(
-  "athlete_zones",
-  {
-    id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
-    zoneType: text("zone_type").notNull(),
-    effectiveFrom: date("effective_from").notNull(),
-    zoneIndex: smallint("zone_index").notNull(),
-    minValue: real("min_value").notNull(),
-    maxValue: real("max_value"),
-  },
-  (table) => [
-    unique("athlete_zones_unique").on(table.userId, table.zoneType, table.effectiveFrom, table.zoneIndex),
-    check("athlete_zones_type_check", sql`${table.zoneType} in ('hr', 'power')`),
-  ],
-);
-
 // Per-user Strava rate-limit state, shared across hydration calls.
 export const stravaSyncState = pgTable("strava_sync_state", {
   userId: uuid("user_id")
@@ -454,6 +433,5 @@ export const tables = {
   activityLaps,
   activityStreams,
   activityBestEfforts,
-  athleteZones,
   stravaSyncState,
 };

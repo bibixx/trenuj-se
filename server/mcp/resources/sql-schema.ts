@@ -26,15 +26,17 @@ Hydration from Strava is **inferred from your SQL** and happens before the query
 - When the query is date- or name-scoped (no id literals), add a comment anywhere in the SQL:
   \`-- hydrate: 19620351399, 19605843631\`. The ids to use come from the response warnings
   (see below) or from \`SELECT strava_id FROM activities WHERE ...\`.
-- Zone boundaries sync automatically the first time a query references \`athlete_zones\`.
 - Per activity, \`activities.detail_synced_at\` (laps + best efforts present) and
   \`activities.streams_synced_at\` / \`streams_status\` ('synced' | 'unavailable' | NULL = not
   fetched yet) say what is hydrated.
 
-Responses referencing streams/laps include a warning with the count of unhydrated activities
-**and their newest strava_ids** — feed those into \`-- hydrate:\` on the next call; do not
-present incomplete aggregates as complete. When hydration ran, the response carries a
-\`hydrated\` array with per-id status.
+When the query is date/name-scoped, responses referencing streams/laps include a warning with
+the count of unhydrated activities **and their newest strava_ids** — feed those into
+\`-- hydrate:\` on the next call; do not present incomplete aggregates as complete. When
+hydration ran, the response carries a \`hydrated\` array with per-id status, sample count, and
+\`channels\`: the stream columns that actually contain data for that activity. Check it (or
+\`count(col)\`) before querying optional columns — watts, cadence, and temp_c are often NULL
+for a whole activity.
 
 Coverage notes: the Strava webhook ingests every new activity, and everything ever matched to
 a planned workout is pre-loaded. Old activities that were never matched become visible after
@@ -69,11 +71,6 @@ indexes — informational only; join laps to activity_streams on time_s, not on 
 activity_id → activities.id · effort_name · distance_m · elapsed_sec · moving_sec · pr_rank
 (1-3 when it was a PR) · source ('strava')
 
-### athlete_zones — versioned zone boundaries
-zone_type ('hr'|'power') · effective_from (date) · zone_index (1-5) · min_value · max_value
-(NULL = open-ended top zone). Pick the latest version per activity:
-\`effective_from <= activities.local_date\` (or just the latest overall).
-
 ### strava_sync_state — Strava rate-limit state (one row)
 rate_limited_until (hydration is paused until this timestamp after a Strava 429) · last_error
 
@@ -93,6 +90,23 @@ workout_activities (workout_id, strava_id, …) — the workout↔activity match
 - lap ↔ its stream samples: join on activity_id and
   \`streams.time_s BETWEEN lap.start_offset_sec AND lap.start_offset_sec + lap.elapsed_sec\`.
 
+## Analysis pitfalls
+
+- **Pace**: never average per-sample pace — \`avg(1000/velocity_mps)\` overweights slow samples
+  and biases every result slow. Use total distance ÷ total time
+  (\`(max(distance_m)-min(distance_m)) / sum(dt_s)\`) or the harmonic form
+  \`1000/avg(velocity_mps)/60\`.
+- **Time-based aggregates**: weight by \`sum(dt_s)\`, not \`count(*)\` — sampling is ~1 Hz but
+  not guaranteed uniform.
+- **Optional columns**: check availability (the \`hydrated\` report's \`channels\`, or
+  \`count(col)\`) before building queries on watts / cadence / temp_c / grade_pct.
+- **HR fits**: heart rate approaches a workload step exponentially, not linearly. A
+  \`regr_slope(hr, t)\` over a rep answers "still climbing?"; extrapolating it beyond the rep
+  produces impossible numbers.
+- **Derive boundaries, don't hardcode**: get rep windows from \`activity_laps\`
+  (\`start_offset_sec\`, \`elapsed_sec\`) in the query instead of pasting literals read off an
+  earlier result.
+
 ## Worked examples
 
 Weekly running volume, last 12 weeks (calendar spine keeps empty weeks):
@@ -104,19 +118,17 @@ Weekly running volume, last 12 weeks (calendar spine keeps empty weeks):
     LEFT JOIN activities a ON date_trunc('week', a.start_date_local) = w.week AND a.sport IN ('Run', 'TrailRun')
     GROUP BY w.week ORDER BY w.week
 
-Time in HR zones for one activity (dt_s, no window function):
+Time in HR zones for one activity (dt_s, no window function). Zone boundaries are not stored
+in the database — take them from the training plan and inline them:
 
-    WITH z AS (
-      SELECT zone_index, min_value, max_value
-      FROM athlete_zones
-      WHERE zone_type = 'hr'
-        AND effective_from = (SELECT max(effective_from) FROM athlete_zones WHERE zone_type = 'hr')
+    WITH z(zone_index, min_hr, max_hr) AS (
+      VALUES (1, 0, 148), (2, 148, 158), (3, 158, 172), (4, 172, 190), (5, 190, 999)
     )
     SELECT z.zone_index,
            round(sum(least(s.dt_s, 10)) / 60.0, 1) AS minutes
     FROM activity_streams s
     JOIN activities a ON a.id = s.activity_id
-    JOIN z ON s.hr >= z.min_value AND (z.max_value IS NULL OR s.hr < z.max_value)
+    JOIN z ON s.hr >= z.min_hr AND s.hr < z.max_hr
     WHERE a.strava_id = 19605843631 AND s.hr IS NOT NULL
     GROUP BY z.zone_index ORDER BY z.zone_index
 
@@ -151,6 +163,28 @@ Interval fade — first vs last work lap per interval session:
     FROM work_laps wl JOIN activities a ON a.id = wl.activity_id
     WHERE wl.n >= 3
     GROUP BY a.id, a.local_date, a.name ORDER BY a.local_date DESC
+
+Cross-session comparison — rep-level pace and HR across every completed quality session (the
+strongest use of this tool: how does HR at a given pace vary with rep duration across weeks?):
+
+    WITH quality AS (
+      SELECT w.date, w.title, a.id AS act_id
+      FROM workouts w
+      JOIN labels lb ON lb.id = w.label_id AND lb.key IN ('quality', 'race')
+      JOIN workout_activities wa ON wa.workout_id = w.id
+      JOIN activities a ON a.strava_id = wa.strava_id
+      WHERE w.status = 'completed'
+    )
+    SELECT q.date, q.title, l.lap_index, l.elapsed_sec,
+           to_char(interval '1 second' * (1000.0 / nullif(l.avg_speed_mps, 0)), 'MI:SS') AS pace,
+           l.avg_hr, l.max_hr
+    FROM quality q
+    JOIN activity_laps l ON l.activity_id = q.act_id
+    WHERE l.avg_speed_mps > 3.0 AND l.elapsed_sec BETWEEN 55 AND 900
+    ORDER BY q.date, l.lap_index
+
+Laps require detail hydration, so expect the first run to warn about unhydrated sessions:
+hydrate them 3 per call via \`-- hydrate: <ids>\` and re-run until the warning clears.
 
 Plan compliance by label, current plan:
 

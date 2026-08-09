@@ -198,15 +198,16 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 
 ### SQL Queries
 
-`run_sql` exposes a lazily-hydrated warehouse of **all** Strava activities (not just plan-matched ones) — summaries, laps, per-second streams, best efforts, and HR/power zones — queryable with real SQL, executed inside Postgres under a per-user read-only sandbox. Results are capped (200 rows default / 500 max, 64 KB), so aggregate server-side instead of pulling raw data.
+`run_sql` exposes a lazily-hydrated warehouse of **all** Strava activities (not just plan-matched ones) — summaries, laps, per-second streams, and best efforts — queryable with real SQL, executed inside Postgres under a per-user read-only sandbox. Results are capped (200 rows default / 500 max, 64 KB), so aggregate server-side instead of pulling raw data.
 
-| Tool      | What it does                                                                                                                                                                                                                                                            |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `run_sql` | Run one read-only SELECT over your workout data. Required: `sql` (single statement, no semicolons). Optional: `maxRows` (default 200, max 500). SQL errors return sqlstate + message verbatim; oversized results return TOO_MANY_ROWS / RESULT_TOO_LARGE with guidance. |
+| Tool            | What it does                                                                                                                                                                                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run_sql`       | Run one read-only SELECT over your workout data. Required: `sql` (single statement, no semicolons). Optional: `maxRows` (default 200, max 500). SQL errors return sqlstate + message verbatim; oversized results return TOO_MANY_ROWS / RESULT_TOO_LARGE with guidance. |
+| `get_sql_guide` | Return the full SQL reference: every table/column with units, join keys, hydration semantics, analysis pitfalls, and worked example queries. Call it before writing non-trivial SQL.                                                                                    |
 
-**Hydration is automatic and inferred from the query.** Any Strava activity id appearing in the SQL gets its detail/laps/per-second streams pulled from Strava before the query runs (max 3 ids per call); when the query is date- or name-scoped and contains no ids, add a `-- hydrate: id1, id2` comment (warnings on incomplete results list the exact missing ids to use). Zone boundaries sync on first `athlete_zones` use. The webhook keeps new activities flowing in and everything ever matched to a workout is pre-loaded; the only invisible data is old never-matched activities, which appear after being referenced by id once.
+**Hydration is automatic and inferred from the query.** Any Strava activity id appearing in the SQL gets its detail/laps/per-second streams pulled from Strava before the query runs (max 3 ids per call); when the query is date- or name-scoped and contains no ids, add a `-- hydrate: id1, id2` comment (warnings on incomplete results list the exact missing ids to use). The hydration report includes each activity's available stream `channels`, so agents don't query all-NULL columns. The webhook keeps new activities flowing in and everything ever matched to a workout is pre-loaded; the only invisible data is old never-matched activities, which appear after being referenced by id once.
 
-**Read the `guide://sql-schema` resource first** — it documents every table/column with units, join keys, hydration semantics, and worked example queries.
+**Call `get_sql_guide` first** — the same content is also served as the `guide://sql-schema` resource for clients that support MCP resources, but chat surfaces typically expose tools only.
 
 ### Athlete
 

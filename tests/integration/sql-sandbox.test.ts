@@ -209,11 +209,13 @@ runIf("SQL sandbox (real Postgres)", () => {
       { type: "moving", data: [false, true, true, true] },
     ]);
 
-    const [{ samples }] = (await sql.begin(async (tx) => {
+    const [{ report }] = (await sql.begin(async (tx) => {
       await tx`SET LOCAL ROLE service_role`;
-      return tx`SELECT public.strava_ingest_activity_streams(${USER_A}::uuid, 909, ${streamsPayload}) AS samples`;
-    })) as Array<{ samples: number }>;
-    expect(samples).toBe(4);
+      return tx`SELECT public.strava_ingest_activity_streams(${USER_A}::uuid, 909, ${streamsPayload}) AS report`;
+    })) as Array<{ report: { samples: number; channels: string[] } }>;
+    expect(report.samples).toBe(4);
+    // Channels reflect which columns actually got data: no velocity/altitude/etc. in the payload.
+    expect(report.channels).toEqual(["distance_m", "hr", "moving"]);
 
     const activity = await runQuery(
       USER_A,
@@ -266,35 +268,9 @@ runIf("SQL sandbox (real Postgres)", () => {
     expect(streamWarning).toMatch(/-- hydrate:/);
   });
 
-  test("zones ingest is idempotent and versioned", async () => {
-    const zonesPayload = JSON.stringify({
-      heart_rate: {
-        custom_zones: true,
-        zones: [
-          { min: 0, max: 130 },
-          { min: 130, max: 150 },
-          { min: 150, max: -1 },
-        ],
-      },
-    });
-
-    const ingest = async () =>
-      (
-        (await sql.begin(async (tx) => {
-          await tx`SET LOCAL ROLE service_role`;
-          return tx`SELECT public.strava_ingest_athlete_zones(${USER_A}::uuid, ${zonesPayload}) AS n`;
-        })) as Array<{ n: number }>
-      )[0]!.n;
-
-    expect(await ingest()).toBe(3);
-    // Identical payload again: no new version.
-    expect(await ingest()).toBe(0);
-
-    const zones = await runQuery(USER_A, "SELECT zone_index, min_value, max_value FROM athlete_zones WHERE zone_type = 'hr' ORDER BY zone_index");
-    expect(zones.rows).toEqual([
-      { zone_index: 1, min_value: 0, max_value: 130 },
-      { zone_index: 2, min_value: 130, max_value: 150 },
-      { zone_index: 3, min_value: 150, max_value: null }, // Strava's -1 → NULL open-ended
-    ]);
+  test("athlete_zones is gone (dropped in 0017 — the OAuth scope never covered it)", async () => {
+    const result = await runQuery(USER_A, "SELECT count(*) FROM athlete_zones");
+    expect(result.ok).toBe(false);
+    expect(result.sqlstate).toBe("42P01"); // undefined_table
   });
 });

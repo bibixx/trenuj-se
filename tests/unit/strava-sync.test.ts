@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { MOCK_ENV, MOCK_USER_ID } from "../helpers/mock-env.ts";
-import { hydrateActivities, stravaRateLimitedUntil, syncAthleteZones } from "../../server/lib/strava-sync.ts";
+import { hydrateActivities, stravaRateLimitedUntil } from "../../server/lib/strava-sync.ts";
 
 const FUTURE_EXPIRY = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 const CREDENTIALS = {
@@ -67,13 +67,13 @@ describe("hydrateActivities", () => {
       },
       rpc: {
         strava_ingest_activity_detail: { data: 1, error: null },
-        strava_ingest_activity_streams: { data: 3, error: null },
+        strava_ingest_activity_streams: { data: { samples: 3, channels: ["distance_m", "hr"] }, error: null },
       },
     });
 
     const results = await hydrateActivities(mock.client, MOCK_ENV, MOCK_USER_ID, [555]);
 
-    expect(results).toEqual([{ stravaId: 555, status: "synced", samples: 3 }]);
+    expect(results).toEqual([{ stravaId: 555, status: "synced", samples: 3, channels: ["distance_m", "hr"] }]);
     const urls = fetchMock.mock.calls.map((call) => String(call[0]));
     expect(urls[0]).toContain("/activities/555");
     expect(urls[1]).toContain("/activities/555/streams?keys=");
@@ -90,7 +90,7 @@ describe("hydrateActivities", () => {
         strava_sync_state: { select: { data: null, error: null } },
         activities: { select: { data: { id: 1, elapsed_sec: 8 * 3600, detail_synced_at: "2026-08-01T00:00:00Z", streams_synced_at: null, streams_status: null }, error: null } },
       },
-      rpc: { strava_ingest_activity_streams: { data: 2, error: null } },
+      rpc: { strava_ingest_activity_streams: { data: { samples: 2, channels: ["distance_m"] }, error: null } },
     });
 
     const results = await hydrateActivities(mock.client, MOCK_ENV, MOCK_USER_ID, [777]);
@@ -149,25 +149,5 @@ describe("hydrateActivities", () => {
     expect(results).toHaveLength(3);
     expect(results.every((r) => r.status === "already")).toBe(true);
     expect(fetchMock).not.toHaveBeenCalled();
-  });
-});
-
-describe("syncAthleteZones", () => {
-  test("passes the raw zones payload to the ingest RPC", async () => {
-    stubFetch(() => jsonResponse({ heart_rate: { zones: [{ min: 0, max: 120 }] } }));
-    const mock = createMockSupabase({
-      tables: {
-        strava_credentials: { select: { data: CREDENTIALS, error: null } },
-        strava_sync_state: { select: { data: null, error: null } },
-      },
-      rpc: { strava_ingest_athlete_zones: { data: 5, error: null } },
-    });
-
-    const result = await syncAthleteZones(mock.client, MOCK_ENV, MOCK_USER_ID);
-
-    expect(result).toEqual({ status: "synced", inserted: 5 });
-    const rpcCall = mock.calls.find((c) => c.table === "rpc:strava_ingest_athlete_zones");
-    const rpcArgs = rpcCall?.args[0] as { p_payload?: unknown } | undefined;
-    expect(typeof rpcArgs?.p_payload).toBe("string");
   });
 });
