@@ -1,7 +1,7 @@
 import { Collapsible } from "@base-ui/react/collapsible";
 import { Toast } from "@base-ui/react/toast";
 import clsx from "clsx";
-import { IconBrandStrava, IconDownload, IconLoader2, IconTriangleInvertedFilled, IconUnlink } from "@tabler/icons-react";
+import { IconBrandStrava, IconDownload, IconTriangleInvertedFilled, IconUnlink } from "@tabler/icons-react";
 import { type CSSProperties, useCallback, useMemo, useState } from "react";
 import { triggerHaptic } from "tactus";
 import { Badge } from "../../primitives/Badge/Badge.tsx";
@@ -184,24 +184,12 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
                           </Button>
                         )}
                         {showActivityActions && workout.activity && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            icon={fitPending ? <IconLoader2 size={16} className="spin" /> : <IconFit size={16} />}
-                            onClick={handleDownloadFit}
-                            disabled={fitPending}
-                          >
+                          <Button variant="secondary" size="sm" icon={<IconFit size={16} />} onClick={handleDownloadFit} loading={fitPending}>
                             Download FIT
                           </Button>
                         )}
                         {showActivityActions && workout.activity && (
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            icon={unlink.isPending ? <IconLoader2 size={16} className="spin" /> : <IconUnlink size={16} />}
-                            onClick={handleUnlink}
-                            disabled={unlink.isPending}
-                          >
+                          <Button variant="secondary" size="sm" icon={<IconUnlink size={16} />} onClick={handleUnlink} loading={unlink.isPending}>
                             Unlink activity
                           </Button>
                         )}

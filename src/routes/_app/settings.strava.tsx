@@ -83,8 +83,8 @@ function StravaSection({ profile, stravaParam, messageParam }: { profile: Profil
       </p>
       <div className={styles.buttonRow}>
         {isConnected ? (
-          <Button variant="destructive" onClick={() => setConfirmOpen(true)} disabled={disconnecting}>
-            {disconnecting ? "Disconnecting…" : "Disconnect"}
+          <Button variant="destructive" onClick={() => setConfirmOpen(true)} loading={disconnecting}>
+            Disconnect
           </Button>
         ) : (
           <StravaConnectButton callback="/settings/strava?strava=connected" onError={setFeedback} />

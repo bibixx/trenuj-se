@@ -80,6 +80,17 @@ function PrimitivesSection() {
           Disabled
         </Button>
       </div>
+      <div className={styles.row}>
+        <Button variant="primary" loading>
+          Save
+        </Button>
+        <Button variant="secondary" loading>
+          Create
+        </Button>
+        <Button variant="secondary" size="sm" loading>
+          New share link
+        </Button>
+      </div>
 
       <h2 className={styles.subTitle}>Text Link</h2>
       <p className={styles.description}>

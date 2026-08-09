@@ -92,8 +92,8 @@ function AccountSection({ user }: { user: User | null }) {
         <Input label="Email address" value={user?.email ?? ""} readOnly />
         <Input label="Name" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" />
         <div className={styles.buttonRow}>
-          <Button type="submit" disabled={loading}>
-            {loading ? "Saving…" : "Save"}
+          <Button type="submit" loading={loading}>
+            Save
           </Button>
         </div>
       </form>
@@ -102,8 +102,8 @@ function AccountSection({ user }: { user: User | null }) {
         <form onSubmit={handlePasswordSubmit} className={clsx(styles.form, styles.dividedGroup)}>
           <Input label="New password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" />
           <div className={styles.buttonRow}>
-            <Button type="submit" disabled={loading}>
-              {loading ? "Updating…" : "Update password"}
+            <Button type="submit" loading={loading}>
+              Update password
             </Button>
           </div>
         </form>

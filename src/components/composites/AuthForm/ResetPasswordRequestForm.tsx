@@ -64,8 +64,8 @@ export function ResetPasswordRequestForm({ initialEmail, returnTo }: ResetPasswo
                     {error}
                   </p>
                 )}
-                <Button type="submit" disabled={pending}>
-                  {pending ? "Sending…" : "Send reset link"}
+                <Button type="submit" loading={pending}>
+                  Send reset link
                 </Button>
               </form>
             </>

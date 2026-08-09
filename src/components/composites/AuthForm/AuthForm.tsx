@@ -119,13 +119,20 @@ export function AuthForm({ mode, initialEmail, returnTo }: AuthFormProps) {
                 {error}
               </p>
             )}
-            <Button type="submit" disabled={pending !== null}>
-              {pending === "password" ? (isSignUp ? "Creating account…" : "Signing in…") : isSignUp ? "Create account" : "Sign in"}
+            <Button type="submit" loading={pending === "password"} disabled={pending !== null}>
+              {isSignUp ? "Create account" : "Sign in"}
             </Button>
           </form>
           <div className={styles.divider}>or</div>
-          <Button variant="secondary" className={styles.googleButton} onClick={handleGoogleSignIn} disabled={pending !== null} icon={<IconBrandGoogleFilled />}>
-            {pending === "google" ? "Connecting to Google…" : isSignUp ? "Sign up with Google" : "Sign in with Google"}
+          <Button
+            variant="secondary"
+            className={styles.googleButton}
+            onClick={handleGoogleSignIn}
+            loading={pending === "google"}
+            disabled={pending !== null}
+            icon={<IconBrandGoogleFilled />}
+          >
+            {isSignUp ? "Sign up with Google" : "Sign in with Google"}
           </Button>
           <p className={styles.modeSwitch}>
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}

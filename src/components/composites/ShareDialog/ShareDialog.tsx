@@ -51,8 +51,8 @@ export function ShareDialog({ planId, open, onOpenChange }: ShareDialogProps) {
         </div>
 
         <div className={styles.dialogFooter}>
-          <Button variant="secondary" size="sm" onClick={handleCreate} disabled={createShare.isPending}>
-            {createShare.isPending ? "Creating…" : "New share link"}
+          <Button variant="secondary" size="sm" onClick={handleCreate} loading={createShare.isPending}>
+            New share link
           </Button>
         </div>
       </Dialog.Content>

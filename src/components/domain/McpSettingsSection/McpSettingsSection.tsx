@@ -227,8 +227,8 @@ function ConnectorTokensSubsection() {
                   <Button type="button" variant="ghost" onClick={() => handleCreateOpenChange(false)}>
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={createToken.isPending || name.trim().length === 0}>
-                    {createToken.isPending ? "Creating…" : "Create"}
+                  <Button type="submit" loading={createToken.isPending} disabled={name.trim().length === 0}>
+                    Create
                   </Button>
                 </div>
               </form>

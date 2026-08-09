@@ -1,3 +1,4 @@
+import { IconLoader2 } from "@tabler/icons-react";
 import clsx from "clsx";
 import { useState } from "react";
 import { apiFetch } from "../../../lib/api.ts";
@@ -28,7 +29,8 @@ export function StravaConnectButton({ callback, onError, className }: StravaConn
 
   return (
     <button className={clsx(styles.stravaButton, className)} onClick={handleConnect} disabled={connecting}>
-      {connecting ? "Connecting…" : "Connect with Strava"}
+      {connecting && <IconLoader2 size={16} className="spin" />}
+      Connect with Strava
     </button>
   );
 }

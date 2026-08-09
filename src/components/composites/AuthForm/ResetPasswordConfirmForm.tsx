@@ -65,8 +65,8 @@ export function ResetPasswordConfirmForm() {
                 {error}
               </p>
             )}
-            <Button type="submit" disabled={pending}>
-              {pending ? "Updating…" : "Update password"}
+            <Button type="submit" loading={pending}>
+              Update password
             </Button>
           </form>
         </Card>

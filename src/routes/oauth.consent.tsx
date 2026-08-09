@@ -183,8 +183,8 @@ function OAuthConsentPage() {
         <p className={styles.revocationNote}>Access lasts until you revoke it under Settings → AI agent → Connected applications.</p>
         {error && <p className={styles.error}>{error}</p>}
         <div className={styles.actions}>
-          <Button onClick={handleApprove} disabled={submitting}>
-            {submitting ? "Approving…" : "Approve"}
+          <Button onClick={handleApprove} loading={submitting}>
+            Approve
           </Button>
           <Button onClick={handleDeny} disabled={submitting} variant="secondary">
             Deny
