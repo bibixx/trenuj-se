@@ -10,10 +10,6 @@ function mockAuth() {
   };
 }
 
-function flaggedProfile(enabled = true) {
-  return { select: { data: { user_flags: enabled ? { sql_queries: true } : {} }, error: null } };
-}
-
 const OK_PAYLOAD = { ok: true, rows: [{ week: "2026-07-27", km: 52.3 }], row_count: 1, warnings: [] };
 
 type RawToolResult = { content?: Array<{ type: string; text: string }>; structuredContent?: unknown; isError?: boolean };
@@ -31,24 +27,9 @@ describe("MCP run_sql tool", () => {
     vi.clearAllMocks();
   });
 
-  test("FORBIDDEN when the sql_queries flag is not set", async () => {
-    setMockSupabase(
-      createMockSupabase({
-        auth: mockAuth(),
-        tables: { profiles: flaggedProfile(false) },
-      }),
-    );
-
-    const response = await mcpCallTool("run_sql", { sql: "SELECT 1 AS one" });
-    const error = extractToolError(await parseMcpResponse(response));
-    expect(error?.code).toBe("FORBIDDEN");
-    expect(error?.message).toMatch(/sql_queries/);
-  });
-
   test("forwards the query to run_user_query scoped to the authenticated user", async () => {
     const mock = createMockSupabase({
       auth: mockAuth(),
-      tables: { profiles: flaggedProfile() },
       rpc: { run_user_query: { data: OK_PAYLOAD, error: null } },
     });
     setMockSupabase(mock);
@@ -67,7 +48,6 @@ describe("MCP run_sql tool", () => {
   test("defaults maxRows to 200", async () => {
     const mock = createMockSupabase({
       auth: mockAuth(),
-      tables: { profiles: flaggedProfile() },
       rpc: { run_user_query: { data: OK_PAYLOAD, error: null } },
     });
     setMockSupabase(mock);
@@ -82,7 +62,6 @@ describe("MCP run_sql tool", () => {
   test("provisions the sandbox lazily and retries once", async () => {
     const mock = createMockSupabase({
       auth: mockAuth(),
-      tables: { profiles: flaggedProfile() },
       rpc: {
         run_user_query: [
           { data: { ok: false, error_code: "SANDBOX_NOT_PROVISIONED", message: "not provisioned" }, error: null },
@@ -107,7 +86,6 @@ describe("MCP run_sql tool", () => {
     setMockSupabase(
       createMockSupabase({
         auth: mockAuth(),
-        tables: { profiles: flaggedProfile() },
         rpc: { run_user_query: { data: errorPayload, error: null } },
       }),
     );
@@ -123,7 +101,6 @@ describe("MCP run_sql tool", () => {
     setMockSupabase(
       createMockSupabase({
         auth: mockAuth(),
-        tables: { profiles: flaggedProfile() },
         rpc: { run_user_query: { data: overflow, error: null } },
       }),
     );
@@ -139,7 +116,6 @@ describe("MCP run_sql tool", () => {
     setMockSupabase(
       createMockSupabase({
         auth: mockAuth(),
-        tables: { profiles: flaggedProfile() },
         rpc: { run_user_query: { data: huge, error: null } },
       }),
     );
@@ -151,7 +127,7 @@ describe("MCP run_sql tool", () => {
   });
 
   test("rejects invalid input (empty sql) at the protocol layer", async () => {
-    setMockSupabase(createMockSupabase({ auth: mockAuth(), tables: { profiles: flaggedProfile() } }));
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
 
     const response = await mcpCallTool("run_sql", { sql: "" });
     const rpcResult = await parseMcpResponse(response);
@@ -175,7 +151,6 @@ describe("MCP sync_activity_data tool", () => {
     return createMockSupabase({
       auth: mockAuth(),
       tables: {
-        profiles: flaggedProfile(),
         strava_credentials: {
           select: {
             data: { user_id: MOCK_USER_ID, access_token: "tok", refresh_token: "ref", token_expires_at: new Date(Date.now() + 3_600_000).toISOString() },
@@ -195,14 +170,6 @@ describe("MCP sync_activity_data tool", () => {
     const response = await mcpCallTool("sync_activity_data", {});
     const error = extractToolError(await parseMcpResponse(response));
     expect(error?.code).toBe("VALIDATION_ERROR");
-  });
-
-  test("FORBIDDEN without the sql_queries flag", async () => {
-    setMockSupabase(createMockSupabase({ auth: mockAuth(), tables: { profiles: flaggedProfile(false) } }));
-
-    const response = await mcpCallTool("sync_activity_data", { syncZones: true });
-    const error = extractToolError(await parseMcpResponse(response));
-    expect(error?.code).toBe("FORBIDDEN");
   });
 
   test("range sync reports summary coverage", async () => {

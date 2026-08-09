@@ -1,18 +1,9 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AppError, toolError, toolSuccess, type McpContext } from "../context";
-import { parseUserFlags } from "../../../shared/user-flags";
 import { hydrateActivities, syncActivitySummaries, syncAthleteZones, MAX_HYDRATE_ACTIVITIES_PER_CALL } from "../../lib/strava-sync";
 
 const RUN_SQL_BYTE_BACKSTOP = 100_000;
-
-async function requireSqlQueriesFlag(ctx: McpContext) {
-  const { data, error } = await ctx.supabase.from("profiles").select("user_flags").eq("id", ctx.userId).maybeSingle();
-  if (error) throw new AppError("INTERNAL_ERROR", error.message);
-  if (!parseUserFlags(data?.user_flags).sql_queries) {
-    throw new AppError("FORBIDDEN", "SQL queries are not enabled for this account (user flag 'sql_queries').");
-  }
-}
 
 type RunUserQueryPayload = {
   ok: boolean;
@@ -57,7 +48,6 @@ export function registerQueryTools(server: McpServer, ctx: McpContext) {
     async (input) => {
       try {
         const params = z.object({ sql: z.string().min(1).max(20_000), maxRows: z.number().int().min(1).max(500).optional() }).parse(input);
-        await requireSqlQueriesFlag(ctx);
 
         const runQuery = async (): Promise<RunUserQueryPayload> => {
           const { data, error } = await ctx.supabase.rpc("run_user_query", {
@@ -141,8 +131,6 @@ export function registerQueryTools(server: McpServer, ctx: McpContext) {
         if (!params.range && !params.hydrateStreams && !params.syncZones) {
           throw new AppError("VALIDATION_ERROR", "Provide at least one of range, hydrateStreams, or syncZones.");
         }
-
-        await requireSqlQueriesFlag(ctx);
 
         const result: {
           summaries?: Awaited<ReturnType<typeof syncActivitySummaries>>;

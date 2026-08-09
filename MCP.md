@@ -197,9 +197,9 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 | `delete_plan_note` | Delete a note. Required: `noteId`.                                                                                                 |
 | `get_plan_notes`   | List notes. Optional: `planId`, `type`, `limit` (default 20, max 100).                                                             |
 
-### SQL Queries (feature-gated)
+### SQL Queries
 
-Requires the `sql_queries` user flag. These tools expose a lazily-hydrated warehouse of **all** Strava activities (not just plan-matched ones) — summaries, laps, per-second streams, best efforts, and HR/power zones — queryable with real SQL, executed inside Postgres under a per-user read-only sandbox. Results are capped (200 rows default / 500 max, 64 KB), so aggregate server-side instead of pulling raw data.
+These tools expose a lazily-hydrated warehouse of **all** Strava activities (not just plan-matched ones) — summaries, laps, per-second streams, best efforts, and HR/power zones — queryable with real SQL, executed inside Postgres under a per-user read-only sandbox. Results are capped (200 rows default / 500 max, 64 KB), so aggregate server-side instead of pulling raw data.
 
 | Tool                 | What it does                                                                                                                                                                                                                                                                        |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
