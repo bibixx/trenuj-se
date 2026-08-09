@@ -289,7 +289,11 @@ function AppleWatchSection() {
     <section className={styles.section}>
       <h2 className={styles.sectionTitle}>Apple Watch</h2>
       <p className={styles.sectionDescription}>
-        Sync your planned workouts to the Apple Watch via the Trenuj Companion app. Generate a token, then paste the Root URL and Authorization values into the app.
+        Sync your planned workouts to the Apple Watch via the{" "}
+        <a href="https://github.com/bibixx/workout-feed" target="_blank" rel="noreferrer">
+          Workout Feed
+        </a>{" "}
+        app. Generate a token, then paste the Root URL and Authorization values into the app.
       </p>
       <div className={styles.buttonRow}>
         <Button onClick={handleGenerate} disabled={loading}>
