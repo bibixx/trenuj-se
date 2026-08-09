@@ -62,7 +62,8 @@ altitude_m · grade_pct · hr · watts · cadence · temp_c · moving (bool)
 ### activity_laps — one row per lap
 activity_id → activities.id · lap_index (1-based) · start_offset_sec · elapsed_sec ·
 moving_sec · distance_m · avg_hr · max_hr · avg_speed_mps · max_speed_mps · avg_cadence ·
-avg_power · total_ascent_m · start_index/end_index (sample indexes into the streams arrays)
+avg_power · total_ascent_m · start_index/end_index (Strava's original positional stream
+indexes — informational only; join laps to activity_streams on time_s, not on these)
 
 ### activity_best_efforts — Strava's per-run best efforts ('400m'…'Half-Marathon')
 activity_id → activities.id · effort_name · distance_m · elapsed_sec · moving_sec · pr_rank
@@ -129,6 +130,10 @@ Aerobic fitness trend — pace at easy HR on flat ground, by month:
     WHERE a.sport = 'Run' AND s.hr BETWEEN 145 AND 155
       AND abs(coalesce(s.grade_pct, 0)) < 1.5 AND s.moving AND s.dt_s <= 10
     GROUP BY 1 HAVING sum(s.dt_s) > 600 ORDER BY 1
+
+This query has no id literal, so it aggregates only already-hydrated activities and returns a
+warning listing the newest un-hydrated strava_ids. Pull those in batches of 3 with a
+\`-- hydrate: <ids>\` comment across successive calls until the warning clears, then re-run.
 
 Interval fade — first vs last work lap per interval session:
 
