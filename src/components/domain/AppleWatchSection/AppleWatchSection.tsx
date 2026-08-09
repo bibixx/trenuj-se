@@ -6,6 +6,7 @@ import { Button } from "../../primitives/Button/Button.tsx";
 import { Card } from "../../primitives/Card/Card.tsx";
 import { Dialog } from "../../primitives/Dialog/Dialog.tsx";
 import { Input } from "../../primitives/Input/Input.tsx";
+import { TextLink } from "../../primitives/TextLink/TextLink.tsx";
 import { type CreateWatchTokenResult, type WatchToken, useCreateWatchToken, useRevokeWatchToken, watchTokensQueryOptions } from "../../../lib/queries/watch-tokens.ts";
 import styles from "./AppleWatchSection.module.css";
 
@@ -72,9 +73,9 @@ export function AppleWatchSection() {
       <h2 className={styles.sectionTitle}>Apple Watch</h2>
       <p className={styles.sectionDescription}>
         Sync your planned workouts to your Apple Watch via the{" "}
-        <a href="https://github.com/bibixx/workout-feed" target="_blank" rel="noreferrer">
+        <TextLink variant="accent" href="https://github.com/bibixx/workout-feed#installing-via-sidestore" target="_blank" rel="noreferrer">
           Workout Feed
-        </a>{" "}
+        </TextLink>{" "}
         app. Create a token, then paste the Root URL and Authorization values into the app. You can revoke tokens here at any time.
       </p>
 
