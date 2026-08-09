@@ -21,10 +21,99 @@
   gap: 12px;
 }
 
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .heading {
   composes: typography-lg from global;
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.intro {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+/* Steps */
+.steps {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 12px;
+
+  /* Rail connecting the step markers */
+  &:not(:last-child)::before {
+    content: "";
+    position: absolute;
+    left: 12px;
+    top: 28px;
+    bottom: -20px;
+    width: 1px;
+    background: var(--border-subtle);
+  }
+}
+
+.stepMarker {
+  composes: typography-xs from global;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-inset);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.stepMarkerDone {
+  background: oklch(var(--workout-tint-lightness) var(--workout-tint-chroma) 90);
+  border-color: transparent;
+  color: oklch(var(--workout-accent-lightness) var(--workout-accent-chroma) 90);
+}
+
+.stepBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.stepTitle {
+  composes: typography-base from global;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--text-primary);
+  /* Optically align with the 24px marker */
+  line-height: 24px;
+}
+
+.stepDescription {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+  line-height: var(--leading-relaxed);
+}
+
+.stepNote {
+  composes: typography-xs from global;
+  color: var(--text-muted);
 }
 
 .tabContent {
@@ -32,12 +121,6 @@
   flex-direction: column;
   gap: 12px;
   animation: slideIn var(--motion-timing-slow) var(--motion-function);
-}
-
-.description {
-  composes: typography-sm from global;
-  color: var(--text-secondary);
-  line-height: var(--leading-relaxed);
 }
 
 .promptArea {

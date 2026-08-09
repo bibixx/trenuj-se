@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Toast } from "@base-ui/react/toast";
 import { IconHistory, IconShare, IconSettings, IconNotebook } from "@tabler/icons-react";
 import { Badge } from "../../components/primitives/Badge/Badge.tsx";
 import { Button } from "../../components/primitives/Button/Button.tsx";
@@ -23,6 +24,7 @@ import { labelsQueryOptions } from "../../lib/queries/labels.ts";
 import { phasesQueryOptions } from "../../lib/queries/phases.ts";
 import { workoutsQueryOptions, useToggleCompletion } from "../../lib/queries/workouts.ts";
 import { planNotesQueryOptions } from "../../lib/queries/plan-notes.ts";
+import { profileQueryOptions } from "../../lib/queries/profile.ts";
 import { computeProgress, getPlanWeeks, getCurrentWeekIndex, getTodayWeekIndex, getWeekDateRange, getWorkoutsForWeek, matchesPlanWeek } from "../../lib/week-utils.ts";
 import type { Phase } from "../../lib/types.ts";
 import type { PlanWeek } from "../../lib/week-utils.ts";
@@ -32,6 +34,8 @@ interface SearchParams {
   planId?: string;
   week?: number;
   debug?: boolean;
+  strava?: string;
+  message?: string;
 }
 
 export const Route = createFileRoute("/_app/")({
@@ -43,14 +47,26 @@ export const Route = createFileRoute("/_app/")({
       planId,
       week: Number.isFinite(week) && week > 0 ? week : undefined,
       debug: search.debug === "true" || search.debug === true || undefined,
+      strava: typeof search.strava === "string" ? search.strava : undefined,
+      message: typeof search.message === "string" ? search.message : undefined,
     };
   },
 });
 
 function PlanView() {
   const { user } = useAuth();
-  const { planId: planIdParam, week: weekParam, debug = false } = Route.useSearch();
+  const { planId: planIdParam, week: weekParam, debug = false, strava: stravaParam, message: messageParam } = Route.useSearch();
   const navigate = useNavigate({ from: "/" });
+  const toastManager = Toast.useToastManager();
+
+  // Feedback from the Strava OAuth flow started on the empty state (callback="/").
+  useEffect(() => {
+    if (!stravaParam) return;
+    if (stravaParam === "connected") toastManager.add({ title: "Strava connected", type: "success" });
+    else if (stravaParam === "cancelled") toastManager.add({ title: "Strava connection cancelled.", type: "error" });
+    else if (stravaParam === "error") toastManager.add({ title: messageParam?.trim() || "Couldn't connect Strava", type: "error" });
+    void navigate({ search: (prev) => ({ ...prev, strava: undefined, message: undefined }), replace: true });
+  }, [stravaParam, messageParam, navigate, toastManager]);
   const [shareOpen, setShareOpen] = useState(false);
   const [pastPlansOpen, setPastPlansOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
@@ -58,6 +74,11 @@ function PlanView() {
   // --- Data queries ---
   const { data: activePlan, isLoading: activePlanLoading } = useQuery({
     ...activePlanQueryOptions,
+    enabled: !!user,
+  });
+
+  const { data: profile } = useQuery({
+    ...profileQueryOptions,
     enabled: !!user,
   });
 
@@ -121,7 +142,7 @@ function PlanView() {
       <Tooltip label="Past plans">
         <Button icon={<IconHistory />} variant="ghost" onClick={() => setPastPlansOpen(true)} />
       </Tooltip>
-      {!isInactive && (
+      {plan && !isInactive && (
         <Tooltip label="Share">
           <Button icon={<IconShare />} variant="ghost" onClick={() => setShareOpen(true)} />
         </Tooltip>
@@ -150,7 +171,7 @@ function PlanView() {
   if (!plan) {
     return (
       <PageLayout headerActions={headerActions}>
-        <EmptyPlanState onPastPlansClick={() => setPastPlansOpen(true)} />
+        <EmptyPlanState profile={profile ?? null} onPastPlansClick={() => setPastPlansOpen(true)} />
         <PastPlansDialog open={pastPlansOpen} onOpenChange={setPastPlansOpen} />
       </PageLayout>
     );
