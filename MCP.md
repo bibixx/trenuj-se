@@ -197,6 +197,17 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 | `delete_plan_note` | Delete a note. Required: `noteId`.                                                                                                 |
 | `get_plan_notes`   | List notes. Optional: `planId`, `type`, `limit` (default 20, max 100).                                                             |
 
+### SQL Queries (feature-gated)
+
+Requires the `sql_queries` user flag. These tools expose a lazily-hydrated warehouse of **all** Strava activities (not just plan-matched ones) — summaries, laps, per-second streams, best efforts, and HR/power zones — queryable with real SQL, executed inside Postgres under a per-user read-only sandbox. Results are capped (200 rows default / 500 max, 64 KB), so aggregate server-side instead of pulling raw data.
+
+| Tool                 | What it does                                                                                                                                                                                                                                                                        |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run_sql`            | Run one read-only SELECT over your workout data. Required: `sql` (single statement, no semicolons). Optional: `maxRows` (default 200, max 500). SQL errors return sqlstate + message verbatim; oversized results return TOO_MANY_ROWS / RESULT_TOO_LARGE with guidance.             |
+| `sync_activity_data` | Hydrate the warehouse from Strava on demand. Optional: `range` (`{from, to?}` — sync activity summaries for a date window), `hydrateStreams` (array of Strava activity ids, max 3/call — fetch per-second streams + laps + best efforts), `syncZones`. Respects Strava rate limits. |
+
+**Read the `guide://sql-schema` resource first** — it documents every table/column with units, join keys, hydration semantics, and worked example queries. Nothing syncs automatically: check the hydration warnings on `run_sql` responses (and `strava_sync_state` / `activities.streams_synced_at`) before trusting aggregates, and call `sync_activity_data` to fill gaps.
+
 ### Athlete
 
 | Tool          | What it does                                                                                |

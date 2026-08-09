@@ -17,6 +17,7 @@ import {
   stravaFetch,
   verifyStravaSignature,
 } from "../lib/strava";
+import { stravaFetchRaw } from "../lib/strava-sync";
 import { consumeStreamToken } from "../lib/stream-tokens";
 import { buildFit, type FitLap, type StravaStream } from "../lib/fit";
 
@@ -252,8 +253,26 @@ async function processStravaWebhookEvent(supabase: SupabaseClient, env: AppBindi
       await supabase.from("workout_activities").delete().eq("workout_id", linked.workout_id).eq("user_id", profile.id);
       await supabase.from("workouts").update({ status: "planned" }).eq("id", linked.workout_id).eq("user_id", profile.id);
     }
+    // Warehouse row too — the FK cascade wipes its laps/streams/best efforts.
+    await supabase.from("activities").delete().eq("user_id", profile.id).eq("strava_id", event.object_id);
     return;
   }
+
+  // Create and update both fetch the detail once, as raw text: the warehouse ingest RPC gets
+  // the untouched string (all activities, matched or not — this keeps summary-sync coverage
+  // fresh at the head for free), and the existing match/refresh flow reuses the parsed object.
+  const detail = await stravaFetchRaw(supabase, env, profile.id, `/activities/${event.object_id}`);
+  if (!detail.ok) {
+    throw new AppError("INTERNAL_ERROR", `Strava activity fetch failed with HTTP ${detail.status}`);
+  }
+
+  const { error: ingestError } = await supabase.rpc("strava_ingest_activity_detail", { p_user_id: profile.id, p_payload: detail.text });
+  if (ingestError) {
+    // Warehouse ingest must never block workout matching.
+    console.error("Failed to ingest webhook activity into warehouse:", ingestError.message);
+  }
+
+  const detailedActivity = JSON.parse(detail.text) as Record<string, unknown>;
 
   if (event.aspect_type === "update") {
     const { data: linked, error: linkedError } = await supabase
@@ -264,13 +283,11 @@ async function processStravaWebhookEvent(supabase: SupabaseClient, env: AppBindi
       .maybeSingle();
     if (linkedError) throw new AppError("INTERNAL_ERROR", linkedError.message);
     if (linked) {
-      const detailedActivity = await stravaFetch<Record<string, unknown>>(supabase, env, profile.id, `/activities/${event.object_id}`);
       await refreshWorkoutActivityFromStrava(supabase, profile.id, linked.workout_id, detailedActivity);
       return;
     }
   }
 
-  const detailedActivity = await stravaFetch<Record<string, unknown>>(supabase, env, profile.id, `/activities/${event.object_id}`);
   await matchAndStoreActivity(supabase, profile.id, detailedActivity);
 }
 

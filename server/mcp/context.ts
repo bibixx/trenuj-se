@@ -12,7 +12,7 @@ export type McpContext = {
 };
 
 export class AppError extends Error {
-  code: "AUTH_ERROR" | "VALIDATION_ERROR" | "NOT_FOUND" | "CONFLICT" | "RATE_LIMITED" | "INTERNAL_ERROR";
+  code: "AUTH_ERROR" | "VALIDATION_ERROR" | "FORBIDDEN" | "NOT_FOUND" | "CONFLICT" | "RATE_LIMITED" | "INTERNAL_ERROR";
   details?: unknown;
 
   constructor(code: AppError["code"], message: string, details?: unknown) {

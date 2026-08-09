@@ -374,4 +374,7 @@ export const trainingGuideMarkdown = [
   '- **Pace** — use `M:SS` strings for `min/km` and `min/mi` (e.g. `"4:50"`); use positive numbers for `km/h` and `mph`. Use `paceRange` for bounded targets and `paceThreshold` for one-sided / single-value targets. For time-based pace ranges, `min` is the faster bound and `max` is the slower bound.',
   '- **Heart rate** — use exactly one alert per step. Prefer `heartRateZone` (`{ type: "heartRateZone", zone: 2 }`). Use `heartRateRange` only for bespoke BPM windows (`{ type: "heartRateRange", min: 131, max: 162 }`).',
   "- **Single alert per step** — do not combine pace + heart rate + power + cadence on the same step. Pick the one most important watch alert for that phase.",
+  "",
+  "## Data analysis",
+  "For analyzing training data (volume trends, time-in-zone, pacing, intervals), use the `run_sql` tool when available — see the `guide://sql-schema` resource for the table reference and examples.",
 ].join("\n");

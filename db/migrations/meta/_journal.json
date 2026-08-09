@@ -85,6 +85,27 @@
       "when": 1785068061305,
       "tag": "0011_lyrical_phalanx",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1786292219634,
+      "tag": "0012_shocking_kingpin",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1786292219635,
+      "tag": "0013_strava_ingest",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1786292219636,
+      "tag": "0014_sql_sandbox",
+      "breakpoints": true
     }
   ]
 }

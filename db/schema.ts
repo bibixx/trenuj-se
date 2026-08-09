@@ -1,5 +1,23 @@
 import { sql } from "drizzle-orm";
-import { bigint, boolean, check, date, index, integer, jsonb, pgSchema, pgTable, text, timestamp, unique, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  check,
+  date,
+  index,
+  integer,
+  jsonb,
+  pgSchema,
+  pgTable,
+  primaryKey,
+  real,
+  smallint,
+  text,
+  timestamp,
+  unique,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import { STRAVA_SPORT_TYPES } from "../shared/activity";
 import type { UserFlags } from "../shared/user-flags";
 import type { WorkoutExecution } from "../shared/workout-execution";
@@ -262,6 +280,183 @@ export const streamTokens = pgTable(
   (table) => [index("stream_tokens_hash").on(table.tokenHash), index("stream_tokens_expires").on(table.expiresAt)],
 );
 
+// Activity warehouse: every Strava activity (matched to a workout or not), lazily hydrated
+// on demand for the run_sql MCP tool. workout_activities stays the 1:1 match record; the two
+// are joined on (user_id, strava_id). Surrogate PK + nullable strava_id keep the door open
+// for FIT/GPX-sourced activities later.
+export const activities = pgTable(
+  "activities",
+  {
+    id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    source: text("source").default("strava").notNull(),
+    stravaId: bigint("strava_id", { mode: "number" }),
+    externalId: text("external_id"),
+    sport: text("sport").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    startDate: timestamp("start_date", { withTimezone: true }).notNull(),
+    startDateLocal: timestamp("start_date_local").notNull(),
+    timezone: text("timezone"),
+    utcOffsetSec: integer("utc_offset_sec"),
+    localDate: date("local_date").generatedAlwaysAs(sql`(start_date_local)::date`),
+    distanceM: integer("distance_m"),
+    movingSec: integer("moving_sec"),
+    elapsedSec: integer("elapsed_sec").notNull(),
+    elevationM: integer("elevation_m"),
+    avgHr: smallint("avg_hr"),
+    maxHr: smallint("max_hr"),
+    avgSpeedMps: real("avg_speed_mps"),
+    maxSpeedMps: real("max_speed_mps"),
+    avgPower: smallint("avg_power"),
+    maxPower: smallint("max_power"),
+    weightedAvgPower: smallint("weighted_avg_power"),
+    deviceWatts: boolean("device_watts"),
+    avgCadence: real("avg_cadence"),
+    calories: integer("calories"),
+    sufferScore: smallint("suffer_score"),
+    gearId: text("gear_id"),
+    workoutType: smallint("workout_type"),
+    isRace: boolean("is_race").generatedAlwaysAs(sql`workout_type in (1, 11)`),
+    trainer: boolean("trainer"),
+    commute: boolean("commute"),
+    raw: jsonb("raw").$type<Record<string, unknown> | null>(),
+    summarySyncedAt: timestamp("summary_synced_at", { withTimezone: true }),
+    detailSyncedAt: timestamp("detail_synced_at", { withTimezone: true }),
+    streamsSyncedAt: timestamp("streams_synced_at", { withTimezone: true }),
+    streamsStatus: text("streams_status"),
+    streamsSampleCount: integer("streams_sample_count"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("activities_user_strava_unique").on(table.userId, table.stravaId),
+    index("activities_user_start").on(table.userId, table.startDate),
+    index("activities_user_sport_start").on(table.userId, table.sport, table.startDate),
+    index("activities_user_local_date").on(table.userId, table.localDate),
+    check("activities_source_check", sql`${table.source} in ('strava', 'fit', 'gpx', 'manual')`),
+    check("activities_sport_check", enumCheck(table.sport, sportTypeListSql)),
+    check("activities_streams_status_check", sql`${table.streamsStatus} is null or ${table.streamsStatus} in ('synced', 'unavailable')`),
+    check("activities_elapsed_positive", sql`${table.elapsedSec} > 0`),
+  ],
+);
+
+export const activityLaps = pgTable(
+  "activity_laps",
+  {
+    id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+    activityId: bigint("activity_id", { mode: "number" })
+      .notNull()
+      .references(() => activities.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    lapIndex: smallint("lap_index").notNull(),
+    startOffsetSec: integer("start_offset_sec"),
+    elapsedSec: integer("elapsed_sec").notNull(),
+    movingSec: integer("moving_sec"),
+    distanceM: real("distance_m"),
+    avgHr: smallint("avg_hr"),
+    maxHr: smallint("max_hr"),
+    avgSpeedMps: real("avg_speed_mps"),
+    maxSpeedMps: real("max_speed_mps"),
+    avgCadence: real("avg_cadence"),
+    avgPower: real("avg_power"),
+    totalAscentM: real("total_ascent_m"),
+    startIndex: integer("start_index"),
+    endIndex: integer("end_index"),
+  },
+  (table) => [unique("activity_laps_activity_lap_unique").on(table.activityId, table.lapIndex), index("activity_laps_user_idx").on(table.userId)],
+);
+
+// One row per stream sample (~1Hz). Column order minimizes alignment padding; dt_s is the
+// precomputed gap to the next sample so time-in-zone is sum(dt_s) filter (...) with no window
+// function. No lat/lng by design (re-hydratable from Strava if ever needed).
+export const activityStreams = pgTable(
+  "activity_streams",
+  {
+    activityId: bigint("activity_id", { mode: "number" })
+      .notNull()
+      .references(() => activities.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull(),
+    timeS: integer("time_s").notNull(),
+    distanceM: real("distance_m"),
+    velocityMps: real("velocity_mps"),
+    altitudeM: real("altitude_m"),
+    gradePct: real("grade_pct"),
+    dtS: smallint("dt_s"),
+    hr: smallint("hr"),
+    watts: smallint("watts"),
+    cadence: smallint("cadence"),
+    tempC: smallint("temp_c"),
+    moving: boolean("moving"),
+  },
+  (table) => [primaryKey({ name: "activity_streams_pkey", columns: [table.activityId, table.timeS] })],
+);
+
+export const activityBestEfforts = pgTable(
+  "activity_best_efforts",
+  {
+    id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+    activityId: bigint("activity_id", { mode: "number" })
+      .notNull()
+      .references(() => activities.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    effortName: text("effort_name").notNull(),
+    distanceM: real("distance_m").notNull(),
+    elapsedSec: integer("elapsed_sec").notNull(),
+    movingSec: integer("moving_sec"),
+    startIndex: integer("start_index"),
+    endIndex: integer("end_index"),
+    prRank: smallint("pr_rank"),
+    source: text("source").default("strava").notNull(),
+  },
+  (table) => [
+    unique("activity_best_efforts_unique").on(table.activityId, table.effortName, table.source),
+    index("activity_best_efforts_user_idx").on(table.userId),
+    check("activity_best_efforts_source_check", sql`${table.source} in ('strava', 'computed')`),
+  ],
+);
+
+// Versioned zone boundaries (from GET /athlete/zones); time-in-zone queries pick the latest
+// effective_from <= the activity's local_date.
+export const athleteZones = pgTable(
+  "athlete_zones",
+  {
+    id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    zoneType: text("zone_type").notNull(),
+    effectiveFrom: date("effective_from").notNull(),
+    zoneIndex: smallint("zone_index").notNull(),
+    minValue: real("min_value").notNull(),
+    maxValue: real("max_value"),
+  },
+  (table) => [
+    unique("athlete_zones_unique").on(table.userId, table.zoneType, table.effectiveFrom, table.zoneIndex),
+    check("athlete_zones_type_check", sql`${table.zoneType} in ('hr', 'power')`),
+  ],
+);
+
+// Per-user summary-sync watermark. Coverage is one contiguous window
+// [history_synced_from, last_head_sync_at], only ever extended at the edges — no gaps.
+export const stravaSyncState = pgTable("strava_sync_state", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => profiles.id, { onDelete: "cascade" }),
+  historySyncedFrom: timestamp("history_synced_from", { withTimezone: true }),
+  historyComplete: boolean("history_complete").default(false).notNull(),
+  lastHeadSyncAt: timestamp("last_head_sync_at", { withTimezone: true }),
+  rateLimitedUntil: timestamp("rate_limited_until", { withTimezone: true }),
+  lastError: text("last_error"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
 export const tables = {
   profiles,
   stravaCredentials,
@@ -275,4 +470,10 @@ export const tables = {
   planShares,
   mcpConnectorTokens,
   streamTokens,
+  activities,
+  activityLaps,
+  activityStreams,
+  activityBestEfforts,
+  athleteZones,
+  stravaSyncState,
 };

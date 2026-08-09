@@ -132,9 +132,16 @@ export function createMockSupabase(
   };
 
   const rpcConfig = config.rpc ?? {};
+  // Resolvers are cached per function name so array configs sequence across successive rpc()
+  // calls (mirrors how a test reads a [first, second] config).
+  const rpcResolvers = new Map<string, () => SupabaseResponse>();
   const rpc = vi.fn((fn: string, args?: unknown) => {
     calls.push({ table: `rpc:${fn}`, operation: "rpc", args: args === undefined ? [] : [args] });
-    const resolveRpc = createOperationResolver({ select: rpcConfig[fn] }, "select", { data: null, error: null });
+    let resolveRpc = rpcResolvers.get(fn);
+    if (!resolveRpc) {
+      resolveRpc = createOperationResolver({ select: rpcConfig[fn] }, "select", { data: null, error: null });
+      rpcResolvers.set(fn, resolveRpc);
+    }
     return createChain(resolveRpc);
   });
 

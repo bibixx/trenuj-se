@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import type { Context } from "hono";
 import { trainingGuideMarkdown } from "./resources/training-guide";
+import { sqlSchemaGuideMarkdown } from "./resources/sql-schema";
 import { authenticateMcpRequest, createMcpContext, errorPayload, type McpContext } from "./context";
 import { getProtectedResourceMetadataUrl } from "./oauth";
 import { createServerSupabase } from "../lib/supabase";
@@ -12,6 +13,7 @@ import { registerNoteTools } from "./tools/notes";
 import { registerAthleteTools } from "./tools/athlete";
 import { registerActivityTools } from "./tools/activities";
 import { registerIconTools } from "./tools/icons";
+import { registerQueryTools } from "./tools/query";
 import type { AppBindings } from "../lib/supabase";
 
 function buildServer(ctx: McpContext) {
@@ -47,12 +49,32 @@ function buildServer(ctx: McpContext) {
     }),
   );
 
+  server.registerResource(
+    "sql-schema",
+    "guide://sql-schema",
+    {
+      title: "SQL Schema Guide",
+      description: "Table/column reference, join keys, hydration semantics, and worked examples for the run_sql tool.",
+      mimeType: "text/markdown",
+    },
+    async (uri) => ({
+      contents: [
+        {
+          uri: uri.href,
+          mimeType: "text/markdown",
+          text: sqlSchemaGuideMarkdown,
+        },
+      ],
+    }),
+  );
+
   registerPlanTools(server, ctx);
   registerWorkoutTools(server, ctx);
   registerNoteTools(server, ctx);
   registerAthleteTools(server, ctx);
   registerActivityTools(server, ctx);
   registerIconTools(server);
+  registerQueryTools(server, ctx);
 
   return server;
 }
