@@ -18,8 +18,10 @@ import { Route as OauthConsentRouteImport } from './routes/oauth.consent'
 import { Route as DevDesignSystemRouteImport } from './routes/dev/design-system'
 import { Route as AppSignupRouteImport } from './routes/_app/signup'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppResetPasswordRouteImport } from './routes/_app/reset-password'
 import { Route as AppLoginRouteImport } from './routes/_app/login'
 import { Route as DevDesignSystemIndexRouteImport } from './routes/dev/design-system/index'
+import { Route as AppSettingsIndexRouteImport } from './routes/_app/settings.index'
 import { Route as DevDesignSystemWorkoutCardRouteImport } from './routes/dev/design-system/workout-card'
 import { Route as DevDesignSystemTooltipRouteImport } from './routes/dev/design-system/tooltip'
 import { Route as DevDesignSystemTokensRouteImport } from './routes/dev/design-system/tokens'
@@ -31,6 +33,11 @@ import { Route as DevDesignSystemCrossfadeRouteImport } from './routes/dev/desig
 import { Route as DevDesignSystemCompositesRouteImport } from './routes/dev/design-system/composites'
 import { Route as DevDesignSystemColorsRouteImport } from './routes/dev/design-system/colors'
 import { Route as DevDesignSystemChartsRouteImport } from './routes/dev/design-system/charts'
+import { Route as AppSettingsWatchRouteImport } from './routes/_app/settings.watch'
+import { Route as AppSettingsStravaRouteImport } from './routes/_app/settings.strava'
+import { Route as AppSettingsAgentRouteImport } from './routes/_app/settings.agent'
+import { Route as AppSettingsAccountRouteImport } from './routes/_app/settings.account'
+import { Route as AppResetPasswordConfirmRouteImport } from './routes/_app/reset-password_.confirm'
 
 const PrivacyPolicyRoute = PrivacyPolicyRouteImport.update({
   id: '/privacy-policy',
@@ -76,6 +83,11 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppResetPasswordRoute = AppResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppLoginRoute = AppLoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -85,6 +97,11 @@ const DevDesignSystemIndexRoute = DevDesignSystemIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => DevDesignSystemRoute,
+} as any)
+const AppSettingsIndexRoute = AppSettingsIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppSettingsRoute,
 } as any)
 const DevDesignSystemWorkoutCardRoute =
   DevDesignSystemWorkoutCardRouteImport.update({
@@ -145,17 +162,48 @@ const DevDesignSystemChartsRoute = DevDesignSystemChartsRouteImport.update({
   path: '/charts',
   getParentRoute: () => DevDesignSystemRoute,
 } as any)
+const AppSettingsWatchRoute = AppSettingsWatchRouteImport.update({
+  id: '/watch',
+  path: '/watch',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsStravaRoute = AppSettingsStravaRouteImport.update({
+  id: '/strava',
+  path: '/strava',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsAgentRoute = AppSettingsAgentRouteImport.update({
+  id: '/agent',
+  path: '/agent',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppSettingsAccountRoute = AppSettingsAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AppSettingsRoute,
+} as any)
+const AppResetPasswordConfirmRoute = AppResetPasswordConfirmRouteImport.update({
+  id: '/reset-password_/confirm',
+  path: '/reset-password/confirm',
+  getParentRoute: () => AppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/help': typeof HelpRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/login': typeof AppLoginRoute
-  '/settings': typeof AppSettingsRoute
+  '/reset-password': typeof AppResetPasswordRoute
+  '/settings': typeof AppSettingsRouteWithChildren
   '/signup': typeof AppSignupRoute
   '/dev/design-system': typeof DevDesignSystemRouteWithChildren
   '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
+  '/reset-password/confirm': typeof AppResetPasswordConfirmRoute
+  '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/agent': typeof AppSettingsAgentRoute
+  '/settings/strava': typeof AppSettingsStravaRoute
+  '/settings/watch': typeof AppSettingsWatchRoute
   '/dev/design-system/charts': typeof DevDesignSystemChartsRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
@@ -167,17 +215,23 @@ export interface FileRoutesByFullPath {
   '/dev/design-system/tokens': typeof DevDesignSystemTokensRoute
   '/dev/design-system/tooltip': typeof DevDesignSystemTooltipRoute
   '/dev/design-system/workout-card': typeof DevDesignSystemWorkoutCardRoute
+  '/settings/': typeof AppSettingsIndexRoute
   '/dev/design-system/': typeof DevDesignSystemIndexRoute
 }
 export interface FileRoutesByTo {
   '/help': typeof HelpRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/login': typeof AppLoginRoute
-  '/settings': typeof AppSettingsRoute
+  '/reset-password': typeof AppResetPasswordRoute
   '/signup': typeof AppSignupRoute
   '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/': typeof AppIndexRoute
+  '/reset-password/confirm': typeof AppResetPasswordConfirmRoute
+  '/settings/account': typeof AppSettingsAccountRoute
+  '/settings/agent': typeof AppSettingsAgentRoute
+  '/settings/strava': typeof AppSettingsStravaRoute
+  '/settings/watch': typeof AppSettingsWatchRoute
   '/dev/design-system/charts': typeof DevDesignSystemChartsRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
@@ -189,6 +243,7 @@ export interface FileRoutesByTo {
   '/dev/design-system/tokens': typeof DevDesignSystemTokensRoute
   '/dev/design-system/tooltip': typeof DevDesignSystemTooltipRoute
   '/dev/design-system/workout-card': typeof DevDesignSystemWorkoutCardRoute
+  '/settings': typeof AppSettingsIndexRoute
   '/dev/design-system': typeof DevDesignSystemIndexRoute
 }
 export interface FileRoutesById {
@@ -197,12 +252,18 @@ export interface FileRoutesById {
   '/help': typeof HelpRoute
   '/privacy-policy': typeof PrivacyPolicyRoute
   '/_app/login': typeof AppLoginRoute
-  '/_app/settings': typeof AppSettingsRoute
+  '/_app/reset-password': typeof AppResetPasswordRoute
+  '/_app/settings': typeof AppSettingsRouteWithChildren
   '/_app/signup': typeof AppSignupRoute
   '/dev/design-system': typeof DevDesignSystemRouteWithChildren
   '/oauth/consent': typeof OauthConsentRoute
   '/share/$shareId': typeof ShareShareIdRoute
   '/_app/': typeof AppIndexRoute
+  '/_app/reset-password_/confirm': typeof AppResetPasswordConfirmRoute
+  '/_app/settings/account': typeof AppSettingsAccountRoute
+  '/_app/settings/agent': typeof AppSettingsAgentRoute
+  '/_app/settings/strava': typeof AppSettingsStravaRoute
+  '/_app/settings/watch': typeof AppSettingsWatchRoute
   '/dev/design-system/charts': typeof DevDesignSystemChartsRoute
   '/dev/design-system/colors': typeof DevDesignSystemColorsRoute
   '/dev/design-system/composites': typeof DevDesignSystemCompositesRoute
@@ -214,6 +275,7 @@ export interface FileRoutesById {
   '/dev/design-system/tokens': typeof DevDesignSystemTokensRoute
   '/dev/design-system/tooltip': typeof DevDesignSystemTooltipRoute
   '/dev/design-system/workout-card': typeof DevDesignSystemWorkoutCardRoute
+  '/_app/settings/': typeof AppSettingsIndexRoute
   '/dev/design-system/': typeof DevDesignSystemIndexRoute
 }
 export interface FileRouteTypes {
@@ -223,11 +285,17 @@ export interface FileRouteTypes {
     | '/help'
     | '/privacy-policy'
     | '/login'
+    | '/reset-password'
     | '/settings'
     | '/signup'
     | '/dev/design-system'
     | '/oauth/consent'
     | '/share/$shareId'
+    | '/reset-password/confirm'
+    | '/settings/account'
+    | '/settings/agent'
+    | '/settings/strava'
+    | '/settings/watch'
     | '/dev/design-system/charts'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
@@ -239,17 +307,23 @@ export interface FileRouteTypes {
     | '/dev/design-system/tokens'
     | '/dev/design-system/tooltip'
     | '/dev/design-system/workout-card'
+    | '/settings/'
     | '/dev/design-system/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/help'
     | '/privacy-policy'
     | '/login'
-    | '/settings'
+    | '/reset-password'
     | '/signup'
     | '/oauth/consent'
     | '/share/$shareId'
     | '/'
+    | '/reset-password/confirm'
+    | '/settings/account'
+    | '/settings/agent'
+    | '/settings/strava'
+    | '/settings/watch'
     | '/dev/design-system/charts'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
@@ -261,6 +335,7 @@ export interface FileRouteTypes {
     | '/dev/design-system/tokens'
     | '/dev/design-system/tooltip'
     | '/dev/design-system/workout-card'
+    | '/settings'
     | '/dev/design-system'
   id:
     | '__root__'
@@ -268,12 +343,18 @@ export interface FileRouteTypes {
     | '/help'
     | '/privacy-policy'
     | '/_app/login'
+    | '/_app/reset-password'
     | '/_app/settings'
     | '/_app/signup'
     | '/dev/design-system'
     | '/oauth/consent'
     | '/share/$shareId'
     | '/_app/'
+    | '/_app/reset-password_/confirm'
+    | '/_app/settings/account'
+    | '/_app/settings/agent'
+    | '/_app/settings/strava'
+    | '/_app/settings/watch'
     | '/dev/design-system/charts'
     | '/dev/design-system/colors'
     | '/dev/design-system/composites'
@@ -285,6 +366,7 @@ export interface FileRouteTypes {
     | '/dev/design-system/tokens'
     | '/dev/design-system/tooltip'
     | '/dev/design-system/workout-card'
+    | '/_app/settings/'
     | '/dev/design-system/'
   fileRoutesById: FileRoutesById
 }
@@ -362,6 +444,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/reset-password': {
+      id: '/_app/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof AppResetPasswordRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/login': {
       id: '/_app/login'
       path: '/login'
@@ -375,6 +464,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/dev/design-system/'
       preLoaderRoute: typeof DevDesignSystemIndexRouteImport
       parentRoute: typeof DevDesignSystemRoute
+    }
+    '/_app/settings/': {
+      id: '/_app/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AppSettingsIndexRouteImport
+      parentRoute: typeof AppSettingsRoute
     }
     '/dev/design-system/workout-card': {
       id: '/dev/design-system/workout-card'
@@ -453,21 +549,80 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DevDesignSystemChartsRouteImport
       parentRoute: typeof DevDesignSystemRoute
     }
+    '/_app/settings/watch': {
+      id: '/_app/settings/watch'
+      path: '/watch'
+      fullPath: '/settings/watch'
+      preLoaderRoute: typeof AppSettingsWatchRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/strava': {
+      id: '/_app/settings/strava'
+      path: '/strava'
+      fullPath: '/settings/strava'
+      preLoaderRoute: typeof AppSettingsStravaRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/agent': {
+      id: '/_app/settings/agent'
+      path: '/agent'
+      fullPath: '/settings/agent'
+      preLoaderRoute: typeof AppSettingsAgentRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/settings/account': {
+      id: '/_app/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof AppSettingsAccountRouteImport
+      parentRoute: typeof AppSettingsRoute
+    }
+    '/_app/reset-password_/confirm': {
+      id: '/_app/reset-password_/confirm'
+      path: '/reset-password/confirm'
+      fullPath: '/reset-password/confirm'
+      preLoaderRoute: typeof AppResetPasswordConfirmRouteImport
+      parentRoute: typeof AppRoute
+    }
   }
 }
 
+interface AppSettingsRouteChildren {
+  AppSettingsAccountRoute: typeof AppSettingsAccountRoute
+  AppSettingsAgentRoute: typeof AppSettingsAgentRoute
+  AppSettingsStravaRoute: typeof AppSettingsStravaRoute
+  AppSettingsWatchRoute: typeof AppSettingsWatchRoute
+  AppSettingsIndexRoute: typeof AppSettingsIndexRoute
+}
+
+const AppSettingsRouteChildren: AppSettingsRouteChildren = {
+  AppSettingsAccountRoute: AppSettingsAccountRoute,
+  AppSettingsAgentRoute: AppSettingsAgentRoute,
+  AppSettingsStravaRoute: AppSettingsStravaRoute,
+  AppSettingsWatchRoute: AppSettingsWatchRoute,
+  AppSettingsIndexRoute: AppSettingsIndexRoute,
+}
+
+const AppSettingsRouteWithChildren = AppSettingsRoute._addFileChildren(
+  AppSettingsRouteChildren,
+)
+
 interface AppRouteChildren {
   AppLoginRoute: typeof AppLoginRoute
-  AppSettingsRoute: typeof AppSettingsRoute
+  AppResetPasswordRoute: typeof AppResetPasswordRoute
+  AppSettingsRoute: typeof AppSettingsRouteWithChildren
   AppSignupRoute: typeof AppSignupRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppResetPasswordConfirmRoute: typeof AppResetPasswordConfirmRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppLoginRoute: AppLoginRoute,
-  AppSettingsRoute: AppSettingsRoute,
+  AppResetPasswordRoute: AppResetPasswordRoute,
+  AppSettingsRoute: AppSettingsRouteWithChildren,
   AppSignupRoute: AppSignupRoute,
   AppIndexRoute: AppIndexRoute,
+  AppResetPasswordConfirmRoute: AppResetPasswordConfirmRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

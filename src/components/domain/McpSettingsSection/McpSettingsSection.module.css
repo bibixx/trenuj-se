@@ -5,65 +5,13 @@
 }
 
 .sectionTitle {
-  composes: typography-base from global;
+  composes: typography-lg from global;
   font-weight: 600;
   color: var(--text-primary);
 }
 
 .sectionDescription {
   composes: typography-sm from global;
-  color: var(--text-secondary);
-  line-height: var(--leading-relaxed);
-}
-
-/* Client instructions */
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    translate: 8px 0;
-  }
-  to {
-    opacity: 1;
-    translate: 0 0;
-  }
-}
-
-.toggleGroup {
-  width: 100%;
-  display: flex;
-  gap: 4px;
-}
-
-.toggleItem {
-  flex: 1;
-
-  &:hover {
-    transform: scale(1.01);
-  }
-
-  &:active {
-    transform: scale(0.97);
-  }
-}
-
-.animatedHeight {
-  overflow: clip;
-  transition: height var(--motion-timing-medium) var(--motion-function);
-}
-
-.tabContent {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  animation: slideIn var(--motion-timing-slow) var(--motion-function);
-}
-
-.instructions {
-  composes: typography-xs from global;
-  background: var(--bg-inset);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-sm);
-  padding: 12px 16px;
   color: var(--text-secondary);
   line-height: var(--leading-relaxed);
 }
@@ -79,16 +27,19 @@
   color: var(--text-muted);
 }
 
-/* Connector tokens */
+/* Subsections — subordinated inside the card by a divider, extending the
+   .tokenRow divider language. */
 .subsection {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-subtle);
 }
 
 .subsectionTitle {
-  composes: typography-sm from global;
+  composes: typography-base from global;
   font-weight: 600;
   color: var(--text-primary);
 }

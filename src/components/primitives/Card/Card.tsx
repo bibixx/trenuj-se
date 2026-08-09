@@ -2,14 +2,16 @@ import clsx from "clsx";
 import type { HTMLAttributes, ReactNode } from "react";
 import styles from "./Card.module.css";
 
-interface CardProps extends HTMLAttributes<HTMLDivElement> {
+interface CardProps extends HTMLAttributes<HTMLElement> {
+  /** Rendered element — use "section" when the card is a semantic page section. */
+  as?: "div" | "section";
   children: ReactNode;
 }
 
-export function Card({ children, className, ...props }: CardProps) {
+export function Card({ as: Tag = "div", children, className, ...props }: CardProps) {
   return (
-    <div className={clsx(styles.card, className)} {...props}>
+    <Tag className={clsx(styles.card, className)} {...props}>
       {children}
-    </div>
+    </Tag>
   );
 }

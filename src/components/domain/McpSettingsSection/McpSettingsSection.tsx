@@ -1,12 +1,12 @@
 import { Toast } from "@base-ui/react/toast";
 import { IconCopy } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
-import { type FormEvent, type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { type FormEvent, useState } from "react";
 import { Button } from "../../primitives/Button/Button.tsx";
+import { Card } from "../../primitives/Card/Card.tsx";
 import { Dialog } from "../../primitives/Dialog/Dialog.tsx";
 import { Input } from "../../primitives/Input/Input.tsx";
-import { ToggleGroup } from "../../primitives/ToggleGroup/ToggleGroup.tsx";
-import { Markdown } from "../../markdown/Markdown/Markdown.tsx";
+import { McpClientInstructions } from "../McpClientInstructions/McpClientInstructions.tsx";
 import {
   type CreateConnectorTokenResult,
   type McpConnectorToken,
@@ -14,119 +14,95 @@ import {
   useCreateConnectorToken,
   useRevokeConnectorToken,
 } from "../../../lib/queries/mcp-connector-tokens.ts";
+import { type OAuthGrant, oauthGrantsQueryOptions, useRevokeOAuthGrant } from "../../../lib/queries/oauth-grants.ts";
+import { useCopyToClipboard } from "../../../lib/use-copy-to-clipboard.ts";
 import { hasFlag } from "../../../lib/types.ts";
 import type { Profile } from "../../../lib/types.ts";
-import claudeAiMd from "./instructions/claude-ai.md?raw";
-import claudeCodeMd from "./instructions/claude-code.md?raw";
-import cursorMd from "./instructions/cursor.md?raw";
-import vscodeMd from "./instructions/vscode.md?raw";
 import styles from "./McpSettingsSection.module.css";
-
-type Tab = "claude-ai" | "claude-code" | "cursor" | "vscode";
-
-const TABS: { value: Tab; label: string }[] = [
-  { value: "claude-ai", label: "Claude" },
-  { value: "claude-code", label: "Claude Code" },
-  { value: "cursor", label: "Cursor" },
-  { value: "vscode", label: "VS Code" },
-];
-
-const TAB_CONTENT: Record<Tab, { md: string; copyLabel: string; copyValue: (serverUrl: string) => string }> = {
-  "claude-ai": {
-    md: claudeAiMd,
-    copyLabel: "Copy server URL",
-    copyValue: (serverUrl) => `${serverUrl}/mcp`,
-  },
-  "claude-code": {
-    md: claudeCodeMd,
-    copyLabel: "Copy command",
-    copyValue: (serverUrl) => `claude mcp add trenuj-se --transport streamable-http "${serverUrl}/mcp"`,
-  },
-  cursor: {
-    md: cursorMd,
-    copyLabel: "Copy config",
-    copyValue: (serverUrl) => JSON.stringify({ mcpServers: { "trenuj-se": { url: `${serverUrl}/mcp` } } }, null, 2),
-  },
-  vscode: {
-    md: vscodeMd,
-    copyLabel: "Copy config",
-    copyValue: (serverUrl) => JSON.stringify({ servers: { "trenuj-se": { type: "http", url: `${serverUrl}/mcp` } } }, null, 2),
-  },
-};
-
-/** Eases the container between the differing natural heights of tab contents. */
-function AnimatedHeight({ children }: { children: ReactNode }) {
-  const innerRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState<number>();
-
-  useLayoutEffect(() => {
-    const el = innerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver(() => setHeight(el.offsetHeight));
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
-  return (
-    <div className={styles.animatedHeight} style={{ height }}>
-      <div ref={innerRef}>{children}</div>
-    </div>
-  );
-}
-
-function useCopyToClipboard() {
-  const toastManager = Toast.useToastManager();
-  return (value: string) => {
-    navigator.clipboard.writeText(value);
-    toastManager.add({ title: "Copied to clipboard", type: "success" });
-  };
-}
 
 export function McpSettingsSection({ profile }: { profile: Profile | null }) {
   const tokensEnabled = hasFlag(profile, "mcp_connector_tokens");
-  const [tab, setTab] = useState<Tab>("claude-ai");
-  const copy = useCopyToClipboard();
-
-  const serverUrl = window.location.origin;
-  const { md, copyLabel, copyValue } = TAB_CONTENT[tab];
-
-  const handleTabChange = (value: string[]) => {
-    const next = value[value.length - 1] as Tab | undefined;
-    if (next) setTab(next);
-  };
 
   return (
-    <section className={styles.section}>
+    <Card as="section" className={styles.section}>
       <h2 className={styles.sectionTitle}>Connect an AI agent</h2>
       <p className={styles.sectionDescription}>Manage your plan from an AI client such as Claude or Cursor. Pick your client below and follow the steps.</p>
 
-      <ToggleGroup.Root value={[tab]} onValueChange={handleTabChange} className={styles.toggleGroup} aria-label="MCP client">
-        {TABS.map((t) => (
-          <ToggleGroup.Item key={t.value} value={t.value} className={styles.toggleItem}>
-            {t.label}
-          </ToggleGroup.Item>
-        ))}
-      </ToggleGroup.Root>
-
-      <AnimatedHeight>
-        <div className={styles.tabContent} key={tab}>
-          <div className={styles.instructions}>
-            <Markdown>{md.replaceAll("{SERVER_URL}", serverUrl)}</Markdown>
-          </div>
-          <div className={styles.buttonRow}>
-            <Button variant="primary" size="sm" onClick={() => copy(copyValue(serverUrl))}>
-              <IconCopy size={14} />
-              {copyLabel}
-            </Button>
-          </div>
-          {tokensEnabled && (tab === "claude-ai" || tab === "claude-code") && (
+      <McpClientInstructions
+        renderHint={(tab) =>
+          tokensEnabled &&
+          (tab === "claude-ai" || tab === "claude-code") && (
             <p className={styles.hint}>Claude failing during the OAuth login? Create a connector token below and use its pre-authenticated URL instead.</p>
-          )}
-        </div>
-      </AnimatedHeight>
+          )
+        }
+      />
+
+      <ConnectedAppsSubsection />
 
       {tokensEnabled && <ConnectorTokensSubsection />}
-    </section>
+    </Card>
+  );
+}
+
+// --- Connected applications (OAuth grants) ---
+
+function ConnectedAppsSubsection() {
+  const { data: grants } = useQuery(oauthGrantsQueryOptions);
+  const revokeGrant = useRevokeOAuthGrant();
+  const toastManager = Toast.useToastManager();
+  const [revokeTarget, setRevokeTarget] = useState<OAuthGrant | null>(null);
+
+  const handleRevoke = async () => {
+    const target = revokeTarget;
+    setRevokeTarget(null);
+    if (!target) return;
+    try {
+      await revokeGrant.mutateAsync(target.client.id);
+      toastManager.add({ title: `Access for “${target.client.name}” revoked`, type: "success" });
+    } catch (err) {
+      toastManager.add({ title: "Couldn't revoke access", description: err instanceof Error ? err.message : undefined, type: "error" });
+    }
+  };
+
+  return (
+    <div className={styles.subsection}>
+      <h3 className={styles.subsectionTitle}>Connected applications</h3>
+      <p className={styles.sectionDescription}>AI clients you've approved through the sign-in flow. Revoking access signs the client out immediately.</p>
+
+      {grants && grants.length > 0 ? (
+        <div className={styles.tokenList}>
+          {grants.map((grant) => (
+            <div key={grant.client.id} className={styles.tokenRow}>
+              <div>
+                <div className={styles.tokenName}>{grant.client.name}</div>
+                <div className={styles.tokenMeta}>Connected {formatDate(grant.granted_at)}</div>
+              </div>
+              <Button variant="destructive" size="sm" onClick={() => setRevokeTarget(grant)}>
+                Revoke
+              </Button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className={styles.emptyText}>No connected applications yet</p>
+      )}
+
+      <Dialog.Root open={revokeTarget !== null} onOpenChange={(open) => !open && setRevokeTarget(null)}>
+        <Dialog.Content>
+          <Dialog.Close />
+          <Dialog.Title>Revoke access</Dialog.Title>
+          <Dialog.Description>Revoke access for “{revokeTarget?.client.name}”? The client will be signed out and will need to be approved again to reconnect.</Dialog.Description>
+          <div className={styles.dialogActions}>
+            <Button variant="ghost" onClick={() => setRevokeTarget(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleRevoke}>
+              Revoke
+            </Button>
+          </div>
+        </Dialog.Content>
+      </Dialog.Root>
+    </div>
   );
 }
 

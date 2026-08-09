@@ -5,7 +5,7 @@
 }
 
 .sectionTitle {
-  composes: typography-base from global;
+  composes: typography-lg from global;
   font-weight: 600;
   color: var(--text-primary);
 }

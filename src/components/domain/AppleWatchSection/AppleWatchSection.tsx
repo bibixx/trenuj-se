@@ -3,6 +3,7 @@ import { IconCopy } from "@tabler/icons-react";
 import { useQuery } from "@tanstack/react-query";
 import { type FormEvent, useState } from "react";
 import { Button } from "../../primitives/Button/Button.tsx";
+import { Card } from "../../primitives/Card/Card.tsx";
 import { Dialog } from "../../primitives/Dialog/Dialog.tsx";
 import { Input } from "../../primitives/Input/Input.tsx";
 import { type CreateWatchTokenResult, type WatchToken, useCreateWatchToken, useRevokeWatchToken, watchTokensQueryOptions } from "../../../lib/queries/watch-tokens.ts";
@@ -67,7 +68,7 @@ export function AppleWatchSection() {
   };
 
   return (
-    <section className={styles.section}>
+    <Card as="section" className={styles.section}>
       <h2 className={styles.sectionTitle}>Apple Watch</h2>
       <p className={styles.sectionDescription}>
         Sync your planned workouts to your Apple Watch via the{" "}
@@ -168,6 +169,6 @@ export function AppleWatchSection() {
           </div>
         </Dialog.Content>
       </Dialog.Root>
-    </section>
+    </Card>
   );
 }
