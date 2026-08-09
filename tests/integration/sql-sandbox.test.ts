@@ -145,7 +145,7 @@ runIf("SQL sandbox (real Postgres)", () => {
   });
 
   test("T6: excluded tables and privileged functions are unreachable", async () => {
-    for (const table of ["strava_credentials", "profiles", "mcp_connector_tokens", "stream_tokens", "plan_shares"]) {
+    for (const table of ["strava_credentials", "profiles", "mcp_connector_tokens", "plan_shares"]) {
       const result = await runQuery(USER_A, `SELECT * FROM ${table}`);
       expect(result.ok, `${table} should be blocked`).toBe(false);
       expect(result.message).toMatch(/permission denied/i);
@@ -256,9 +256,14 @@ runIf("SQL sandbox (real Postgres)", () => {
     const raw = await runQuery(USER_A, "SELECT raw ? 'segment_efforts' AS has_segments, raw ? 'name' AS has_name FROM activities WHERE strava_id = 909");
     expect(raw.rows?.[0]).toEqual({ has_segments: false, has_name: true });
 
-    // Hydration warning fires for unhydrated streams elsewhere.
+    // Hydration warning fires for unhydrated streams elsewhere, and lists the missing
+    // strava_ids so the agent can pull them via a `-- hydrate:` comment. Activities 101/102
+    // (seeded summary-only) have no streams.
     const warned = await runQuery(USER_A, "SELECT count(*) AS n FROM activity_streams");
-    expect(warned.warnings?.some((w) => w.includes("no hydrated streams"))).toBe(true);
+    const streamWarning = warned.warnings?.find((w) => w.includes("no hydrated streams"));
+    expect(streamWarning).toBeDefined();
+    expect(streamWarning).toMatch(/101|102/);
+    expect(streamWarning).toMatch(/-- hydrate:/);
   });
 
   test("zones ingest is idempotent and versioned", async () => {

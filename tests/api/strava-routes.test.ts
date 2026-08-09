@@ -12,17 +12,11 @@ vi.mock("../../server/lib/strava.ts", async (importOriginal) => {
   };
 });
 
-vi.mock("../../server/lib/stream-tokens.ts", () => ({
-  generateStreamToken: vi.fn(async () => "mock-stream-token"),
-  consumeStreamToken: vi.fn(async () => MOCK_USER_ID),
-}));
-
 import app from "../../server/index.ts";
 import { MOCK_ENV, MOCK_USER_ID } from "../helpers/mock-env.ts";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { setMockSupabase, clearMockSupabase } from "../helpers/setup.ts";
 import { stravaFetch, linkActivityToWorkout } from "../../server/lib/strava.ts";
-import { consumeStreamToken } from "../../server/lib/stream-tokens.ts";
 
 type TableConfig = Parameters<typeof createMockSupabase>[0]["tables"];
 
@@ -308,84 +302,6 @@ describe("POST /api/strava/link", () => {
     expect(res.status).toBe(409);
     const body = await res.json();
     expect(body.code).toBe("CONFLICT");
-  });
-});
-
-// ─── GET /api/strava/streams/:stravaActivityId ───────────────────────────────
-
-describe("GET /api/strava/streams/:stravaActivityId", () => {
-  let originalFetch: typeof globalThis.fetch;
-
-  beforeEach(() => {
-    originalFetch = globalThis.fetch;
-  });
-
-  afterEach(() => {
-    globalThis.fetch = originalFetch;
-    clearMockSupabase();
-    vi.clearAllMocks();
-  });
-
-  test("401 when no token query param", async () => {
-    const mock = makeAuthMock();
-    setMockSupabase(mock);
-
-    const res = await app.request("/api/strava/streams/12345", {}, MOCK_ENV);
-    expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.code).toBe("AUTH_ERROR");
-  });
-
-  test("401 when stravaActivityId is not a number", async () => {
-    const mock = makeAuthMock();
-    setMockSupabase(mock);
-
-    const res = await app.request("/api/strava/streams/not-a-number?token=sometoken", {}, MOCK_ENV);
-    expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.code).toBe("AUTH_ERROR");
-  });
-
-  test("200 returns stream data on success", async () => {
-    const streamData = [{ type: "time", data: [0, 1, 2] }];
-    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify(streamData), { status: 200 })) as typeof globalThis.fetch;
-
-    vi.mocked(consumeStreamToken).mockResolvedValueOnce(MOCK_USER_ID);
-
-    const mock = makeAuthMock();
-    setMockSupabase(mock);
-
-    const res = await app.request("/api/strava/streams/12345?token=mock-stream-token", {}, MOCK_ENV);
-    expect(res.status).toBe(200);
-    const body = await res.json();
-    expect(body).toEqual(streamData);
-  });
-
-  test("401 when consumeStreamToken throws AUTH_ERROR", async () => {
-    const { AppError } = await import("../../server/mcp/context.ts");
-    vi.mocked(consumeStreamToken).mockRejectedValueOnce(new AppError("AUTH_ERROR", "Invalid or expired stream token"));
-
-    const mock = makeAuthMock();
-    setMockSupabase(mock);
-
-    const res = await app.request("/api/strava/streams/12345?token=bad-token", {}, MOCK_ENV);
-    expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.code).toBe("AUTH_ERROR");
-  });
-
-  test("500 when strava API returns non-ok response", async () => {
-    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ message: "Forbidden" }), { status: 403 })) as typeof globalThis.fetch;
-
-    vi.mocked(consumeStreamToken).mockResolvedValueOnce(MOCK_USER_ID);
-
-    const mock = makeAuthMock();
-    setMockSupabase(mock);
-
-    const res = await app.request("/api/strava/streams/12345?token=valid", {}, MOCK_ENV);
-    expect(res.status).toBe(500);
-    const body = await res.json();
-    expect(body.code).toBe("INTERNAL_ERROR");
   });
 });
 

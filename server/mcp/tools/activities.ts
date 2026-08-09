@@ -1,7 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AppError, resolvePlanId, toolError, toolSuccess, type McpContext } from "../context";
-import { generateStreamToken } from "../../lib/stream-tokens";
 
 function startOfWeek(date: Date) {
   const copy = new Date(date);
@@ -70,39 +69,6 @@ function pickActivity(value: WorkoutActivityRow | WorkoutActivityRow[] | null | 
 }
 
 export function registerActivityTools(server: McpServer, ctx: McpContext) {
-  server.registerTool(
-    "get_workout_streams",
-    {
-      title: "Get Workout Streams",
-      description: "Return a short-lived URL for fetching detailed Strava activity streams for a linked workout (use this to build FIT files, analyze pacing, etc.).",
-      inputSchema: z.object({ workoutId: z.string().uuid().describe("Workout UUID. The workout must have a linked Strava activity.") }),
-      annotations: { readOnlyHint: true },
-    },
-    async (input) => {
-      try {
-        const params = z.object({ workoutId: z.string().uuid() }).parse(input);
-        const { data: activity, error } = await ctx.supabase
-          .from("workout_activities")
-          .select("workout_id, strava_id")
-          .eq("workout_id", params.workoutId)
-          .eq("user_id", ctx.userId)
-          .maybeSingle();
-
-        if (error) throw new AppError("INTERNAL_ERROR", error.message);
-        if (!activity) throw new AppError("NOT_FOUND", "Workout has no linked Strava activity");
-
-        const token = await generateStreamToken(ctx.supabase, ctx.userId, activity.strava_id);
-        const baseUrl = (ctx.bindings.PUBLIC_APP_URL ?? "http://localhost:8788").replace(/\/$/, "");
-        return toolSuccess({
-          url: `${baseUrl}/api/strava/streams/${activity.strava_id}?token=${token}`,
-          expiresInSec: 900,
-        });
-      } catch (error) {
-        return toolError(error);
-      }
-    },
-  );
-
   server.registerTool(
     "get_week_summary",
     {

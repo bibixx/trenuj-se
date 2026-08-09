@@ -265,21 +265,6 @@ export const mcpConnectorTokens = pgTable(
   (table) => [uniqueIndex("mcp_connector_tokens_hash_unique").on(table.tokenHash), index("mcp_connector_tokens_user_created").on(table.userId, table.createdAt)],
 );
 
-export const streamTokens = pgTable(
-  "stream_tokens",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => profiles.id, { onDelete: "cascade" }),
-    activityStravaId: bigint("activity_strava_id", { mode: "number" }).notNull(),
-    tokenHash: text("token_hash").notNull(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
-  (table) => [index("stream_tokens_hash").on(table.tokenHash), index("stream_tokens_expires").on(table.expiresAt)],
-);
-
 // Activity warehouse: every Strava activity (matched to a workout or not), lazily hydrated
 // on demand for the run_sql MCP tool. workout_activities stays the 1:1 match record; the two
 // are joined on (user_id, strava_id). Surrogate PK + nullable strava_id keep the door open
@@ -443,15 +428,11 @@ export const athleteZones = pgTable(
   ],
 );
 
-// Per-user summary-sync watermark. Coverage is one contiguous window
-// [history_synced_from, last_head_sync_at], only ever extended at the edges — no gaps.
+// Per-user Strava rate-limit state, shared across hydration calls.
 export const stravaSyncState = pgTable("strava_sync_state", {
   userId: uuid("user_id")
     .primaryKey()
     .references(() => profiles.id, { onDelete: "cascade" }),
-  historySyncedFrom: timestamp("history_synced_from", { withTimezone: true }),
-  historyComplete: boolean("history_complete").default(false).notNull(),
-  lastHeadSyncAt: timestamp("last_head_sync_at", { withTimezone: true }),
   rateLimitedUntil: timestamp("rate_limited_until", { withTimezone: true }),
   lastError: text("last_error"),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -469,7 +450,6 @@ export const tables = {
   planNotes,
   planShares,
   mcpConnectorTokens,
-  streamTokens,
   activities,
   activityLaps,
   activityStreams,

@@ -15,21 +15,30 @@ recursive CTEs all work.
 - SQL errors come back verbatim (sqlstate + message) so you can self-correct.
 - ~seconds-level statement timeout: push heavy stream scans through aggregates, not raw rows.
 
-## Lazy hydration (important)
+## Hydration (important)
 
-Nothing syncs from Strava automatically. Before trusting an aggregate:
+Hydration from Strava is **inferred from your SQL** and happens before the query runs:
 
-1. \`strava_sync_state\` says which date window has summary coverage:
-   \`history_synced_from\` → \`last_head_sync_at\` (single contiguous window; \`history_complete\`
-   means everything older is covered too).
-2. Per activity, \`activities.detail_synced_at\` (laps + best efforts present) and
-   \`activities.streams_synced_at\` / \`streams_status\` ('synced' | 'unavailable' | NULL = not
-   fetched yet) say what is hydrated.
-3. Call **sync_activity_data** to fill gaps: \`range\` for summaries, \`hydrateStreams\` (max 3
-   ids/call) for per-second data, \`syncZones\` for zone boundaries.
+- Any Strava activity id (10-11 digit integer literal) appearing in the SQL gets its detail,
+  laps, best efforts, and per-second streams pulled if missing — max 3 ids per call. So when
+  you want per-second data for specific activities, reference them by \`strava_id\` in the
+  query and hydration is automatic.
+- When the query is date- or name-scoped (no id literals), add a comment anywhere in the SQL:
+  \`-- hydrate: 19620351399, 19605843631\`. The ids to use come from the response warnings
+  (see below) or from \`SELECT strava_id FROM activities WHERE ...\`.
+- Zone boundaries sync automatically the first time a query references \`athlete_zones\`.
+- Per activity, \`activities.detail_synced_at\` (laps + best efforts present) and
+  \`activities.streams_synced_at\` / \`streams_status\` ('synced' | 'unavailable' | NULL = not
+  fetched yet) say what is hydrated.
 
-run_sql responses referencing streams/laps include a warning with the count of unhydrated
-activities — do not present incomplete aggregates as complete.
+Responses referencing streams/laps include a warning with the count of unhydrated activities
+**and their newest strava_ids** — feed those into \`-- hydrate:\` on the next call; do not
+present incomplete aggregates as complete. When hydration ran, the response carries a
+\`hydrated\` array with per-id status.
+
+Coverage notes: the Strava webhook ingests every new activity, and everything ever matched to
+a planned workout is pre-loaded. Old activities that were never matched become visible after
+being referenced by id once (the detail fetch creates the row).
 
 ## Tables
 
@@ -64,8 +73,8 @@ zone_type ('hr'|'power') · effective_from (date) · zone_index (1-5) · min_val
 (NULL = open-ended top zone). Pick the latest version per activity:
 \`effective_from <= activities.local_date\` (or just the latest overall).
 
-### strava_sync_state — summary coverage watermark (one row)
-history_synced_from · history_complete · last_head_sync_at · rate_limited_until · last_error
+### strava_sync_state — Strava rate-limit state (one row)
+rate_limited_until (hydration is paused until this timestamp after a Strava 429) · last_error
 
 ### Training-plan tables
 plans (id, name, goal, start_date, end_date, status 'active'|'inactive') · phases (plan_id,

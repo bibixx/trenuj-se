@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { MOCK_ENV, MOCK_USER_ID } from "../helpers/mock-env.ts";
-import { hydrateActivities, stravaRateLimitedUntil, syncActivitySummaries, syncAthleteZones } from "../../server/lib/strava-sync.ts";
+import { hydrateActivities, stravaRateLimitedUntil, syncAthleteZones } from "../../server/lib/strava-sync.ts";
 
 const FUTURE_EXPIRY = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 const CREDENTIALS = {
@@ -43,93 +43,6 @@ describe("stravaRateLimitedUntil", () => {
 
   test("missing headers: falls back to the 15-minute boundary", () => {
     expect(stravaRateLimitedUntil(new Headers(), NOW_MS)).toBe("2026-08-09T10:15:00.000Z");
-  });
-});
-
-describe("syncActivitySummaries", () => {
-  test("first sync backfills to the requested floor and completes", async () => {
-    const fetchMock = stubFetch(() => jsonResponse([{ id: 1 }]));
-    const mock = createMockSupabase({
-      tables: {
-        strava_credentials: { select: { data: CREDENTIALS, error: null } },
-        strava_sync_state: { select: { data: null, error: null }, upsert: { data: null, error: null } },
-      },
-      rpc: {
-        strava_ingest_activity_summaries: { data: [{ ingested: 42, oldest: "2026-02-01T08:00:00Z", newest: "2026-08-01T08:00:00Z" }], error: null },
-      },
-    });
-
-    const result = await syncActivitySummaries(mock.client, MOCK_ENV, MOCK_USER_ID, { from: "2026-01-01T00:00:00Z" });
-
-    expect(result.status).toBe("synced");
-    expect(result.historyComplete).toBe(true);
-    expect(result.ingested).toBe(42);
-    expect(result.pagesFetched).toBe(1);
-    expect(fetchMock).toHaveBeenCalledOnce();
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/athlete/activities?per_page=200&before=");
-    // Watermark persisted after the page.
-    const stateUpserts = mock.calls.filter((c) => c.table === "strava_sync_state" && c.operation === "upsert");
-    expect(stateUpserts.length).toBeGreaterThanOrEqual(2);
-  });
-
-  test("returns partial when the page budget runs out before reaching the floor", async () => {
-    stubFetch(() => jsonResponse(new Array(200).fill({ id: 1 })));
-    const mock = createMockSupabase({
-      tables: {
-        strava_credentials: { select: { data: CREDENTIALS, error: null } },
-        strava_sync_state: { select: { data: null, error: null }, upsert: { data: null, error: null } },
-      },
-      rpc: {
-        strava_ingest_activity_summaries: { data: [{ ingested: 200, oldest: "2024-06-01T00:00:00Z", newest: "2026-08-01T00:00:00Z" }], error: null },
-      },
-    });
-
-    const result = await syncActivitySummaries(mock.client, MOCK_ENV, MOCK_USER_ID, { from: "2020-01-01T00:00:00Z" });
-
-    expect(result.status).toBe("partial");
-    expect(result.pagesFetched).toBe(4);
-    expect(result.historyComplete).toBe(false);
-    expect(result.coveredFrom).toBe("2024-06-01T00:00:00Z");
-  });
-
-  test("respects an active rate limit without calling Strava", async () => {
-    const fetchMock = stubFetch(() => jsonResponse([]));
-    const until = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-    const mock = createMockSupabase({
-      tables: {
-        strava_sync_state: {
-          select: {
-            data: { history_synced_from: "2026-01-01T00:00:00Z", history_complete: false, last_head_sync_at: "2026-08-01T00:00:00Z", rate_limited_until: until },
-            error: null,
-          },
-        },
-      },
-    });
-
-    const result = await syncActivitySummaries(mock.client, MOCK_ENV, MOCK_USER_ID, { from: "2025-01-01T00:00:00Z" });
-
-    expect(result.status).toBe("rate_limited");
-    expect(result.rateLimitedUntil).toBe(until);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  test("a 429 mid-sync stores rate_limited_until and stops", async () => {
-    stubFetch(() => new Response("", { status: 429, headers: { "X-RateLimit-Usage": "700,100", "X-RateLimit-Limit": "600,30000" } }));
-    const mock = createMockSupabase({
-      tables: {
-        strava_credentials: { select: { data: CREDENTIALS, error: null } },
-        strava_sync_state: { select: { data: null, error: null }, upsert: { data: null, error: null } },
-      },
-    });
-
-    const result = await syncActivitySummaries(mock.client, MOCK_ENV, MOCK_USER_ID, { from: "2025-01-01T00:00:00Z" });
-
-    expect(result.status).toBe("rate_limited");
-    expect(result.rateLimitedUntil).toBeDefined();
-    const rateLimitUpsert = mock.calls.find(
-      (c) => c.table === "strava_sync_state" && c.operation === "upsert" && (c.args[0] as { rate_limited_until?: string }).rate_limited_until,
-    );
-    expect(rateLimitUpsert).toBeDefined();
   });
 });
 

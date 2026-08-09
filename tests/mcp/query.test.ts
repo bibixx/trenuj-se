@@ -1,8 +1,22 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { createMockSupabase, type MockSupabase } from "../helpers/mock-supabase.ts";
+
+// Hydration internals are unit-tested in tests/unit/strava-sync.test.ts; here we assert the
+// run_sql tool drives them correctly (inference, prefilter, degradation) via a module mock.
+vi.mock("../../server/lib/strava-sync.ts", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../../server/lib/strava-sync.ts")>();
+  return {
+    ...original,
+    hydrateActivities: vi.fn(async (_sb: unknown, _b: unknown, _uid: string, ids: number[]) => ids.map((stravaId) => ({ stravaId, status: "synced" as const, samples: 100 }))),
+    syncAthleteZones: vi.fn(async () => ({ status: "synced" as const, inserted: 10 })),
+  };
+});
+
+import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { clearMockSupabase, setMockSupabase } from "../helpers/setup.ts";
 import { MOCK_USER_ID } from "../helpers/mock-env.ts";
-import { extractToolError, mcpCallTool, parseMcpResponse, resetMcpIds } from "../helpers/mcp.ts";
+import { mcpCallTool, parseMcpResponse, resetMcpIds } from "../helpers/mcp.ts";
+import { extractHydrationCandidates } from "../../server/mcp/tools/query.ts";
+import { hydrateActivities, syncAthleteZones } from "../../server/lib/strava-sync.ts";
 
 function mockAuth() {
   return {
@@ -11,6 +25,7 @@ function mockAuth() {
 }
 
 const OK_PAYLOAD = { ok: true, rows: [{ week: "2026-07-27", km: 52.3 }], row_count: 1, warnings: [] };
+const STRAVA_ID = 19620351399;
 
 type RawToolResult = { content?: Array<{ type: string; text: string }>; structuredContent?: unknown; isError?: boolean };
 
@@ -19,6 +34,34 @@ async function callRunSql(args: Record<string, unknown>) {
   const rpcResult = await parseMcpResponse(response);
   return rpcResult.result as RawToolResult;
 }
+
+function parsePayload(result: RawToolResult) {
+  return JSON.parse(result.content?.[0]?.text ?? "{}") as Record<string, unknown>;
+}
+
+describe("extractHydrationCandidates", () => {
+  test("picks up 10+ digit integer literals only", () => {
+    const { ids } = extractHydrationCandidates(`SELECT * FROM activities WHERE strava_id = ${STRAVA_ID} LIMIT 200`);
+    expect(ids).toEqual([STRAVA_ID]);
+  });
+
+  test("ignores small integers, decimals, and quoted dates", () => {
+    const { ids } = extractHydrationCandidates("SELECT 123456789, 1234567890.5, '2026-08-05', width_bucket(hr, 100, 200, 5) FROM activities LIMIT 500");
+    expect(ids).toEqual([]);
+  });
+
+  test("collects ids from a -- hydrate: comment and marks them explicit", () => {
+    const { ids, explicit } = extractHydrationCandidates("SELECT count(*) FROM activity_streams\n-- hydrate: 19620351399, 19605843631");
+    expect(ids).toEqual([19620351399, 19605843631]);
+    expect(explicit.has(19620351399)).toBe(true);
+    expect(explicit.has(19605843631)).toBe(true);
+  });
+
+  test("dedupes and caps at 3", () => {
+    const { ids } = extractHydrationCandidates(`SELECT * FROM activities WHERE strava_id IN (1111111111, 1111111111, 2222222222, 3333333333, 4444444444)`);
+    expect(ids).toEqual([1111111111, 2222222222, 3333333333]);
+  });
+});
 
 describe("MCP run_sql tool", () => {
   beforeEach(() => resetMcpIds());
@@ -43,6 +86,8 @@ describe("MCP run_sql tool", () => {
     // Compact single serialization: no pretty-printing, no structuredContent duplicate.
     expect(result.structuredContent).toBeUndefined();
     expect(result.content?.[0]?.text).toBe(JSON.stringify(OK_PAYLOAD));
+    // No candidate ids -> no hydration machinery touched.
+    expect(hydrateActivities).not.toHaveBeenCalled();
   });
 
   test("defaults maxRows to 200", async () => {
@@ -57,6 +102,116 @@ describe("MCP run_sql tool", () => {
     const rpcCall = mock.calls.find((c) => c.table === "rpc:run_user_query");
     const rpcArgs = rpcCall?.args[0] as { p_max_rows?: number } | undefined;
     expect(rpcArgs?.p_max_rows).toBe(200);
+  });
+
+  test("hydrates activities referenced by strava_id before running the query", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: { activities: { select: { data: [], error: null } } },
+      rpc: { run_user_query: { data: { ...OK_PAYLOAD }, error: null } },
+    });
+    setMockSupabase(mock);
+
+    const result = await callRunSql({ sql: `SELECT avg(hr) FROM activity_streams s JOIN activities a ON a.id = s.activity_id WHERE a.strava_id = ${STRAVA_ID}` });
+
+    expect(hydrateActivities).toHaveBeenCalledWith(expect.anything(), expect.anything(), MOCK_USER_ID, [STRAVA_ID]);
+    const payload = parsePayload(result);
+    expect(payload.hydrated).toEqual([{ stravaId: STRAVA_ID, status: "synced", samples: 100 }]);
+  });
+
+  test("skips Strava entirely when referenced activities are already hydrated", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        activities: {
+          select: { data: [{ strava_id: STRAVA_ID, detail_synced_at: "2026-08-01T00:00:00Z", streams_synced_at: "2026-08-01T00:00:00Z", streams_status: "synced" }], error: null },
+        },
+      },
+      rpc: { run_user_query: { data: OK_PAYLOAD, error: null } },
+    });
+    setMockSupabase(mock);
+
+    const result = await callRunSql({ sql: `SELECT 1 FROM activities WHERE strava_id = ${STRAVA_ID}` });
+
+    expect(hydrateActivities).not.toHaveBeenCalled();
+    expect(parsePayload(result).hydrated).toBeUndefined();
+  });
+
+  test("hydrates ids from a -- hydrate: comment and reports explicit failures as warnings", async () => {
+    vi.mocked(hydrateActivities).mockResolvedValueOnce([{ stravaId: STRAVA_ID, status: "not_found", message: "Activity not found on Strava" }]);
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: { activities: { select: { data: [], error: null } } },
+      rpc: { run_user_query: { data: { ...OK_PAYLOAD }, error: null } },
+    });
+    setMockSupabase(mock);
+
+    const result = await callRunSql({ sql: `SELECT count(*) FROM activity_streams\n-- hydrate: ${STRAVA_ID}` });
+
+    expect(hydrateActivities).toHaveBeenCalledWith(expect.anything(), expect.anything(), MOCK_USER_ID, [STRAVA_ID]);
+    const payload = parsePayload(result);
+    expect(payload.hydrated).toEqual([{ stravaId: STRAVA_ID, status: "not_found" }]);
+    expect(payload.warnings).toEqual([expect.stringContaining("Activity not found on Strava")]);
+  });
+
+  test("silently drops inferred ids that turn out not to exist on Strava", async () => {
+    vi.mocked(hydrateActivities).mockResolvedValueOnce([{ stravaId: 1720000000, status: "not_found", message: "Activity not found on Strava" }]);
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: { activities: { select: { data: [], error: null } } },
+      rpc: { run_user_query: { data: { ...OK_PAYLOAD }, error: null } },
+    });
+    setMockSupabase(mock);
+
+    // Epoch-like literal: plausible false positive for the id heuristic.
+    const result = await callRunSql({ sql: "SELECT * FROM activities WHERE extract(epoch FROM start_date) > 1720000000" });
+
+    const payload = parsePayload(result);
+    expect(payload.hydrated).toBeUndefined();
+    expect(payload.warnings).toEqual([]);
+  });
+
+  test("syncs zones when athlete_zones is empty on first use", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: { athlete_zones: { select: { data: [], error: null } } },
+        rpc: { run_user_query: { data: OK_PAYLOAD, error: null } },
+      }),
+    );
+
+    await callRunSql({ sql: "SELECT * FROM athlete_zones" });
+    expect(syncAthleteZones).toHaveBeenCalledOnce();
+  });
+
+  test("does not sync zones when athlete_zones already has rows", async () => {
+    setMockSupabase(
+      createMockSupabase({
+        auth: mockAuth(),
+        tables: { athlete_zones: { select: { data: [{ id: 1 }], error: null } } },
+        rpc: { run_user_query: { data: OK_PAYLOAD, error: null } },
+      }),
+    );
+
+    await callRunSql({ sql: "SELECT * FROM athlete_zones" });
+    expect(syncAthleteZones).not.toHaveBeenCalled();
+  });
+
+  test("degrades to a warning when hydration fails; the query still runs", async () => {
+    vi.mocked(hydrateActivities).mockRejectedValueOnce(new Error("Strava is not connected for this user"));
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: { activities: { select: { data: [], error: null } } },
+      rpc: { run_user_query: { data: { ...OK_PAYLOAD }, error: null } },
+    });
+    setMockSupabase(mock);
+
+    const result = await callRunSql({ sql: `SELECT 1 FROM activities WHERE strava_id = ${STRAVA_ID}` });
+
+    expect(result.isError).toBeUndefined();
+    const payload = parsePayload(result);
+    expect(payload.warnings).toEqual([expect.stringContaining("Strava is not connected")]);
+    expect(payload.rows).toEqual(OK_PAYLOAD.rows);
   });
 
   test("provisions the sandbox lazily and retries once", async () => {
@@ -93,7 +248,7 @@ describe("MCP run_sql tool", () => {
     const result = await callRunSql({ sql: "SELECT hrr FROM activities" });
 
     expect(result.isError).toBe(true);
-    expect(JSON.parse(result.content?.[0]?.text ?? "{}")).toEqual(errorPayload);
+    expect(parsePayload(result)).toEqual(errorPayload);
   });
 
   test("TOO_MANY_ROWS overflow error passes through", async () => {
@@ -108,7 +263,7 @@ describe("MCP run_sql tool", () => {
     const result = await callRunSql({ sql: "SELECT * FROM activity_streams" });
 
     expect(result.isError).toBe(true);
-    expect(JSON.parse(result.content?.[0]?.text ?? "{}").error_code).toBe("TOO_MANY_ROWS");
+    expect(parsePayload(result).error_code).toBe("TOO_MANY_ROWS");
   });
 
   test("worker-side byte backstop rejects oversized payloads", async () => {
@@ -123,7 +278,7 @@ describe("MCP run_sql tool", () => {
     const result = await callRunSql({ sql: "SELECT raw FROM activities" });
 
     expect(result.isError).toBe(true);
-    expect(JSON.parse(result.content?.[0]?.text ?? "{}").error_code).toBe("RESULT_TOO_LARGE");
+    expect(parsePayload(result).error_code).toBe("RESULT_TOO_LARGE");
   });
 
   test("rejects invalid input (empty sql) at the protocol layer", async () => {
@@ -137,84 +292,15 @@ describe("MCP run_sql tool", () => {
     expect(result.isError).toBe(true);
     expect(result.content?.[0]?.text).toMatch(/invalid/i);
   });
-});
 
-describe("MCP sync_activity_data tool", () => {
-  beforeEach(() => resetMcpIds());
-  afterEach(() => {
-    clearMockSupabase();
-    vi.clearAllMocks();
-    vi.unstubAllGlobals();
-  });
+  test("sync_activity_data no longer exists", async () => {
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
 
-  function mockWithSyncTables(extra: Parameters<typeof createMockSupabase>[0] = {}): MockSupabase {
-    return createMockSupabase({
-      auth: mockAuth(),
-      tables: {
-        strava_credentials: {
-          select: {
-            data: { user_id: MOCK_USER_ID, access_token: "tok", refresh_token: "ref", token_expires_at: new Date(Date.now() + 3_600_000).toISOString() },
-            error: null,
-          },
-        },
-        strava_sync_state: { select: { data: null, error: null }, upsert: { data: null, error: null } },
-        ...(extra.tables ?? {}),
-      },
-      rpc: extra.rpc ?? {},
-    });
-  }
-
-  test("requires at least one action", async () => {
-    setMockSupabase(mockWithSyncTables());
-
-    const response = await mcpCallTool("sync_activity_data", {});
-    const error = extractToolError(await parseMcpResponse(response));
-    expect(error?.code).toBe("VALIDATION_ERROR");
-  });
-
-  test("range sync reports summary coverage", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(JSON.stringify([{ id: 1 }]), { status: 200 })),
-    );
-    setMockSupabase(
-      mockWithSyncTables({
-        rpc: {
-          strava_ingest_activity_summaries: { data: [{ ingested: 10, oldest: "2026-05-01T00:00:00Z", newest: "2026-08-01T00:00:00Z" }], error: null },
-        },
-      }),
-    );
-
-    const response = await mcpCallTool("sync_activity_data", { range: { from: "2026-05-01" } });
+    const response = await mcpCallTool("sync_activity_data", { syncZones: true });
     const rpcResult = await parseMcpResponse(response);
-    const parsed = JSON.parse(((rpcResult.result as RawToolResult).content?.[0]?.text ?? "{}") as string) as {
-      result: { summaries: { status: string; ingested: number } };
-    };
-
-    expect(parsed.result.summaries.status).toBe("synced");
-    expect(parsed.result.summaries.ingested).toBe(10);
-  });
-
-  test("hydrateStreams reports per-activity status", async () => {
-    setMockSupabase(
-      mockWithSyncTables({
-        tables: {
-          activities: {
-            select: {
-              data: { id: 1, elapsed_sec: 3600, detail_synced_at: "2026-08-01T00:00:00Z", streams_synced_at: "2026-08-01T00:00:00Z", streams_status: "synced" },
-              error: null,
-            },
-          },
-        },
-      }),
-    );
-
-    const response = await mcpCallTool("sync_activity_data", { hydrateStreams: [123] });
-    const rpcResult = await parseMcpResponse(response);
-    const parsed = JSON.parse(((rpcResult.result as RawToolResult).content?.[0]?.text ?? "{}") as string) as {
-      result: { hydration: Array<{ stravaId: number; status: string }> };
-    };
-
-    expect(parsed.result.hydration).toEqual([{ stravaId: 123, status: "already" }]);
+    // Unknown tool surfaces as a JSON-RPC error or an isError result with a plain-text
+    // "MCP error ... not found" message — either way it is not a successful call.
+    const text = (rpcResult.result as RawToolResult | undefined)?.content?.[0]?.text ?? rpcResult.error?.message ?? "";
+    expect(text).toMatch(/not found|unknown tool|invalid/i);
   });
 });

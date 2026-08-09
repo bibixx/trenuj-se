@@ -139,7 +139,7 @@ completed → planned   (unlink_activity)
 
 ### Strava Activities
 
-Activities synced from Strava are auto-matched to planned workouts by date + sport type. Use `link_activity` / `unlink_activity` to manually override. `get_activity_streams` returns a temporary URL (15 min expiry) for detailed stream data.
+Activities synced from Strava are auto-matched to planned workouts by date + sport type. Use `link_activity` / `unlink_activity` to manually override. For detailed stream data (per-second HR/pace/power), query the `activity_streams` table via `run_sql`.
 
 ### Training Guide Resource
 
@@ -181,12 +181,11 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 
 ### Activities & Analytics
 
-| Tool                        | What it does                                                                                                                      |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `get_workout_streams`       | Get temp URL for detailed Strava stream data for a linked workout (use this to build GPX, analyze pacing). Required: `workoutId`. |
-| `get_week_summary`          | Planned vs actual aggregation for a Mon–Sun week. Optional: `weekDate`, `planId`.                                                 |
-| `get_plan_progress`         | Overall plan metrics: total/completed/skipped workouts, completion rate, current phase. Optional: `planId`.                       |
-| `compare_planned_vs_actual` | Per-workout planned vs actual comparison. Optional: `planId`, `dateFrom`, `dateTo`.                                               |
+| Tool                        | What it does                                                                                                |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `get_week_summary`          | Planned vs actual aggregation for a Mon–Sun week. Optional: `weekDate`, `planId`.                           |
+| `get_plan_progress`         | Overall plan metrics: total/completed/skipped workouts, completion rate, current phase. Optional: `planId`. |
+| `compare_planned_vs_actual` | Per-workout planned vs actual comparison. Optional: `planId`, `dateFrom`, `dateTo`.                         |
 
 ### Notes
 
@@ -199,14 +198,15 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 
 ### SQL Queries
 
-These tools expose a lazily-hydrated warehouse of **all** Strava activities (not just plan-matched ones) — summaries, laps, per-second streams, best efforts, and HR/power zones — queryable with real SQL, executed inside Postgres under a per-user read-only sandbox. Results are capped (200 rows default / 500 max, 64 KB), so aggregate server-side instead of pulling raw data.
+`run_sql` exposes a lazily-hydrated warehouse of **all** Strava activities (not just plan-matched ones) — summaries, laps, per-second streams, best efforts, and HR/power zones — queryable with real SQL, executed inside Postgres under a per-user read-only sandbox. Results are capped (200 rows default / 500 max, 64 KB), so aggregate server-side instead of pulling raw data.
 
-| Tool                 | What it does                                                                                                                                                                                                                                                                        |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `run_sql`            | Run one read-only SELECT over your workout data. Required: `sql` (single statement, no semicolons). Optional: `maxRows` (default 200, max 500). SQL errors return sqlstate + message verbatim; oversized results return TOO_MANY_ROWS / RESULT_TOO_LARGE with guidance.             |
-| `sync_activity_data` | Hydrate the warehouse from Strava on demand. Optional: `range` (`{from, to?}` — sync activity summaries for a date window), `hydrateStreams` (array of Strava activity ids, max 3/call — fetch per-second streams + laps + best efforts), `syncZones`. Respects Strava rate limits. |
+| Tool      | What it does                                                                                                                                                                                                                                                            |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `run_sql` | Run one read-only SELECT over your workout data. Required: `sql` (single statement, no semicolons). Optional: `maxRows` (default 200, max 500). SQL errors return sqlstate + message verbatim; oversized results return TOO_MANY_ROWS / RESULT_TOO_LARGE with guidance. |
 
-**Read the `guide://sql-schema` resource first** — it documents every table/column with units, join keys, hydration semantics, and worked example queries. Nothing syncs automatically: check the hydration warnings on `run_sql` responses (and `strava_sync_state` / `activities.streams_synced_at`) before trusting aggregates, and call `sync_activity_data` to fill gaps.
+**Hydration is automatic and inferred from the query.** Any Strava activity id appearing in the SQL gets its detail/laps/per-second streams pulled from Strava before the query runs (max 3 ids per call); when the query is date- or name-scoped and contains no ids, add a `-- hydrate: id1, id2` comment (warnings on incomplete results list the exact missing ids to use). Zone boundaries sync on first `athlete_zones` use. The webhook keeps new activities flowing in and everything ever matched to a workout is pre-loaded; the only invisible data is old never-matched activities, which appear after being referenced by id once.
+
+**Read the `guide://sql-schema` resource first** — it documents every table/column with units, join keys, hydration semantics, and worked example queries.
 
 ### Athlete
 

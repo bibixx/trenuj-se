@@ -1,9 +1,12 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { AppError, toolError, toolSuccess, type McpContext } from "../context";
-import { hydrateActivities, syncActivitySummaries, syncAthleteZones, MAX_HYDRATE_ACTIVITIES_PER_CALL } from "../../lib/strava-sync";
+import { AppError, toolError, type McpContext } from "../context";
+import { hydrateActivities, syncAthleteZones, MAX_HYDRATE_ACTIVITIES_PER_CALL, type HydrateResult } from "../../lib/strava-sync";
 
 const RUN_SQL_BYTE_BACKSTOP = 100_000;
+// Strava activity ids are 10-11 digit integers; anything smaller in a query (LIMIT, zone
+// bounds, epoch-ish arithmetic) stays below this.
+const STRAVA_ID_MIN = 1_000_000_000;
 
 type RunUserQueryPayload = {
   ok: boolean;
@@ -13,8 +16,37 @@ type RunUserQueryPayload = {
   rows?: unknown[];
   row_count?: number;
   warnings?: string[];
+  hydrated?: Array<Pick<HydrateResult, "stravaId" | "status" | "samples">>;
   [key: string]: unknown;
 };
+
+// Hydration is inferred from the SQL itself: any integer literal large enough to be a Strava
+// activity id, plus ids listed in an in-band `-- hydrate: id1, id2` comment (the escape hatch
+// for date/name-scoped stream queries, where the ids never appear in the SQL). Explicit
+// comment ids report failures loudly; inferred literals that 404 on Strava are treated as
+// false positives and dropped silently.
+export function extractHydrationCandidates(sql: string): { ids: number[]; explicit: Set<number> } {
+  const explicit = new Set<number>();
+  const commentMatch = sql.match(/--\s*hydrate:\s*([0-9,\s]+)/i);
+  if (commentMatch?.[1]) {
+    for (const part of commentMatch[1].split(",")) {
+      const id = Number(part.trim());
+      if (Number.isSafeInteger(id) && id > 0) {
+        explicit.add(id);
+      }
+    }
+  }
+
+  const ids = [...explicit];
+  for (const match of sql.matchAll(/(?<![\w.])(\d{10,})(?![\w.])/g)) {
+    const id = Number(match[1]);
+    if (Number.isSafeInteger(id) && id >= STRAVA_ID_MIN && !explicit.has(id)) {
+      ids.push(id);
+    }
+  }
+
+  return { ids: [...new Set(ids)].slice(0, MAX_HYDRATE_ACTIVITIES_PER_CALL), explicit };
+}
 
 // run_sql payloads bypass toolSuccess on purpose: it pretty-prints AND duplicates the payload
 // into structuredContent, doubling the wire size — irrelevant for small tool results, wasteful
@@ -26,6 +58,63 @@ function compactResult(payload: unknown, isError = false) {
   };
 }
 
+// Runs the Strava side-effects a query implies, before the query itself: hydrate referenced
+// activities that lack detail/streams, and pull zone boundaries the first time athlete_zones
+// is queried. Degrades to a warning instead of failing the query — SQL over already-synced
+// data must keep working when Strava is down or disconnected.
+async function hydrateForQuery(ctx: McpContext, sql: string): Promise<{ hydrated: RunUserQueryPayload["hydrated"]; warnings: string[] }> {
+  const warnings: string[] = [];
+  let hydrated: RunUserQueryPayload["hydrated"];
+
+  try {
+    const { ids, explicit } = extractHydrationCandidates(sql);
+
+    if (ids.length > 0) {
+      // Cheap prefilter: one batched read so fully-hydrated ids cost no further round-trips.
+      const { data: existing, error } = await ctx.supabase
+        .from("activities")
+        .select("strava_id, detail_synced_at, streams_synced_at, streams_status")
+        .eq("user_id", ctx.userId)
+        .in("strava_id", ids);
+      if (error) throw new AppError("INTERNAL_ERROR", error.message);
+
+      const byId = new Map((existing ?? []).map((row) => [row.strava_id as number, row]));
+      const needy = ids.filter((id) => {
+        const row = byId.get(id);
+        return !row || !row.detail_synced_at || (!row.streams_synced_at && row.streams_status !== "unavailable");
+      });
+
+      if (needy.length > 0) {
+        const results = await hydrateActivities(ctx.supabase, ctx.bindings, ctx.userId, needy);
+        hydrated = results
+          .filter((r) => r.status !== "not_found" || explicit.has(r.stravaId))
+          .map(({ stravaId, status, samples }) => ({ stravaId, status, ...(samples != null ? { samples } : {}) }));
+        for (const result of results) {
+          const loud = explicit.has(result.stravaId) || result.status === "rate_limited";
+          if (loud && result.status !== "synced" && result.status !== "already" && result.message) {
+            warnings.push(`Hydration of activity ${result.stravaId}: ${result.message}`);
+          }
+        }
+      }
+    }
+
+    if (/athlete_zones/i.test(sql)) {
+      const { data: zoneRows, error: zonesError } = await ctx.supabase.from("athlete_zones").select("id").eq("user_id", ctx.userId).limit(1);
+      if (zonesError) throw new AppError("INTERNAL_ERROR", zonesError.message);
+      if ((zoneRows ?? []).length === 0) {
+        const zones = await syncAthleteZones(ctx.supabase, ctx.bindings, ctx.userId);
+        if (zones.status === "rate_limited") {
+          warnings.push(`athlete_zones is empty and Strava is rate limited until ${zones.rateLimitedUntil}; zone joins will return no rows.`);
+        }
+      }
+    }
+  } catch (error) {
+    warnings.push(`Hydration skipped: ${error instanceof Error ? error.message : "unknown error"}. Query ran against already-synced data only.`);
+  }
+
+  return { hydrated, warnings };
+}
+
 export function registerQueryTools(server: McpServer, ctx: McpContext) {
   server.registerTool(
     "run_sql",
@@ -33,21 +122,28 @@ export function registerQueryTools(server: McpServer, ctx: McpContext) {
       title: "Run SQL",
       description:
         "Run one read-only SELECT over YOUR workout data in Postgres. Tables (all pre-scoped to you — never filter by user_id): " +
-        "activities (all Strava activities, lazily synced), activity_laps, activity_streams (one row per ~1s sample: time_s, dt_s, distance_m, velocity_mps, hr, watts, cadence, altitude_m, grade_pct), " +
+        "activities (all Strava activities, hydrated on demand), activity_laps, activity_streams (one row per ~1s sample: time_s, dt_s, distance_m, velocity_mps, hr, watts, cadence, altitude_m, grade_pct), " +
         "activity_best_efforts, athlete_zones, strava_sync_state, plans, phases, workouts, labels, label_activity_sports, plan_notes, workout_activities. " +
+        "Hydration is automatic: any Strava activity id appearing in the SQL gets its detail/laps/streams pulled from Strava first (max " +
+        `${MAX_HYDRATE_ACTIVITIES_PER_CALL} per call), so reference activities by strava_id when you need per-second data — or add a ` +
+        '"-- hydrate: id1, id2" comment when the query itself is date- or name-scoped. Zone boundaries sync automatically on first athlete_zones use. ' +
         "Full column reference, join keys, and worked examples: read the guide://sql-schema resource (or query information_schema.columns). " +
         "CTEs, window functions, FILTER, width_bucket, ntile, generate_series, lateral joins, regr_*/corr all work. " +
-        "Aggregate server-side; results are capped at maxRows rows and 64 KB. One statement only, no semicolons. " +
-        "Data is hydrated lazily: check the hydration warnings in responses and call sync_activity_data to pull missing summaries/streams from Strava first.",
+        "Aggregate server-side; results are capped at maxRows rows and 64 KB. One statement only, no semicolons.",
       inputSchema: z.object({
         sql: z.string().min(1).max(20_000).describe("A single SELECT (or WITH ... SELECT) statement. No semicolons."),
         maxRows: z.number().int().min(1).max(500).optional().describe("Row cap for this query (default 200, max 500). Prefer aggregating over raising this."),
       }),
+      // Read-only from the agent's perspective: it can only SELECT. Referenced activities are
+      // hydrated from Strava first, but that is an internal cache-fill the agent can't direct
+      // and never mutates the user's plans/workouts.
       annotations: { readOnlyHint: true },
     },
     async (input) => {
       try {
         const params = z.object({ sql: z.string().min(1).max(20_000), maxRows: z.number().int().min(1).max(500).optional() }).parse(input);
+
+        const { hydrated, warnings: hydrationWarnings } = await hydrateForQuery(ctx, params.sql);
 
         const runQuery = async (): Promise<RunUserQueryPayload> => {
           const { data, error } = await ctx.supabase.rpc("run_user_query", {
@@ -68,6 +164,13 @@ export function registerQueryTools(server: McpServer, ctx: McpContext) {
           payload = await runQuery();
         }
 
+        if (hydrated && hydrated.length > 0) {
+          payload.hydrated = hydrated;
+        }
+        if (hydrationWarnings.length > 0) {
+          payload.warnings = [...hydrationWarnings, ...(payload.warnings ?? [])];
+        }
+
         if (!payload.ok) {
           return compactResult(payload, true);
         }
@@ -85,94 +188,6 @@ export function registerQueryTools(server: McpServer, ctx: McpContext) {
           );
         }
         return result;
-      } catch (error) {
-        return toolError(error);
-      }
-    },
-  );
-
-  server.registerTool(
-    "sync_activity_data",
-    {
-      title: "Sync Activity Data",
-      description:
-        "Pull Strava data into the SQL warehouse on demand (data is never synced automatically). " +
-        "range: sync activity summaries so every activity in the date range has a row in `activities`. " +
-        `hydrateStreams: fetch per-second streams + laps + best efforts for specific activities by strava_id (max ${MAX_HYDRATE_ACTIVITIES_PER_CALL} per call — call repeatedly for more). ` +
-        "syncZones: refresh HR/power zone boundaries into `athlete_zones`. " +
-        "Query `strava_sync_state` and `activities.streams_synced_at`/`detail_synced_at` via run_sql to see current coverage. " +
-        "Respects Strava rate limits: on rate_limited results, retry after the returned timestamp.",
-      inputSchema: z.object({
-        range: z
-          .object({
-            from: z.string().date().describe("Sync summaries from this date (YYYY-MM-DD)."),
-            to: z.string().date().optional().describe("Optional end date; defaults to now."),
-          })
-          .optional(),
-        hydrateStreams: z
-          .array(z.number().int().positive())
-          .min(1)
-          .max(MAX_HYDRATE_ACTIVITIES_PER_CALL)
-          .optional()
-          .describe(`Strava activity ids to hydrate streams/laps for (max ${MAX_HYDRATE_ACTIVITIES_PER_CALL}).`),
-        syncZones: z.boolean().optional().describe("Also refresh athlete HR/power zones."),
-      }),
-    },
-    async (input) => {
-      try {
-        const params = z
-          .object({
-            range: z.object({ from: z.string().date(), to: z.string().date().optional() }).optional(),
-            hydrateStreams: z.array(z.number().int().positive()).min(1).max(MAX_HYDRATE_ACTIVITIES_PER_CALL).optional(),
-            syncZones: z.boolean().optional(),
-          })
-          .parse(input ?? {});
-
-        if (!params.range && !params.hydrateStreams && !params.syncZones) {
-          throw new AppError("VALIDATION_ERROR", "Provide at least one of range, hydrateStreams, or syncZones.");
-        }
-
-        const result: {
-          summaries?: Awaited<ReturnType<typeof syncActivitySummaries>>;
-          hydration?: Awaited<ReturnType<typeof hydrateActivities>>;
-          zones?: Awaited<ReturnType<typeof syncAthleteZones>>;
-        } = {};
-        const warnings: string[] = [];
-
-        if (params.range) {
-          const summaries = await syncActivitySummaries(ctx.supabase, ctx.bindings, ctx.userId, {
-            from: `${params.range.from}T00:00:00Z`,
-            ...(params.range.to ? { to: `${params.range.to}T23:59:59Z` } : {}),
-          });
-          result.summaries = summaries;
-          if (summaries.status === "partial") {
-            warnings.push(
-              `Summary sync is partial (page budget spent); coverage now starts at ${summaries.coveredFrom}. Call sync_activity_data again with the same range to continue.`,
-            );
-          }
-          if (summaries.status === "rate_limited") {
-            warnings.push(`Strava rate limit hit; retry after ${summaries.rateLimitedUntil}.`);
-          }
-        }
-
-        if (params.hydrateStreams) {
-          const hydration = await hydrateActivities(ctx.supabase, ctx.bindings, ctx.userId, params.hydrateStreams);
-          result.hydration = hydration;
-          const rateLimited = hydration.find((item) => item.status === "rate_limited");
-          if (rateLimited) {
-            warnings.push(rateLimited.message ?? "Strava rate limit hit during hydration; retry later.");
-          }
-        }
-
-        if (params.syncZones) {
-          const zones = await syncAthleteZones(ctx.supabase, ctx.bindings, ctx.userId);
-          result.zones = zones;
-          if (zones.status === "rate_limited") {
-            warnings.push(`Strava rate limit hit; retry zones sync after ${zones.rateLimitedUntil}.`);
-          }
-        }
-
-        return toolSuccess(result, warnings.length > 0 ? warnings : undefined);
       } catch (error) {
         return toolError(error);
       }

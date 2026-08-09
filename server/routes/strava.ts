@@ -10,7 +10,6 @@ import {
   getStravaOauthConfig,
   getStravaVerifyToken,
   getStravaWebhookSigningSecret,
-  getValidStravaAccessToken,
   linkActivityToWorkout,
   matchAndStoreActivity,
   refreshWorkoutActivityFromStrava,
@@ -18,7 +17,6 @@ import {
   verifyStravaSignature,
 } from "../lib/strava";
 import { stravaFetchRaw } from "../lib/strava-sync";
-import { consumeStreamToken } from "../lib/stream-tokens";
 import { buildFit, type FitLap, type StravaStream } from "../lib/fit";
 
 type Variables = {
@@ -405,34 +403,6 @@ stravaRoutes.post("/link", async (c) => {
   } catch (error) {
     const payload = errorPayload(error);
     const status = payload.code === "AUTH_ERROR" ? 401 : payload.code === "VALIDATION_ERROR" ? 400 : payload.code === "NOT_FOUND" ? 404 : payload.code === "CONFLICT" ? 409 : 500;
-    return c.json(payload, status);
-  }
-});
-
-stravaRoutes.get("/streams/:stravaActivityId", async (c) => {
-  try {
-    const token = c.req.query("token");
-    const stravaActivityId = Number(c.req.param("stravaActivityId"));
-    if (!token || !Number.isFinite(stravaActivityId)) {
-      throw new AppError("AUTH_ERROR", "Invalid or expired stream token");
-    }
-
-    const supabase = createServerSupabase(c);
-    const userId = await consumeStreamToken(supabase, token, stravaActivityId);
-    const accessToken = await getValidStravaAccessToken(supabase, c.env, userId);
-    const response = await fetch(
-      `https://www.strava.com/api/v3/activities/${stravaActivityId}/streams?keys=time,distance,latlng,altitude,velocity_smooth,heartrate,cadence,watts,temp,grade_smooth&key_type=time`,
-      { headers: { Authorization: `Bearer ${accessToken}` } },
-    );
-    const payload = await response.json().catch(() => null);
-    if (!response.ok) {
-      throw new AppError("INTERNAL_ERROR", "Failed to fetch activity streams", payload);
-    }
-
-    return c.json(payload);
-  } catch (error) {
-    const payload = errorPayload(error);
-    const status = payload.code === "AUTH_ERROR" ? 401 : 500;
     return c.json(payload, status);
   }
 });
