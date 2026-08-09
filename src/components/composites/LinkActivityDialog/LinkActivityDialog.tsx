@@ -95,7 +95,7 @@ export function LinkActivityDialog({ workoutId, planId, open, onOpenChange }: Li
       await link.mutateAsync({ workoutId, stravaActivityId: activity.stravaId });
       onOpenChange(false);
     } catch (err) {
-      setLinkError(err instanceof Error ? err.message : "Failed to link activity");
+      setLinkError(err instanceof Error ? err.message : "Couldn't link activity");
     }
   };
 
@@ -105,7 +105,7 @@ export function LinkActivityDialog({ workoutId, planId, open, onOpenChange }: Li
       const { url } = (await res.json()) as { url: string };
       window.location.href = url;
     } catch (err) {
-      setLinkError(err instanceof Error ? err.message : "Failed to start Strava connection");
+      setLinkError(err instanceof Error ? err.message : "Couldn't connect to Strava");
     }
   };
 
@@ -132,7 +132,7 @@ export function LinkActivityDialog({ workoutId, planId, open, onOpenChange }: Li
 
         {error && !stravaNotConnected && <p className={styles.error}>{error.message}</p>}
 
-        {data && data.length === 0 && <DialogList.Empty>No recent unlinked Strava activities. New activities sync automatically when you finish them.</DialogList.Empty>}
+        {data && data.length === 0 && <DialogList.Empty>No recent Strava activities to link. New activities appear here automatically after you finish them.</DialogList.Empty>}
 
         {data && data.length > 0 && (
           <DialogList.Root>

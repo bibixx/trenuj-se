@@ -19,7 +19,7 @@ const TABS: { value: Tab; label: string }[] = [
 ];
 
 const DESCRIPTIONS: Record<Tab, string> = {
-  create: "Copy this prompt and paste it into your favourite AI client to get started building a personalized training plan.",
+  create: "Copy this prompt into your favourite AI client to build a personalised training plan.",
   migrate: "Already have a plan elsewhere? Copy this prompt to migrate it into trenuj.se.",
 };
 

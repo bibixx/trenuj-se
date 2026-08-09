@@ -9,7 +9,7 @@ interface ChartProps {
 }
 
 function InvalidChart() {
-  return <div className={styles.invalid}>Invalid Chart</div>;
+  return <div className={styles.invalid}>Invalid chart</div>;
 }
 
 function parseSpec(source: string): ChartSpec | null {

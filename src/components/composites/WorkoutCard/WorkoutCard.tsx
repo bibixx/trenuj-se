@@ -163,13 +163,13 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
               {workout.description && <div className={styles.details}>{renderDescription ? renderDescription(workout.description) : workout.description}</div>}
               {workout.trainerNotes && (
                 <div className={styles.trainerNotes}>
-                  <span className={styles.trainerLabel}>Trainer Notes</span>
+                  <span className={styles.trainerLabel}>Trainer notes</span>
                   {renderDescription ? renderDescription(workout.trainerNotes) : workout.trainerNotes}
                 </div>
               )}
               {workout.completionNotes && (
                 <div className={styles.completionNotes}>
-                  <span className={styles.completionLabel}>Completion Notes</span>
+                  <span className={styles.completionLabel}>Completion notes</span>
                   {renderDescription ? renderDescription(workout.completionNotes) : workout.completionNotes}
                 </div>
               )}
@@ -180,7 +180,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
                       <ScrollArea.Content style={{ flexDirection: "row", gap: 8 }} className={styles.actionsContent}>
                         {workoutFile && (
                           <Button variant="secondary" size="sm" icon={<IconDownload size={16} />} onClick={handleDownload}>
-                            Save to Apple Watch
+                            Download for Apple Watch
                           </Button>
                         )}
                         {showActivityActions && workout.activity && (
@@ -222,7 +222,7 @@ export function WorkoutCard({ workout, dateLabel, isToday = false, defaultExpand
 
         {debug && (
           <details className={styles.debug}>
-            <summary className={styles.debugSummary}>Raw Workout Data</summary>
+            <summary className={styles.debugSummary}>Raw workout data</summary>
             <pre className={styles.debugPre}>{JSON.stringify(workout, null, 2)}</pre>
           </details>
         )}

@@ -61,7 +61,7 @@ function createGeneratedRestWorkout(date: string, restLabel: Label | null): Work
     labelId: restLabel?.id ?? null,
     label: restLabel ?? FALLBACK_REST_LABEL,
     date,
-    title: "Rest Day",
+    title: "Rest day",
     description: null,
     targetDurationMin: null,
     targetDistanceM: null,

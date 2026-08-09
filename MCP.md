@@ -1,4 +1,4 @@
-# Workout Planner — MCP Server
+# trenuj.se — MCP server
 
 You have access to a training plan MCP server. Use it to manage the athlete's plans, workouts, activities, and notes.
 
@@ -22,7 +22,7 @@ If Claude Desktop's OAuth flow works for you, use the normal OAuth endpoint:
 ```json
 {
   "mcpServers": {
-    "workout-planner": {
+    "trenuj-se": {
       "type": "streamableHttp",
       "url": "{SERVER_URL}/mcp"
     }
@@ -35,7 +35,7 @@ If Claude fails during OAuth bootstrap, mint a connector token first (see **Clau
 ```json
 {
   "mcpServers": {
-    "workout-planner": {
+    "trenuj-se": {
       "type": "streamableHttp",
       "url": "{SERVER_URL}/mcp/claude/{CONNECTOR_TOKEN}"
     }
@@ -50,7 +50,7 @@ Then restart Claude Desktop.
 OAuth path:
 
 ```bash
-claude mcp add workout-planner \
+claude mcp add trenuj-se \
   --transport streamable-http \
   "{SERVER_URL}/mcp"
 ```
@@ -58,7 +58,7 @@ claude mcp add workout-planner \
 Fallback token path:
 
 ```bash
-claude mcp add workout-planner \
+claude mcp add trenuj-se \
   --transport streamable-http \
   "{SERVER_URL}/mcp/claude/{CONNECTOR_TOKEN}"
 ```
@@ -70,7 +70,7 @@ Create `.vscode/mcp.json` in the workspace. Requires `chat.mcp.enabled: true` in
 ```json
 {
   "servers": {
-    "workout-planner": {
+    "trenuj-se": {
       "type": "http",
       "url": "{SERVER_URL}/mcp"
     }

@@ -98,7 +98,7 @@ export function McpSettingsSection({ profile }: { profile: Profile | null }) {
   return (
     <section className={styles.section}>
       <h2 className={styles.sectionTitle}>Connect an AI agent</h2>
-      <p className={styles.sectionDescription}>Manage your plan from any MCP-capable AI client. Point it at the trenuj.se server and log in with your account when prompted.</p>
+      <p className={styles.sectionDescription}>Manage your plan from an AI client such as Claude or Cursor. Pick your client below and follow the steps.</p>
 
       <ToggleGroup.Root value={[tab]} onValueChange={handleTabChange} className={styles.toggleGroup} aria-label="MCP client">
         {TABS.map((t) => (
@@ -204,7 +204,7 @@ function ConnectorTokensSubsection() {
           ))}
         </div>
       ) : (
-        <p className={styles.emptyText}>No connector tokens yet.</p>
+        <p className={styles.emptyText}>No connector tokens yet</p>
       )}
 
       <div className={styles.buttonRow}>

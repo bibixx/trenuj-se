@@ -11,7 +11,7 @@ function PrivacyPolicyPage() {
     <PageLayout>
       <header className={styles.header}>
         <h1 className={styles.heading}>Privacy Policy</h1>
-        <p className={styles.lastUpdate}>Last update: May 10, 2026</p>
+        <p className={styles.lastUpdate}>Last updated: May 10, 2026</p>
       </header>
 
       <p className={styles.body}>This Privacy Policy describes how trenuj.se ("we", "us") collects, uses, and shares personal data when you use the service.</p>
@@ -42,14 +42,14 @@ function PrivacyPolicyPage() {
             date, duration, distance, and similar metrics) for activities recorded on Strava.
           </li>
         </ul>
-        <p className={styles.body}>We do not collect special categories of personal data, and we do not run third-party analytics, advertising, or behavioral tracking.</p>
+        <p className={styles.body}>We do not collect special categories of personal data, and we do not run third-party analytics, advertising, or behavioural tracking.</p>
       </section>
 
       <section className={styles.section}>
         <h2 className={styles.sectionHeading}>3. Purposes of processing</h2>
         <p className={styles.body}>We use your personal data to:</p>
         <ul className={styles.list}>
-          <li className={styles.body}>provide and operate the service (display your plans, sync activities, and let you share plans with recipients you nominate);</li>
+          <li className={styles.body}>provide and operate the service (display your plans, sync activities, and let you share plans with people you choose);</li>
           <li className={styles.body}>maintain account security and prevent abuse;</li>
           <li className={styles.body}>communicate with you about your account, when necessary.</li>
         </ul>
@@ -82,7 +82,7 @@ function PrivacyPolicyPage() {
         <h2 className={styles.sectionHeading}>5. Cookies and local storage</h2>
         <p className={styles.body}>
           We use strictly necessary cookies and browser storage (localStorage, IndexedDB) to keep you signed in and to cache your data for offline use. We do not use cookies for
-          analytics, advertising, or behavioral tracking.
+          analytics, advertising, or behavioural tracking.
         </p>
       </section>
 

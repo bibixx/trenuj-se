@@ -38,7 +38,7 @@ export function ShareDialog({ planId, open, onOpenChange }: ShareDialogProps) {
       <Dialog.Content>
         <Dialog.Close />
         <Dialog.Title>Share plan</Dialog.Title>
-        <Dialog.Description>Create shareable links to your plan. Each link can include different content.</Dialog.Description>
+        <Dialog.Description>Create share links to your plan and choose what each one shows.</Dialog.Description>
 
         <div className={styles.shareList}>
           {activeShares.map((share) => (

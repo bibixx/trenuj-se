@@ -41,10 +41,10 @@ export function PastPlansDialog({ open, onOpenChange }: PastPlansDialogProps) {
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Content>
         <Dialog.Close />
-        <Dialog.Title>Plans</Dialog.Title>
+        <Dialog.Title>Past plans</Dialog.Title>
 
         {plans.length === 0 ? (
-          <DialogList.Empty>No plans yet</DialogList.Empty>
+          <DialogList.Empty>No past plans yet</DialogList.Empty>
         ) : (
           <DialogList.Root>
             {plans.map((plan) => (

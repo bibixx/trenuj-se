@@ -21,7 +21,7 @@ export function AgentMemoryDialog({ plan, open, onOpenChange }: AgentMemoryDialo
         {memory ? (
           <Markdown>{memory}</Markdown>
         ) : (
-          <p className={styles.empty}>No agent notes yet. As the agent works on this plan, it can record pace/HR zones, constraints, and reminders here.</p>
+          <p className={styles.empty}>No agent notes yet. Your AI agent records pace and HR zones, constraints, and reminders here as it works on your plan.</p>
         )}
       </Dialog.Content>
     </Dialog.Root>

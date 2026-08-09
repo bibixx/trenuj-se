@@ -81,7 +81,7 @@ function OAuthConsentPage() {
       const { data, error: fetchError } = await oauthFetch<AuthorizationResponse>(`/oauth/authorizations/${authorization_id}`, "GET");
 
       if (fetchError || !data) {
-        setError(fetchError ?? "Failed to load authorization details");
+        setError(fetchError ?? "Couldn't load authorisation details");
         setLoading(false);
         return;
       }
@@ -105,7 +105,7 @@ function OAuthConsentPage() {
     const { data, error: approveError } = await oauthFetch<OAuthRedirect>(`/oauth/authorizations/${authorization_id}/consent`, "POST", { action: "approve" });
 
     if (approveError || !data) {
-      setError(approveError ?? "Failed to approve");
+      setError(approveError ?? "Couldn't approve the request");
       setSubmitting(false);
       return;
     }
@@ -120,7 +120,7 @@ function OAuthConsentPage() {
     const { data, error: denyError } = await oauthFetch<OAuthRedirect>(`/oauth/authorizations/${authorization_id}/consent`, "POST", { action: "deny" });
 
     if (denyError || !data) {
-      setError(denyError ?? "Failed to deny");
+      setError(denyError ?? "Couldn't deny the request");
       setSubmitting(false);
       return;
     }
@@ -140,7 +140,7 @@ function OAuthConsentPage() {
     return (
       <div className={styles.page}>
         <Card className={styles.card}>
-          <p className={styles.description}>Loading authorization details…</p>
+          <p className={styles.description}>Loading authorisation details…</p>
         </Card>
       </div>
     );
@@ -150,8 +150,8 @@ function OAuthConsentPage() {
     return (
       <div className={styles.page}>
         <Card className={styles.card}>
-          <h1 className={styles.title}>Authorization error</h1>
-          <p className={styles.error}>{error ?? "Invalid authorization request"}</p>
+          <h1 className={styles.title}>Authorisation error</h1>
+          <p className={styles.error}>{error ?? "Invalid authorisation request"}</p>
         </Card>
       </div>
     );
@@ -160,9 +160,9 @@ function OAuthConsentPage() {
   return (
     <div className={styles.page}>
       <Card className={styles.card}>
-        <h1 className={styles.title}>Authorize application</h1>
+        <h1 className={styles.title}>Authorise application</h1>
         <p className={styles.description}>
-          <span className={styles.clientName}>{details.client.name}</span> wants to access your Workout Planner account.
+          <span className={styles.clientName}>{details.client.name}</span> wants to access your trenuj.se account.
         </p>
         {error && <p className={styles.error}>{error}</p>}
         <div className={styles.actions}>

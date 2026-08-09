@@ -84,7 +84,7 @@ function AccountSection({ user }: { user: User | null }) {
       if (updateError) throw updateError;
       setSuccess("Profile updated");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update profile");
+      setError(err instanceof Error ? err.message : "Couldn't update profile");
     } finally {
       setLoading(false);
     }
@@ -107,7 +107,7 @@ function AccountSection({ user }: { user: User | null }) {
       setSuccess("Password updated");
       setNewPassword("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update password");
+      setError(err instanceof Error ? err.message : "Couldn't update password");
     } finally {
       setLoading(false);
     }
@@ -147,7 +147,7 @@ function AccountSection({ user }: { user: User | null }) {
 
       <div className={styles.buttonRow}>
         <Button variant="destructive" onClick={handleLogout}>
-          Log out
+          Sign out
         </Button>
       </div>
     </section>
@@ -180,8 +180,8 @@ function StravaSection({ profile, stravaParam }: { profile: Profile | null; stra
   const [disconnecting, setDisconnecting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(() => {
-    if (stravaParam === "connected") return "Strava connected successfully";
-    if (stravaParam === "error") return "Failed to connect Strava";
+    if (stravaParam === "connected") return "Strava connected";
+    if (stravaParam === "error") return "Couldn't connect Strava";
     return null;
   });
 
@@ -194,7 +194,7 @@ function StravaSection({ profile, stravaParam }: { profile: Profile | null; stra
       queryClient.invalidateQueries({ queryKey: profileKeys.current });
       setFeedback("Strava disconnected");
     } catch (err) {
-      setFeedback(err instanceof Error ? err.message : "Disconnect failed");
+      setFeedback(err instanceof Error ? err.message : "Couldn't disconnect Strava");
     } finally {
       setDisconnecting(false);
     }
@@ -209,7 +209,7 @@ function StravaSection({ profile, stravaParam }: { profile: Profile | null; stra
       const { url } = (await res.json()) as { url: string };
       window.location.href = url;
     } catch (err) {
-      setFeedback(err instanceof Error ? err.message : "Failed to start Strava connection");
+      setFeedback(err instanceof Error ? err.message : "Couldn't connect to Strava");
       setConnecting(false);
     }
   };
@@ -217,13 +217,13 @@ function StravaSection({ profile, stravaParam }: { profile: Profile | null; stra
   return (
     <section className={styles.section}>
       <div className={styles.sectionHeader}>
-        <h2 className={styles.sectionTitle}>Strava Connection</h2>
+        <h2 className={styles.sectionTitle}>Strava</h2>
         {isConnected && <Badge variant="status">Connected · Athlete #{profile.stravaAthleteId}</Badge>}
       </div>
       <p className={styles.sectionDescription}>
         Connect Strava to match your runs, rides, and swims to the workouts in your plan.
         <br />
-        This will happen automatically and can be done using “Link Strava activity” button.
+        New activities link automatically; you can also link one yourself with the “Link Strava activity” button.
       </p>
       <div className={styles.buttonRow}>
         {isConnected ? (

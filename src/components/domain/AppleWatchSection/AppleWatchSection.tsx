@@ -70,11 +70,11 @@ export function AppleWatchSection() {
     <section className={styles.section}>
       <h2 className={styles.sectionTitle}>Apple Watch</h2>
       <p className={styles.sectionDescription}>
-        Sync your planned workouts to the Apple Watch via the{" "}
+        Sync your planned workouts to your Apple Watch via the{" "}
         <a href="https://github.com/bibixx/workout-feed" target="_blank" rel="noreferrer">
           Workout Feed
         </a>{" "}
-        app. Create a token, then paste the Root URL and Authorization values into the app. Tokens can be revoked here at any time.
+        app. Create a token, then paste the Root URL and Authorization values into the app. You can revoke tokens here at any time.
       </p>
 
       {tokens && tokens.length > 0 ? (
@@ -94,7 +94,7 @@ export function AppleWatchSection() {
           ))}
         </div>
       ) : (
-        <p className={styles.emptyText}>No watch tokens yet.</p>
+        <p className={styles.emptyText}>No watch tokens yet</p>
       )}
 
       <div className={styles.buttonRow}>

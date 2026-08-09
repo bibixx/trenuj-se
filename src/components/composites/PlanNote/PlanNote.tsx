@@ -17,6 +17,13 @@ const TYPE_HUE: Record<string, number> = {
   recommendation: 150,
 };
 
+const TYPE_LABEL: Record<string, string> = {
+  summary: "Summary",
+  adjustment: "Adjustment",
+  note: "Note",
+  recommendation: "Recommendation",
+};
+
 export function PlanNote({ note, renderContent, className }: PlanNoteProps) {
   const hue = TYPE_HUE[note.type] ?? 90;
 
@@ -24,7 +31,7 @@ export function PlanNote({ note, renderContent, className }: PlanNoteProps) {
     <Card className={clsx(styles.root, className)}>
       <div className={styles.header}>
         <Badge variant="phase" hue={hue}>
-          {note.type}
+          {TYPE_LABEL[note.type] ?? note.type}
         </Badge>
       </div>
       <div className={styles.content}>{renderContent ? renderContent(note.content) : note.content}</div>
