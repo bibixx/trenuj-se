@@ -265,6 +265,24 @@ export const mcpConnectorTokens = pgTable(
   (table) => [uniqueIndex("mcp_connector_tokens_hash_unique").on(table.tokenHash), index("mcp_connector_tokens_user_created").on(table.userId, table.createdAt)],
 );
 
+// Revocable bearer tokens for the Apple Watch feed (/api/watch). Only the SHA-256 hash is
+// stored; the raw token is shown to the user once at creation.
+export const watchTokens = pgTable(
+  "watch_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [uniqueIndex("watch_tokens_hash_unique").on(table.tokenHash), index("watch_tokens_user_created").on(table.userId, table.createdAt)],
+);
+
 // Activity warehouse: every Strava activity (matched to a workout or not), lazily hydrated
 // on demand for the run_sql MCP tool. workout_activities stays the 1:1 match record; the two
 // are joined on (user_id, strava_id). Surrogate PK + nullable strava_id keep the door open
@@ -429,6 +447,7 @@ export const tables = {
   planNotes,
   planShares,
   mcpConnectorTokens,
+  watchTokens,
   activities,
   activityLaps,
   activityStreams,

@@ -248,12 +248,12 @@ The server also exposes a `training-plan-guide` resource (`guide://training-plan
 
 ### Sync to an Apple Watch
 
-Planned workouts can show up in the watch's **native Workout app** via **[Workout Feed](https://github.com/bibixx/workout-feed)** — a generic iOS companion app that consumes `.workout` feeds. trenuj.se is one producer of that feed: it serves the manifest at `/api/watch/index.json` and individual workouts at `/api/watch/w/<id>.workout` (Apple WorkoutKit binaries built with [`@bibixx/workoutkit`](https://www.npmjs.com/package/@bibixx/workoutkit)), authenticated by a long-lived watch token (`Authorization: Bearer …` header, or `?token=` for clients that can't set headers).
+Planned workouts can show up in the watch's **native Workout app** via **[Workout Feed](https://github.com/bibixx/workout-feed)** — a generic iOS companion app that consumes `.workout` feeds. trenuj.se is one producer of that feed: it serves the manifest at `/api/watch/index.json` and individual workouts at `/api/watch/w/<id>.workout` (Apple WorkoutKit binaries built with [`@bibixx/workoutkit`](https://www.npmjs.com/package/@bibixx/workoutkit)), authenticated by a long-lived watch token (`Authorization: Bearer …` header, or `?token=` for clients that can't set headers). Tokens are stored hashed in the `watch_tokens` table and are individually revocable from the settings page.
 
 To connect the two:
 
 1. Enable the `companion_app` flag on your profile (the `user_flags` JSONB column in the database).
-2. In the web app go to **Settings → Apple Watch → Generate watch token**, then copy the shown **Root URL** and **Authorization** values.
+2. In the web app go to **Settings → Apple Watch → Create token**, name the token, then copy the shown **Root URL** and **Authorization** values (the Authorization value is shown only once).
 3. Build and install [Workout Feed](https://github.com/bibixx/workout-feed) on your iPhone (its README covers the two-command setup) and paste both values into the app.
 
 From then on the app keeps the watch stocked automatically. For local development, point it at `http://<your-mac-ip>:8787/api/watch/index.json` — the app allows plain `http` on the LAN.

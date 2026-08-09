@@ -8,7 +8,6 @@ export const MOCK_ENV: AppBindings = {
   STRAVA_VERIFY_TOKEN: "mock-verify-token",
   STRAVA_WEBHOOK_PATH_SECRET: "mock-webhook-secret",
   STRAVA_WEBHOOK_SIGNING_SECRET: "mock-signing-secret",
-  WATCH_TOKEN_SECRET: "mock-watch-secret",
   PUBLIC_APP_URL: "http://localhost:8787",
 };
 
