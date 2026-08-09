@@ -59,6 +59,11 @@ pnpm test
 
 Tests do not require any env vars or database connection — everything is mocked. See "Testing conventions" below for details.
 
+## Deployment
+
+- **Pushing to `main` auto-deploys** the Cloudflare Worker (`trenuj-se`) via Workers Builds — there is no CI workflow in the repo and no manual `wrangler deploy` step. Treat every push to `main` as a production deploy.
+- **Database migrations do NOT run on deploy.** `pnpm db:migrate` reads `DATABASE_URL` from `.dev.vars`, which points at the **hosted Supabase pooler** — running it migrates production, not a local database. Apply migrations deliberately (ideally before pushing code that depends on them), and check `drizzle.__drizzle_migrations` on the target first if unsure what's pending. For a local-only run, override the URL: `DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres pnpm db:migrate`.
+
 ## Package manager
 
 - **Always use `pnpm`** — never use `npm` or `npx`.
