@@ -219,7 +219,7 @@ runIf("SQL sandbox (real Postgres)", () => {
 
     const activity = await runQuery(
       USER_A,
-      "SELECT sport, name, local_date::text AS local_date, avg_hr, distance_m, streams_status, streams_sample_count FROM activities WHERE strava_id = 909",
+      "SELECT sport, name, local_date::text AS local_date, avg_hr, distance_m, streams_status, streams_sample_count, stream_channels FROM activities WHERE strava_id = 909",
     );
     expect(activity.rows?.[0]).toMatchObject({
       sport: "Run",
@@ -229,6 +229,8 @@ runIf("SQL sandbox (real Postgres)", () => {
       distance_m: 151,
       streams_status: "synced",
       streams_sample_count: 4,
+      // Maintained by the activity_streams trigger (0019), not the ingest function.
+      stream_channels: ["distance_m", "hr", "moving"],
     });
 
     const laps = await runQuery(

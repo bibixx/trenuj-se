@@ -23,20 +23,24 @@ Hydration from Strava is **inferred from your SQL** and happens before the query
   laps, best efforts, and per-second streams pulled if missing — max 3 ids per call. So when
   you want per-second data for specific activities, reference them by \`strava_id\` in the
   query and hydration is automatic.
-- When the query is date- or name-scoped (no id literals), add a comment anywhere in the SQL:
-  \`-- hydrate: 19620351399, 19605843631\`. The ids to use come from the response warnings
-  (see below) or from \`SELECT strava_id FROM activities WHERE ...\`.
+- Workout-UUID-scoped queries hydrate too: a quoted workout UUID in SQL that touches activity
+  data resolves to its matched activity via \`workout_activities\`.
+- Queries that RETURN a \`strava_id\` column (e.g. finding an activity by date or name) hydrate
+  the returned unhydrated ids automatically and re-run once, so the response already reflects
+  the pulled data.
+- To force specific ids anyway, add a comment anywhere in the SQL:
+  \`-- hydrate: 19620351399, 19605843631\`. For bulk pulls (cross-session stream analysis),
+  use the \`hydrate_activities\` tool — up to 10 ids per call.
 - Per activity, \`activities.detail_synced_at\` (laps + best efforts present) and
   \`activities.streams_synced_at\` / \`streams_status\` ('synced' | 'unavailable' | NULL = not
-  fetched yet) say what is hydrated.
+  fetched yet) say what is hydrated; \`activities.stream_channels\` lists which stream columns
+  actually contain data.
 
 When the query is date/name-scoped, responses referencing streams/laps include a warning with
 the count of unhydrated activities **and their newest strava_ids** — feed those into
-\`-- hydrate:\` on the next call; do not present incomplete aggregates as complete. When
-hydration ran, the response carries a \`hydrated\` array with per-id status, sample count, and
-\`channels\`: the stream columns that actually contain data for that activity. Check it (or
-\`count(col)\`) before querying optional columns — watts, cadence, and temp_c are often NULL
-for a whole activity.
+\`-- hydrate:\` / \`hydrate_activities\`; do not present incomplete aggregates as complete.
+When hydration ran, the response carries a \`hydrated\` array with per-id status, sample count,
+and \`channels\`.
 
 Coverage notes: the Strava webhook ingests every new activity, and everything ever matched to
 a planned workout is pre-loaded. Old activities that were never matched become visible after
@@ -49,16 +53,19 @@ id (bigint, PK) · strava_id (bigint) · source ('strava'|'fit'|'gpx'|'manual') 
 sport type, e.g. 'Run', 'Ride') · name · description · start_date (timestamptz) ·
 start_date_local (timestamp, local clock time) · local_date (date, generated) · timezone ·
 utc_offset_sec · distance_m · moving_sec · elapsed_sec · elevation_m · avg_hr · max_hr ·
-avg_speed_mps · max_speed_mps · avg_power · max_power · weighted_avg_power · device_watts ·
+avg_speed_mps (moving-time based — use distance_m/elapsed_sec when stops matter) ·
+max_speed_mps · avg_power · max_power · weighted_avg_power · device_watts ·
 avg_cadence · calories · suffer_score (Strava relative effort) · gear_id · workout_type
 (run: 0 default/1 race/2 long run/3 workout; ride: 10/11 race/12) · is_race (generated) ·
 trainer · commute · raw (jsonb, stripped Strava detail) · summary_synced_at ·
-detail_synced_at · streams_synced_at · streams_status · streams_sample_count
+detail_synced_at · streams_synced_at · streams_status · streams_sample_count ·
+stream_channels (text[], which stream columns have data — check before querying
+watts/cadence/temp_c)
 
 ### activity_streams — one row per ~1s sample
 activity_id → activities.id · time_s (offset from start, PK with activity_id) · dt_s
 (precomputed gap to next sample, NULL on last — **use sum(dt_s) for time-in-zone**, no window
-needed; cap or filter large dt_s values for pauses) · distance_m (cumulative) · velocity_mps ·
+needed; guard pauses with \`least(dt_s, 10)\`) · distance_m (cumulative) · velocity_mps ·
 altitude_m · grade_pct · hr · watts · cadence · temp_c · moving (bool)
 
 ### activity_laps — one row per lap
@@ -98,14 +105,31 @@ workout_activities (workout_id, strava_id, …) — the workout↔activity match
   \`1000/avg(velocity_mps)/60\`.
 - **Time-based aggregates**: weight by \`sum(dt_s)\`, not \`count(*)\` — sampling is ~1 Hz but
   not guaranteed uniform.
-- **Optional columns**: check availability (the \`hydrated\` report's \`channels\`, or
-  \`count(col)\`) before building queries on watts / cadence / temp_c / grade_pct.
+- **Optional columns**: check \`activities.stream_channels\` (or \`count(col)\`) before
+  building queries on watts / cadence / temp_c / grade_pct.
 - **HR fits**: heart rate approaches a workload step exponentially, not linearly. A
   \`regr_slope(hr, t)\` over a rep answers "still climbing?"; extrapolating it beyond the rep
   produces impossible numbers.
 - **Derive boundaries, don't hardcode**: get rep windows from \`activity_laps\`
   (\`start_offset_sec\`, \`elapsed_sec\`) in the query instead of pasting literals read off an
   earlier result.
+- **Work-lap heuristics lie**: a speed/duration filter for "work laps" can admit walked
+  recoveries or fragmented warmups — sanity-check the selected laps against the prescription
+  in \`workouts.execution\` (block count and durations).
+- **Cross-session questions**: start from summary columns (\`activities\`: avg_hr,
+  avg_speed_mps, suffer_score…) or \`activity_laps\` — they cover the whole fleet with no
+  hydration cost. Per-second cross-session scans require every activity's streams; reserve
+  those for a handful of ids, or bulk-pull with \`hydrate_activities\` first.
+- **Lookups belong in SQL too**: resolving "which workout/activity" via run_sql returns a few
+  hundred bytes; the REST-shaped tools return full execution JSONB and notes. E.g. the most
+  recent completed quality session:
+
+      SELECT w.id, w.date, w.title
+      FROM workouts w
+      JOIN labels lb ON lb.id = w.label_id AND lb.key = 'quality'
+      JOIN plans p ON p.id = w.plan_id AND p.status = 'active'
+      WHERE w.status = 'completed' AND w.date <= current_date
+      ORDER BY w.date DESC LIMIT 1
 
 ## Worked examples
 
@@ -119,17 +143,21 @@ Weekly running volume, last 12 weeks (calendar spine keeps empty weeks):
     GROUP BY w.week ORDER BY w.week
 
 Time in HR zones for one activity (dt_s, no window function). Zone boundaries are not stored
-in the database — take them from the training plan and inline them:
+in the database — take them from the training plan and inline them. LEFT JOIN from the band
+list so an empty band shows up as an explicit 0 instead of silently missing:
 
     WITH z(zone_index, min_hr, max_hr) AS (
       VALUES (1, 0, 148), (2, 148, 158), (3, 158, 172), (4, 172, 190), (5, 190, 999)
     )
     SELECT z.zone_index,
-           round(sum(least(s.dt_s, 10)) / 60.0, 1) AS minutes
-    FROM activity_streams s
-    JOIN activities a ON a.id = s.activity_id
-    JOIN z ON s.hr >= z.min_hr AND s.hr < z.max_hr
-    WHERE a.strava_id = 19605843631 AND s.hr IS NOT NULL
+           round(coalesce(sum(least(s.dt_s, 10)), 0) / 60.0, 1) AS minutes
+    FROM z
+    LEFT JOIN (
+      SELECT s.hr, s.dt_s
+      FROM activity_streams s
+      JOIN activities a ON a.id = s.activity_id
+      WHERE a.strava_id = 19605843631 AND s.hr IS NOT NULL
+    ) s ON s.hr >= z.min_hr AND s.hr < z.max_hr
     GROUP BY z.zone_index ORDER BY z.zone_index
 
 Aerobic fitness trend — pace at easy HR on flat ground, by month:
@@ -144,8 +172,9 @@ Aerobic fitness trend — pace at easy HR on flat ground, by month:
     GROUP BY 1 HAVING sum(s.dt_s) > 600 ORDER BY 1
 
 This query has no id literal, so it aggregates only already-hydrated activities and returns a
-warning listing the newest un-hydrated strava_ids. Pull those in batches of 3 with a
-\`-- hydrate: <ids>\` comment across successive calls until the warning clears, then re-run.
+warning listing the newest un-hydrated strava_ids. Pull those with \`hydrate_activities\`
+(10 per call) until the warning clears, then re-run — or answer from summary columns instead
+when per-second precision isn't essential.
 
 Interval fade — first vs last work lap per interval session:
 
@@ -184,7 +213,26 @@ strongest use of this tool: how does HR at a given pace vary with rep duration a
     ORDER BY q.date, l.lap_index
 
 Laps require detail hydration, so expect the first run to warn about unhydrated sessions:
-hydrate them 3 per call via \`-- hydrate: <ids>\` and re-run until the warning clears.
+bulk-pull them with \`hydrate_activities\` (10 ids per call) and re-run until the warning
+clears.
+
+Entry vs terminal HR per lap — lap-average HR is diluted by the ~2 min entry ramp; terminal HR
+is the honest cost of the pace:
+
+    WITH s AS (
+      SELECT l.lap_index, st.time_s - l.start_offset_sec AS t_rel, st.hr,
+             max(st.time_s - l.start_offset_sec) OVER (PARTITION BY l.lap_index) AS t_max
+      FROM activity_laps l
+      JOIN activities a ON a.id = l.activity_id
+      JOIN activity_streams st ON st.activity_id = l.activity_id
+       AND st.time_s >= l.start_offset_sec AND st.time_s < l.start_offset_sec + l.elapsed_sec
+      WHERE a.strava_id = 19620351399 AND st.hr IS NOT NULL
+    )
+    SELECT lap_index,
+           round(avg(hr) FILTER (WHERE t_rel < 15)::numeric, 0) AS hr_entry,
+           round(avg(hr)::numeric, 1) AS hr_avg,
+           round(avg(hr) FILTER (WHERE t_rel > t_max - 15)::numeric, 0) AS hr_terminal
+    FROM s GROUP BY lap_index ORDER BY lap_index
 
 Plan compliance by label, current plan:
 

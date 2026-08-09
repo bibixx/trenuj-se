@@ -180,6 +180,10 @@ async function attachLabels(ctx: McpContext, planId: string, workouts: Array<Rec
 const workoutSelect =
   "id, plan_id, phase_id, label_id, date, title, description, target_duration_min, target_distance_m, sort_order, status, completion_notes, trainer_notes, execution, metadata, created_at, updated_at";
 
+// get_workouts compact mode: enough to identify a workout (then dive in via get_workout or
+// run_sql) without the execution JSONB and notes that dominate the full payload.
+const workoutCompactSelect = "id, label_id, date, title, status, sort_order";
+
 function serializeWorkoutUpdateError(error: unknown) {
   if (error instanceof z.ZodError) {
     return error.issues;
@@ -446,7 +450,9 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
     "get_workouts",
     {
       title: "Get Workouts",
-      description: "Query workouts on the active plan, or on a specific plan when planId is provided, with flexible date, label, and status filters.",
+      description:
+        "Query workouts on the active plan, or on a specific plan when planId is provided, with flexible date, label, and status filters. " +
+        "Pass compact: true when you only need ids/titles (e.g. to find a workout to analyze) — the default payload includes full execution JSONB and notes.",
       inputSchema: z.object({
         planId: z.string().uuid().optional().describe("Plan UUID. Defaults to the active plan if omitted."),
         dateFrom: z.string().date().optional().describe("Filter start date (YYYY-MM-DD, inclusive)."),
@@ -455,6 +461,7 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
         labelKey: labelKeySchema.optional().describe("Filter by label key string using lowercase letters, numbers, and hyphens only."),
         status: workoutStatusSchema.optional().describe("Filter by workout status: 'planned', 'completed', or 'skipped'."),
         limit: z.number().int().positive().max(200).default(50).optional().describe("Max results (default 50, max 200)."),
+        compact: z.boolean().optional().describe("Return only id, date, title, status, sort_order, and label — no execution/notes/description."),
       }),
       annotations: { readOnlyHint: true },
     },
@@ -469,13 +476,16 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
             labelKey: labelKeySchema.optional(),
             status: workoutStatusSchema.optional(),
             limit: z.number().int().positive().max(200).default(50).optional(),
+            compact: z.boolean().optional(),
           })
           .parse(input ?? {});
 
         const plan = await resolvePlanId(ctx, params.planId);
+        // Widened to string so the typed select parser doesn't choke on the union of literals.
+        const columns: string = params.compact ? workoutCompactSelect : workoutSelect;
         let query = ctx.supabase
           .from("workouts")
-          .select(workoutSelect)
+          .select(columns)
           .eq("plan_id", plan.id)
           .eq("user_id", ctx.userId)
           .order("date", { ascending: true })
@@ -490,7 +500,7 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
         const { data, error } = await query;
         if (error) throw new AppError("INTERNAL_ERROR", error.message);
 
-        let workouts = await attachLabels(ctx, plan.id, (data ?? []) as Array<Record<string, unknown>>);
+        let workouts = await attachLabels(ctx, plan.id, (data ?? []) as unknown as Array<Record<string, unknown>>);
         if (params.labelKey) {
           workouts = workouts.filter((workout) => workout.label?.key === params.labelKey);
         }

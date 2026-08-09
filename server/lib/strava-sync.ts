@@ -17,6 +17,9 @@ import { getValidStravaAccessToken, type StravaBindings } from "./strava";
 const STRAVA_BASE_URL = "https://www.strava.com/api/v3";
 const STREAM_KEYS = "time,distance,altitude,velocity_smooth,heartrate,cadence,watts,temp,grade_smooth,moving";
 export const MAX_HYDRATE_ACTIVITIES_PER_CALL = 3;
+// The explicit hydrate_activities tool gets a higher budget than run_sql's implicit inference:
+// the fan-out is a visible, deliberate decision there, not a side effect of a query.
+export const MAX_HYDRATE_ACTIVITIES_PER_TOOL_CALL = 10;
 // Beyond ~6h of 1Hz samples the raw streams payload gets big enough that serializing it into
 // the RPC body threatens the CPU budget; fall back to Strava's downsampled medium resolution.
 const FULL_RESOLUTION_MAX_ELAPSED_SEC = 6 * 60 * 60;
@@ -83,11 +86,17 @@ export type HydrateResult = { stravaId: number; status: HydrateItemStatus; sampl
 // purpose: a 429 stops the batch cleanly, and the ≤3-activity cap bounds Worker CPU per call.
 // A detail 404 reports status "not_found" so callers can distinguish a false-positive inferred
 // id (silently ignorable) from a genuine failure.
-export async function hydrateActivities(supabase: SupabaseClient, bindings: StravaBindings, userId: string, stravaIds: number[]): Promise<HydrateResult[]> {
+export async function hydrateActivities(
+  supabase: SupabaseClient,
+  bindings: StravaBindings,
+  userId: string,
+  stravaIds: number[],
+  cap: number = MAX_HYDRATE_ACTIVITIES_PER_CALL,
+): Promise<HydrateResult[]> {
   const results: HydrateResult[] = [];
   const state = await getSyncState(supabase, userId);
   const activeLimit = rateLimitActive(state);
-  const ids = stravaIds.slice(0, MAX_HYDRATE_ACTIVITIES_PER_CALL);
+  const ids = stravaIds.slice(0, cap);
 
   if (activeLimit) {
     return ids.map((stravaId) => ({ stravaId, status: "rate_limited" as const, message: `Strava rate limit active until ${activeLimit}` }));

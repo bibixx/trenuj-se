@@ -239,7 +239,7 @@ The server registers 30+ tools across six categories. Full parameter docs live i
 | **Plans**                  | `list_plans`, `get_plan`, `create_plan`, `update_plan`, `edit_plan_memory`, `deactivate_plan`, `set_labels`, `update_label`, `add_phase`, `update_phase`, `remove_phase` |
 | **Workouts**               | `add_workouts`, `get_workouts`, `update_workouts`, `remove_workouts`, `complete_workout`, `skip_workout`, `link_activity`, `unlink_activity`, `add_trainer_notes`        |
 | **Activities & Analytics** | `get_week_summary`, `get_plan_progress`, `compare_planned_vs_actual`                                                                                                     |
-| **SQL Queries**            | `run_sql` + `get_sql_guide` — read-only SQL over the lazily-hydrated activity warehouse (summaries, laps, per-second streams, best efforts)                              |
+| **SQL Queries**            | `run_sql` + `get_sql_guide` + `hydrate_activities` — read-only SQL over the lazily-hydrated activity warehouse (summaries, laps, per-second streams, best efforts)       |
 | **Notes**                  | `add_plan_note`, `update_plan_note`, `delete_plan_note`, `get_plan_notes`                                                                                                |
 | **Athlete**                | `get_profile`                                                                                                                                                            |
 | **Icons**                  | `search_icons`                                                                                                                                                           |

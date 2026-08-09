@@ -14,7 +14,7 @@ import { createMockSupabase } from "../helpers/mock-supabase.ts";
 import { clearMockSupabase, setMockSupabase } from "../helpers/setup.ts";
 import { MOCK_USER_ID } from "../helpers/mock-env.ts";
 import { mcpCallTool, parseMcpResponse, resetMcpIds } from "../helpers/mcp.ts";
-import { extractHydrationCandidates } from "../../server/mcp/tools/query.ts";
+import { extractHydrationCandidates, extractWorkoutUuids } from "../../server/mcp/tools/query.ts";
 import { hydrateActivities } from "../../server/lib/strava-sync.ts";
 
 function mockAuth() {
@@ -59,6 +59,17 @@ describe("extractHydrationCandidates", () => {
   test("dedupes and caps at 3", () => {
     const { ids } = extractHydrationCandidates(`SELECT * FROM activities WHERE strava_id IN (1111111111, 1111111111, 2222222222, 3333333333, 4444444444)`);
     expect(ids).toEqual([1111111111, 2222222222, 3333333333]);
+  });
+});
+
+describe("extractWorkoutUuids", () => {
+  test("finds quoted UUIDs case-insensitively, tolerates ::uuid casts, and dedupes", () => {
+    const sql = "SELECT 1 FROM workout_activities WHERE workout_id = 'EFDA0ECF-EE3F-46D2-A4EC-9445BF087636'::uuid OR workout_id = 'efda0ecf-ee3f-46d2-a4ec-9445bf087636'";
+    expect(extractWorkoutUuids(sql)).toEqual(["efda0ecf-ee3f-46d2-a4ec-9445bf087636"]);
+  });
+
+  test("ignores dates and other quoted strings", () => {
+    expect(extractWorkoutUuids("SELECT '2026-08-05', 'not-a-uuid', '1234567890'")).toEqual([]);
   });
 });
 
@@ -209,7 +220,90 @@ describe("MCP run_sql tool", () => {
 
     const result = await callRunSql({ sql: "SELECT avg(hr) FROM activity_streams WHERE time_s < 600" });
 
-    expect(parsePayload(result).warnings).toEqual([globalHint]);
+    expect(parsePayload(result).warnings).toEqual([globalHint + " Or hydrate in bulk with the hydrate_activities tool (up to 10 ids per call)."]);
+  });
+
+  test("resolves workout UUIDs through workout_activities and hydrates the matched activity", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        workout_activities: { select: { data: [{ strava_id: STRAVA_ID }], error: null } },
+        activities: { select: { data: [], error: null } },
+      },
+      rpc: { run_user_query: { data: OK_PAYLOAD, error: null } },
+    });
+    setMockSupabase(mock);
+
+    await callRunSql({
+      sql: "SELECT a.avg_hr FROM activities a JOIN workout_activities wa ON wa.strava_id = a.strava_id WHERE wa.workout_id = 'efda0ecf-ee3f-46d2-a4ec-9445bf087636'",
+    });
+
+    const uuidLookup = mock.calls.find((c) => c.table === "workout_activities" && c.operation === "select");
+    expect(uuidLookup).toBeDefined();
+    expect(hydrateActivities).toHaveBeenCalledWith(expect.anything(), expect.anything(), MOCK_USER_ID, [STRAVA_ID]);
+  });
+
+  test("workout UUIDs with no matched activity hydrate nothing", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: { workout_activities: { select: { data: [], error: null } } },
+      rpc: { run_user_query: { data: OK_PAYLOAD, error: null } },
+    });
+    setMockSupabase(mock);
+
+    await callRunSql({
+      sql: "SELECT a.avg_hr FROM activities a JOIN workout_activities wa ON wa.strava_id = a.strava_id WHERE wa.workout_id = 'efda0ecf-ee3f-46d2-a4ec-9445bf087636'",
+    });
+
+    expect(hydrateActivities).not.toHaveBeenCalled();
+  });
+
+  test("hydrates activities surfaced in result rows and re-runs the query once", async () => {
+    const rowsPayload = { ok: true, rows: [{ strava_id: STRAVA_ID, name: "Humid much? 💦", streams_status: null }], row_count: 1, warnings: [] };
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: { activities: { select: { data: [], error: null } } },
+      rpc: { run_user_query: { data: rowsPayload, error: null } },
+    });
+    setMockSupabase(mock);
+
+    const result = await callRunSql({ sql: "SELECT a.strava_id, a.name, a.streams_status FROM activities a WHERE a.local_date = '2026-08-05'" });
+
+    expect(hydrateActivities).toHaveBeenCalledWith(expect.anything(), expect.anything(), MOCK_USER_ID, [STRAVA_ID]);
+    expect(mock.calls.filter((c) => c.table === "rpc:run_user_query")).toHaveLength(2);
+    expect(parsePayload(result).hydrated).toEqual([{ stravaId: STRAVA_ID, status: "synced", samples: 100 }]);
+  });
+
+  test("does not re-run when result activities are already hydrated", async () => {
+    const rowsPayload = { ok: true, rows: [{ strava_id: STRAVA_ID, name: "x" }], row_count: 1, warnings: [] };
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        activities: {
+          select: { data: [{ strava_id: STRAVA_ID, detail_synced_at: "2026-08-01T00:00:00Z", streams_synced_at: "2026-08-01T00:00:00Z", streams_status: "synced" }], error: null },
+        },
+      },
+      rpc: { run_user_query: { data: rowsPayload, error: null } },
+    });
+    setMockSupabase(mock);
+
+    await callRunSql({ sql: "SELECT a.strava_id, a.name FROM activities a WHERE a.local_date = '2026-08-05'" });
+
+    expect(hydrateActivities).not.toHaveBeenCalled();
+    expect(mock.calls.filter((c) => c.table === "rpc:run_user_query")).toHaveLength(1);
+  });
+
+  test("skips the result pass entirely when rows carry no strava_id", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      rpc: { run_user_query: { data: OK_PAYLOAD, error: null } },
+    });
+    setMockSupabase(mock);
+
+    await callRunSql({ sql: "SELECT name FROM activities WHERE local_date = '2026-08-05'" });
+
+    expect(hydrateActivities).not.toHaveBeenCalled();
+    expect(mock.calls.filter((c) => c.table === "activities")).toHaveLength(0);
   });
 
   test("degrades to a warning when hydration fails; the query still runs", async () => {
@@ -306,6 +400,32 @@ describe("MCP run_sql tool", () => {
     const result = rpcResult.result as RawToolResult;
     expect(result.isError).toBe(true);
     expect(result.content?.[0]?.text).toMatch(/invalid/i);
+  });
+
+  test("hydrate_activities pulls a batch of ids with the raised cap", async () => {
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
+    const ids = Array.from({ length: 10 }, (_, i) => 1_900_000_000 + i);
+
+    const response = await mcpCallTool("hydrate_activities", { stravaIds: ids });
+    const rpcResult = await parseMcpResponse(response);
+    const result = rpcResult.result as RawToolResult;
+
+    expect(result.isError).toBeUndefined();
+    expect(hydrateActivities).toHaveBeenCalledWith(expect.anything(), expect.anything(), MOCK_USER_ID, ids, 10);
+    const payload = JSON.parse(result.content?.[0]?.text ?? "{}") as { result: { results: Array<Record<string, unknown>> } };
+    expect(payload.result.results).toHaveLength(10);
+    expect(payload.result.results[0]).toMatchObject({ stravaId: ids[0], status: "synced", samples: 100 });
+  });
+
+  test("hydrate_activities rejects more than 10 ids at the protocol layer", async () => {
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
+
+    const response = await mcpCallTool("hydrate_activities", { stravaIds: Array.from({ length: 11 }, (_, i) => 1_900_000_000 + i) });
+    const rpcResult = await parseMcpResponse(response);
+    const result = rpcResult.result as RawToolResult;
+
+    expect(result.isError).toBe(true);
+    expect(hydrateActivities).not.toHaveBeenCalled();
   });
 
   test("get_sql_guide returns the schema guide", async () => {

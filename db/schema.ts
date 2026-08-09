@@ -331,6 +331,9 @@ export const activities = pgTable(
     streamsSyncedAt: timestamp("streams_synced_at", { withTimezone: true }),
     streamsStatus: text("streams_status"),
     streamsSampleCount: integer("streams_sample_count"),
+    // Which stream columns actually contain data (e.g. {hr,distance_m,moving}) — maintained by
+    // a trigger on activity_streams, so any ingest path keeps it correct automatically.
+    streamChannels: text("stream_channels").array(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },

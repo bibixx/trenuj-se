@@ -411,6 +411,31 @@ describe("MCP Workout Tools", () => {
     expect(result?.result[0].label.activitySports).toEqual(["Run"]);
   });
 
+  test("get_workouts compact mode selects only the narrow column set", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: { select: { data: MOCK_PLAN, error: null } },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+        workouts: {
+          select: {
+            data: [{ id: MOCK_WORKOUT_ID, label_id: "label-1", date: "2024-03-01", title: "Easy Run", status: "planned", sort_order: 0 }],
+            error: null,
+          },
+        },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("get_workouts", { planId: VALID_PLAN_ID, compact: true }, {}));
+    const result = extractToolResult(parsed);
+
+    const selectCall = mock.calls.find((c) => c.table === "workouts" && c.operation === "select");
+    expect(selectCall?.args[0]).toBe("id, label_id, date, title, status, sort_order");
+    expect(result?.result[0]).not.toHaveProperty("execution");
+    expect(result?.result[0].label.key).toBe("easy-run");
+  });
+
   test("add_workouts rejects providing both labelId and labelKey", async () => {
     setMockSupabase(createMockSupabase({ auth: mockAuth(), tables: { plans: { select: { data: MOCK_PLAN, error: null } } } }));
 
