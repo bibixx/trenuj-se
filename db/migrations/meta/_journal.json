@@ -141,6 +141,13 @@
       "when": 1786302496991,
       "tag": "0019_grey_madame_masque",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786302496992,
+      "tag": "0020_enable_settings_realtime",
+      "breakpoints": true
     }
   ]
 }

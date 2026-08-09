@@ -16,6 +16,7 @@ import type { User } from "@supabase/supabase-js";
 import { useAuth } from "../../lib/auth.ts";
 import { profileKeys, profileQueryOptions } from "../../lib/queries/profile.ts";
 import { queryClient } from "../../lib/query-client.ts";
+import { useSettingsRealtimeSync } from "../../lib/realtime.ts";
 import { supabase } from "../../lib/supabase.ts";
 import { hasFlag, type Profile } from "../../lib/types.ts";
 import styles from "./settings.module.css";
@@ -41,6 +42,8 @@ function SettingsPage() {
     ...profileQueryOptions,
     enabled: !!user,
   });
+
+  useSettingsRealtimeSync(user?.id ?? null);
 
   return (
     <PageLayout>

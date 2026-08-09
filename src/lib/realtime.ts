@@ -2,10 +2,13 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { useEffect } from "react";
 import { queryClient } from "./query-client.ts";
 import { labelKeys } from "./queries/labels.ts";
+import { mcpConnectorTokenKeys } from "./queries/mcp-connector-tokens.ts";
 import { planKeys } from "./queries/plans.ts";
 import { planNoteKeys } from "./queries/plan-notes.ts";
 import { planShareKeys } from "./queries/plan-shares.ts";
 import { phaseKeys } from "./queries/phases.ts";
+import { profileKeys } from "./queries/profile.ts";
+import { watchTokenKeys } from "./queries/watch-tokens.ts";
 import { workoutKeys } from "./queries/workouts.ts";
 import { supabase } from "./supabase.ts";
 
@@ -71,4 +74,43 @@ export function useRealtimeSync(planId: string | null) {
       }
     };
   }, [planId]);
+}
+
+/**
+ * Streams settings data (profile, MCP connector tokens, watch tokens) while the
+ * settings page is mounted. Kept off the root layout on purpose: token
+ * verification touches last_used_at on every watch-feed poll / MCP request,
+ * which would otherwise trigger refetches from anywhere in the app.
+ */
+export function useSettingsRealtimeSync(userId: string | null) {
+  useEffect(() => {
+    if (!userId) return;
+
+    const channels: RealtimeChannel[] = [];
+
+    function subscribe(table: string, filter: string, invalidate: () => void) {
+      const channel = supabase.channel(`realtime:${table}:${userId}`).on("postgres_changes", { event: "*" as const, schema: "public" as const, table, filter }, () => invalidate());
+
+      channel.subscribe();
+      channels.push(channel);
+    }
+
+    subscribe("profiles", `id=eq.${userId}`, () => {
+      queryClient.invalidateQueries({ queryKey: profileKeys.current });
+    });
+
+    subscribe("mcp_connector_tokens", `user_id=eq.${userId}`, () => {
+      queryClient.invalidateQueries({ queryKey: mcpConnectorTokenKeys.list });
+    });
+
+    subscribe("watch_tokens", `user_id=eq.${userId}`, () => {
+      queryClient.invalidateQueries({ queryKey: watchTokenKeys.list });
+    });
+
+    return () => {
+      for (const channel of channels) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [userId]);
 }
