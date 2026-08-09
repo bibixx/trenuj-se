@@ -3,21 +3,42 @@
   color: var(--text-primary);
 }
 
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionHeading {
+  composes: typography-lg from global;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.question {
+  composes: typography-base from global;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 4px;
+}
+
 .body {
   composes: typography-sm from global;
   color: var(--text-secondary);
   line-height: var(--leading-relaxed);
 }
 
-.link {
-  composes: typography-base from global;
-  color: var(--accent);
-  font-weight: 500;
-  text-decoration: none;
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 20px;
+  list-style: decimal;
+}
 
-  &:hover {
-    text-decoration: underline;
-  }
+.term {
+  color: var(--text-primary);
+  font-weight: 600;
 }
 
 .version {

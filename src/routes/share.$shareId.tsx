@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { Badge } from "../components/primitives/Badge/Badge.tsx";
 import { Card } from "../components/primitives/Card/Card.tsx";
 import { PageLayout } from "../components/composites/PageLayout/PageLayout.tsx";
+import { ShareCta } from "../components/composites/ShareCta/ShareCta.tsx";
 import { PlanHeader } from "../components/composites/PlanHeader/PlanHeader.tsx";
 import { PlanNote } from "../components/composites/PlanNote/PlanNote.tsx";
 import { SessionList } from "../components/composites/SessionList/SessionList.tsx";
@@ -124,6 +125,8 @@ function SharedPlanView() {
           )}
         </>
       )}
+
+      <ShareCta />
     </PageLayout>
   );
 }

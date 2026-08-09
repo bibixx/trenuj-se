@@ -1,0 +1,13 @@
+.root {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.text {
+  composes: typography-sm from global;
+  color: var(--text-secondary);
+  text-wrap: pretty;
+}
