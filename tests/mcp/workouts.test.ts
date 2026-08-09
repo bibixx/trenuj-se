@@ -411,6 +411,65 @@ describe("MCP Workout Tools", () => {
     expect(result?.result[0].label.activitySports).toEqual(["Run"]);
   });
 
+  test("get_workouts labelKey filters in SQL, not after the row limit", async () => {
+    // Regression: labelKey used to be applied client-side AFTER the SQL LIMIT, so a wide date
+    // range returned the N earliest rows and then dropped non-matching ones — silently losing
+    // newer matches. Now labelKey resolves to a label_id before the query; whatever the query
+    // returns is trusted, not re-filtered.
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: { select: { data: MOCK_PLAN, error: null } },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+        workouts: {
+          select: {
+            data: [{ id: MOCK_WORKOUT_ID, label_id: "label-2", date: "2026-08-05", title: "Quality", status: "completed", sort_order: 0 }],
+            error: null,
+          },
+        },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("get_workouts", { planId: VALID_PLAN_ID, labelKey: "easy-run", compact: true }, {}));
+    const result = extractToolResult(parsed);
+
+    expect(result?.result).toHaveLength(1);
+  });
+
+  test("get_workouts with an unknown labelKey returns empty without querying workouts", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: { select: { data: MOCK_PLAN, error: null } },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("get_workouts", { planId: VALID_PLAN_ID, labelKey: "no-such-label" }, {}));
+    const result = extractToolResult(parsed);
+
+    expect(result?.result).toEqual([]);
+    expect(mock.calls.find((c) => c.table === "workouts")).toBeUndefined();
+  });
+
+  test("get_workouts with conflicting labelId and labelKey returns empty", async () => {
+    const mock = createMockSupabase({
+      auth: mockAuth(),
+      tables: {
+        plans: { select: { data: MOCK_PLAN, error: null } },
+        labels: { select: { data: [MOCK_LABEL_RUN], error: null } },
+      },
+    });
+    setMockSupabase(mock);
+
+    const parsed = await parseMcpResponse(await mcpCallTool("get_workouts", { planId: VALID_PLAN_ID, labelId: "11111111-1111-4111-8111-111111111111", labelKey: "easy-run" }, {}));
+    const result = extractToolResult(parsed);
+
+    expect(result?.result).toEqual([]);
+  });
+
   test("get_workouts compact mode selects only the narrow column set", async () => {
     const mock = createMockSupabase({
       auth: mockAuth(),

@@ -28,6 +28,6 @@ export function buildProtectedResourceMetadata(bindings: AppBindings, resourcePa
     resource: `${baseUrl}${normalizedPath}`,
     authorization_servers: [getAuthorizationServerIssuer(bindings)],
     bearer_methods_supported: ["header"],
-    resource_name: "Workout Planner MCP",
+    resource_name: "trenuj.se MCP",
   };
 }

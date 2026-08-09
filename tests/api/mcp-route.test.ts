@@ -62,7 +62,7 @@ describe("MCP route registration", () => {
       resource: `${MOCK_ENV.PUBLIC_APP_URL}/mcp`,
       authorization_servers: [`${MOCK_ENV.VITE_SUPABASE_URL}/auth/v1`],
       bearer_methods_supported: ["header"],
-      resource_name: "Workout Planner MCP",
+      resource_name: "trenuj.se MCP",
     });
   });
 });

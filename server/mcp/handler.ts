@@ -19,7 +19,7 @@ import type { AppBindings } from "../lib/supabase";
 function buildServer(ctx: McpContext) {
   const server = new McpServer(
     {
-      name: "training-plan-platform",
+      name: "trenuj-se",
       version: "0.1.0",
     },
     {

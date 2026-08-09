@@ -481,6 +481,21 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
           .parse(input ?? {});
 
         const plan = await resolvePlanId(ctx, params.planId);
+
+        // labelKey must resolve to a label_id BEFORE the query: filtering it client-side after
+        // the SQL LIMIT silently drops matches beyond the first `limit` rows by date (a real
+        // bug caught in the field — "last quality session" returned five-week-stale results).
+        let labelIdFilter = params.labelId;
+        if (params.labelKey) {
+          const labels = await getPlanLabels(ctx, [plan.id]);
+          const match = labels.find((label) => label.key === params.labelKey);
+          // Unknown key, or a labelId that names a different label: nothing can match.
+          if (!match || (labelIdFilter && labelIdFilter !== match.id)) {
+            return toolSuccess([]);
+          }
+          labelIdFilter = match.id;
+        }
+
         // Widened to string so the typed select parser doesn't choke on the union of literals.
         const columns: string = params.compact ? workoutCompactSelect : workoutSelect;
         let query = ctx.supabase
@@ -494,16 +509,13 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
 
         if (params.dateFrom) query = query.gte("date", params.dateFrom);
         if (params.dateTo) query = query.lte("date", params.dateTo);
-        if (params.labelId) query = query.eq("label_id", params.labelId);
+        if (labelIdFilter) query = query.eq("label_id", labelIdFilter);
         if (params.status) query = query.eq("status", params.status);
 
         const { data, error } = await query;
         if (error) throw new AppError("INTERNAL_ERROR", error.message);
 
-        let workouts = await attachLabels(ctx, plan.id, (data ?? []) as unknown as Array<Record<string, unknown>>);
-        if (params.labelKey) {
-          workouts = workouts.filter((workout) => workout.label?.key === params.labelKey);
-        }
+        const workouts = await attachLabels(ctx, plan.id, (data ?? []) as unknown as Array<Record<string, unknown>>);
         return toolSuccess(workouts);
       } catch (error) {
         return toolError(error);

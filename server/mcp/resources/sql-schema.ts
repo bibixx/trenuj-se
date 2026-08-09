@@ -107,6 +107,18 @@ workout_activities (workout_id, strava_id, …) — the workout↔activity match
   not guaranteed uniform.
 - **Optional columns**: check \`activities.stream_channels\` (or \`count(col)\`) before
   building queries on watts / cadence / temp_c / grade_pct.
+- **watts on runs is usually estimated**: check \`activities.device_watts\` — when false,
+  watts is Strava's pace-derived estimate and tells you nothing velocity doesn't.
+- **Paused time is invisible to streams**: auto-pause leaves gaps, so the sample before a
+  pause carries a huge dt_s and \`least(dt_s, 10)\` deliberately drops the paused time.
+  \`sum(least(dt_s, 10))\` ≈ moving time, NOT elapsed — use lap \`elapsed_sec\`/\`moving_sec\`
+  for wall-clock questions, and expect them to disagree with stream sums on paused activities.
+- **FILTER over an empty set returns NULL, not 0** — \`coalesce(sum(...) FILTER (...), 0)\`
+  when "didn't happen" and "no data" must read differently.
+- **No weather data in-DB**: \`temp_c\` is a device sensor (usually absent) and
+  \`raw->>'average_temp'\` is the same sensor averaged. Ambient conditions
+  (humidity/dew point) are not stored — treat heat claims as user-reported context, not as
+  something the data can confirm or refute.
 - **HR fits**: heart rate approaches a workload step exponentially, not linearly. A
   \`regr_slope(hr, t)\` over a rep answers "still climbing?"; extrapolating it beyond the rep
   produces impossible numbers.
@@ -233,6 +245,17 @@ is the honest cost of the pace:
            round(avg(hr)::numeric, 1) AS hr_avg,
            round(avg(hr) FILTER (WHERE t_rel > t_max - 15)::numeric, 0) AS hr_terminal
     FROM s GROUP BY lap_index ORDER BY lap_index
+
+Inspecting a trace (as opposed to aggregating it) — modulo decimation returns the *shape*
+within the row cap:
+
+    SELECT (s.time_s - 2792) AS t_rel, round(s.velocity_mps::numeric, 2) AS v, s.hr
+    FROM activity_streams s
+    JOIN activities a ON a.id = s.activity_id
+    WHERE a.strava_id = 19620351399
+      AND s.time_s BETWEEN 2792 AND 2912
+      AND (s.time_s - 2792) % 6 = 0
+    ORDER BY t_rel
 
 Plan compliance by label, current plan:
 
