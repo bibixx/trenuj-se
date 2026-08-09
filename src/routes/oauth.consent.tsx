@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Button } from "../components/primitives/Button/Button.tsx";
 import { Card } from "../components/primitives/Card/Card.tsx";
 import { buildReturnTo } from "../lib/auth-redirect.ts";
+import { describeScopes } from "../lib/oauth-scopes.ts";
 import { useAuth } from "../lib/auth.ts";
 import { supabase } from "../lib/supabase.ts";
 import styles from "./oauth.consent.module.css";
@@ -18,6 +19,12 @@ export const Route = createFileRoute("/oauth/consent")({
 });
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL as string;
+
+/**
+ * The MCP endpoint authorises by user identity, not OAuth scope, so approving
+ * grants everything the MCP server exposes. Keep this list in sync with server/mcp/tools/.
+ */
+const GRANT_CAPABILITIES = ["View and edit your training plans and workouts", "Read and write plan notes and agent memory", "Read your linked Strava activity data"] as const;
 
 interface OAuthAuthorizationDetails {
   authorization_id: string;
@@ -164,6 +171,16 @@ function OAuthConsentPage() {
         <p className={styles.description}>
           <span className={styles.clientName}>{details.client.name}</span> wants to access your trenuj.se account.
         </p>
+        <p className={styles.permissionsIntro}>Approving will allow it to:</p>
+        <ul className={styles.permissions}>
+          {GRANT_CAPABILITIES.map((capability) => (
+            <li key={capability}>{capability}</li>
+          ))}
+          {describeScopes(details.scope).map(({ scope, label }) => (
+            <li key={scope}>{label ?? <code className={styles.rawScope}>{scope}</code>}</li>
+          ))}
+        </ul>
+        <p className={styles.revocationNote}>Access lasts until you revoke it under Settings → AI agent → Connected applications.</p>
         {error && <p className={styles.error}>{error}</p>}
         <div className={styles.actions}>
           <Button onClick={handleApprove} disabled={submitting}>

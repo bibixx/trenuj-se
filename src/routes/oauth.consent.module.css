@@ -21,11 +21,37 @@
 .description {
   color: var(--text-secondary);
   font-size: var(--text-sm);
-  margin-bottom: 20px;
+  margin-bottom: 8px;
 }
 
 .clientName {
   font-weight: 600;
+}
+
+.permissionsIntro {
+  font-size: var(--text-sm);
+  margin-bottom: 8px;
+}
+
+.permissions {
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  margin: 0 0 16px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.rawScope {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.revocationNote {
+  color: var(--text-secondary);
+  font-size: var(--text-xs);
+  margin-bottom: 20px;
 }
 
 .actions {
