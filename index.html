@@ -12,10 +12,50 @@
     <title>trenuj.se</title>
     <style>
       @layer base, components, utilities;
+
+      /* Pre-bundle splash — lives inside #root, so React wipes it on mount.
+         Inline because on a cold load no stylesheet has arrived yet.
+         The body rules are scoped to :has(#splash) so they stop applying the
+         moment React mounts — unscoped they'd be unlayered and permanently
+         beat the app's @layer-ed, theme-aware body background. */
+      body:has(#splash) {
+        margin: 0;
+        background: oklch(0.1766 0.0103 294.4);
+      }
+      #splash {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        font-size: 18px;
+        font-weight: 700;
+        color: oklch(0.916 0.196 119.75 / 0.66);
+        /* Invisible for the first 150ms so fast loads never flash it. */
+        opacity: 0;
+        animation: splash-appear 300ms cubic-bezier(0.4, 0, 0.2, 1) 150ms forwards;
+      }
+      @keyframes splash-appear {
+        to {
+          opacity: 1;
+        }
+      }
+      @media (prefers-color-scheme: light) {
+        body:has(#splash) {
+          background: oklch(0.965 0.01 294.4);
+        }
+        #splash {
+          color: oklch(0.56 0.66 122 / 0.66);
+        }
+      }
     </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div id="splash">trenuj.se</div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -2,6 +2,7 @@ import { IconDotsVertical, IconFilter, IconPencil, IconPlus, IconSettings, IconT
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "../../../components/primitives/Button/Button.tsx";
+import { TextLink } from "../../../components/primitives/TextLink/TextLink.tsx";
 import { Input } from "../../../components/primitives/Input/Input.tsx";
 import { Checkbox } from "../../../components/primitives/Checkbox/Checkbox.tsx";
 import { ProgressBar } from "../../../components/primitives/ProgressBar/ProgressBar.tsx";
@@ -79,6 +80,25 @@ function PrimitivesSection() {
           Disabled
         </Button>
       </div>
+
+      <h2 className={styles.subTitle}>Text Link</h2>
+      <p className={styles.description}>
+        Inline text link. Renders an <code>&lt;a&gt;</code> by default; pass <code>render</code> to compose with a router <code>&lt;Link&gt;</code> or a <code>&lt;button&gt;</code>
+        .
+      </p>
+      <div className={styles.row}>
+        <TextLink href="#">Underline (default)</TextLink>
+        <TextLink variant="accent" href="#">
+          Accent
+        </TextLink>
+      </div>
+      <p style={{ color: "var(--text-secondary)", fontSize: "var(--text-sm)", lineHeight: "var(--leading-relaxed)" }}>
+        In running text: don't have an account? <TextLink href="#">Sign up</TextLink> — or manage everything in{" "}
+        <TextLink variant="accent" href="#">
+          Settings
+        </TextLink>
+        .
+      </p>
 
       <h2 className={styles.subTitle}>Input</h2>
       <div className={styles.inputGrid}>

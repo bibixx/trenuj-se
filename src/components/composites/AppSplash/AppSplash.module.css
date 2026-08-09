@@ -1,0 +1,48 @@
+.root {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Anti-flash: stay invisible for the first 150ms; the component unmounts
+     when auth resolves, so fast loads never see it. */
+  opacity: 0;
+  animation: appear var(--motion-timing-medium) var(--motion-function) 150ms forwards;
+}
+
+.brand {
+  composes: typography-lg from global;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  color: oklch(var(--accent-base) / 0.66);
+  animation: pulse 1.5s var(--motion-function) infinite;
+
+  & svg {
+    stroke: oklch(var(--accent-base));
+    opacity: 0.66;
+  }
+}
+
+@keyframes appear {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brand {
+    animation: none;
+  }
+}
