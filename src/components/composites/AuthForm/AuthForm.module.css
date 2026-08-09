@@ -63,15 +63,37 @@
   margin-top: 8px;
 }
 
-.modeSwitchLink {
-  color: var(--text-primary);
-  font-weight: 500;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-  transition: var(--motion-timing-fast) var(--motion-function);
-  transition-property: color;
+.forgotRow {
+  font-size: var(--text-sm);
+  text-align: right;
+  margin-top: -8px;
+}
 
-  &:hover {
-    color: var(--text-muted);
+.confirmSwitch {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+
+.backRow {
+  display: flex;
+  margin-top: 8px;
+
+  & > * {
+    flex: 1;
   }
+}
+
+.confirmText {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
+}
+
+.confirmEmail {
+  color: var(--text-primary);
+  font-weight: 600;
 }

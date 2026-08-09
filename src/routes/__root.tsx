@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createRootRouteWithContext, Navigate, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { AppLoadingBar } from "../components/composites/GlobalLoadingBar/AppLoadingBar.tsx";
+import { AppSplash } from "../components/composites/AppSplash/AppSplash.tsx";
 import { ToastProvider } from "../components/primitives/Toast/Toast.tsx";
 import { buildReturnTo, getPostAuthRedirect } from "../lib/auth-redirect.ts";
 import { useAuth } from "../lib/auth.ts";
@@ -18,8 +19,12 @@ export const Route = createRootRouteWithContext<RouterContext>()({
 });
 
 const PUBLIC_PREFIXES = ["/dev/", "/share/", "/oauth/"];
-const PUBLIC_ROUTES = ["/help", "/privacy-policy"];
-const AUTH_ROUTES = ["/login", "/signup"];
+// /reset-password/confirm must stay public: the recovery link creates a real
+// session (an AUTH_ROUTES entry would bounce the user away before they set a
+// password), while expired-link visitors have no session and still need to see
+// the error card rather than a /login redirect.
+const PUBLIC_ROUTES = ["/help", "/privacy-policy", "/reset-password/confirm"];
+const AUTH_ROUTES = ["/login", "/signup", "/reset-password"];
 
 function RootLayout() {
   const { user, loading } = useAuth();
@@ -49,16 +54,16 @@ function RootLayout() {
   if (loading) {
     return (
       <ToastProvider>
-        <div />
+        <AppSplash />
       </ToastProvider>
     );
   }
 
-  // Blank shell while the post-auth effect navigates away from login/signup
+  // Shell while the post-auth effect navigates away from login/signup
   if (user && isAuthRoute) {
     return (
       <ToastProvider>
-        <div />
+        <AppSplash />
       </ToastProvider>
     );
   }

@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildReturnTo, getPostAuthRedirect, parseAuthRouteSearch, sanitizeReturnTo } from "../../src/lib/auth-redirect.ts";
+import { buildAbsoluteRedirectUrl, buildReturnTo, getPostAuthRedirect, parseAuthRouteSearch, sanitizeReturnTo } from "../../src/lib/auth-redirect.ts";
 
 describe("sanitizeReturnTo", () => {
   test("accepts relative in-app paths with query and hash", () => {
@@ -35,6 +35,17 @@ describe("getPostAuthRedirect", () => {
 describe("buildReturnTo", () => {
   test("preserves pathname, query, and hash", () => {
     expect(buildReturnTo("/oauth/consent", "?authorization_id=abc", "#details")).toBe("/oauth/consent?authorization_id=abc#details");
+  });
+});
+
+describe("buildAbsoluteRedirectUrl", () => {
+  test("builds an absolute url from a safe returnTo", () => {
+    expect(buildAbsoluteRedirectUrl("/oauth/consent?authorization_id=abc", "https://trenuj.se")).toBe("https://trenuj.se/oauth/consent?authorization_id=abc");
+  });
+
+  test("falls back to the origin root for missing or unsafe returnTo", () => {
+    expect(buildAbsoluteRedirectUrl(undefined, "https://trenuj.se")).toBe("https://trenuj.se/");
+    expect(buildAbsoluteRedirectUrl("https://evil.example/steal", "https://trenuj.se")).toBe("https://trenuj.se/");
   });
 });
 
