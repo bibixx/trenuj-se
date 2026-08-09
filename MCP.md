@@ -55,13 +55,31 @@ claude mcp add trenuj-se \
   "{SERVER_URL}/mcp"
 ```
 
-Fallback token path:
+The first time Claude Code talks to the server, run `/mcp` and pick **trenuj-se** to complete the login in your browser.
+
+Fallback token path (no `/mcp` login step needed):
 
 ```bash
 claude mcp add trenuj-se \
   --transport streamable-http \
   "{SERVER_URL}/mcp/claude/{CONNECTOR_TOKEN}"
 ```
+
+### Cursor
+
+Add the server to `~/.cursor/mcp.json` (all projects) or `.cursor/mcp.json` inside a project:
+
+```json
+{
+  "mcpServers": {
+    "trenuj-se": {
+      "url": "{SERVER_URL}/mcp"
+    }
+  }
+}
+```
+
+Then open **Cursor Settings → MCP** — Cursor opens your browser to log in with your trenuj.se account.
 
 ### VS Code (GitHub Copilot)
 
@@ -81,6 +99,19 @@ Create `.vscode/mcp.json` in the workspace. Requires `chat.mcp.enabled: true` in
 ### Claude fallback token flow
 
 Use this when Claude reaches `POST /mcp` but never continues into OAuth discovery.
+
+#### Preferred: the Settings UI
+
+If the **Connector tokens** section is visible in your settings (it's rolled out per-account, so you may not see it yet):
+
+1. Open **Settings → AI agent → Connector tokens** in the trenuj.se web app.
+2. Click **Create token** and name it after the client that will use it (e.g. "Claude Desktop").
+3. Copy the **pre-authenticated URL** (and, for Claude Code, the ready-made `claude mcp add` command) — it is shown only once.
+4. Use that URL as the server URL in your Claude client config. Treat it like a password — anyone with it can access your training data. Revoke it from the same section if it leaks.
+
+#### Fallback: the API
+
+If the section isn't visible for your account, or you're scripting:
 
 1. Create a connector token with an authenticated app session:
 
@@ -126,7 +157,7 @@ Every workout must reference a label — either by `labelId` (UUID) or `labelKey
 - `key` — unique lowercase-hyphenated identifier
 - `label` — human-readable name
 - `hue` — HSL hue (0–359) for color
-- `icon` — optional Tabler icon name (use `search_icons` to find valid names)
+- `icon` — optional; a Tabler icon name (use `search_icons` to find valid names), an emoji, or a raw SVG string
 - `activitySports` — Strava sport types for auto-matching imported activities
 
 ### Workout Status
@@ -143,7 +174,7 @@ Activities synced from Strava are auto-matched to planned workouts by date + spo
 
 ### Training Guide Resource
 
-The server exposes a `training-plan-guide` resource (`guide://training-plan-guide`) containing conventions for workout descriptions, metadata shapes, naming, colors, icons, and chart-block usage (Recharts-backed `chart` JSON code blocks). **Read this resource before creating or modifying plans** — it defines the expected formats.
+The server exposes a `training-plan-guide` resource (`guide://training-plan-guide`) containing conventions for workout descriptions, metadata shapes, naming, colors, icons, and chart-block usage (Recharts-backed `chart` JSON code blocks). The same content is also served by the `get_training_guide` tool for chat surfaces that expose tools only. **Read it before creating or modifying plans** — it defines the expected formats.
 
 ---
 
@@ -151,19 +182,21 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 
 ### Plans
 
-| Tool               | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                        |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `list_plans`       | List all plans. Optional filter: `status` (`active` / `inactive`).                                                                                                                                                                                                                                                                                                                                                                                  |
-| `get_plan`         | Get full plan with phases, labels, stats, and the plan's agent memory notepad (`agent_memory`). Optional: `planId`.                                                                                                                                                                                                                                                                                                                                 |
-| `create_plan`      | Create a new plan. Required: `name`, `startDate`. Optional: `goal`, `endDate`, `status`, `agentMemory`, `metadata`. Defaults to `active` and deactivates the current active plan; pass `status: 'inactive'` to keep the current plan active.                                                                                                                                                                                                        |
-| `update_plan`      | Update plan fields. Optional: `planId`, `name`, `goal`, `startDate`, `endDate`, `status`, `metadata`. (Agent memory is edited with `edit_plan_memory`.)                                                                                                                                                                                                                                                                                             |
-| `edit_plan_memory` | Edit the plan's agent memory notepad (`agent_memory`) in place. Required: `op` (`replace`/`append`). `replace`: `oldText` + `newText` (`''` deletes; pass the whole doc as `oldText` to rewrite), optional `replaceAll`. `append`: `text`. Optional: `planId`. Uses exact-match + compare-and-swap, so a `CONFLICT` means the content changed — re-read with `get_plan` and retry. Capped at 50,000 characters; shrinking edits are always allowed. |
-| `deactivate_plan`  | Set plan to inactive. Optional: `planId`.                                                                                                                                                                                                                                                                                                                                                                                                           |
-| `set_labels`       | **Replace all** labels on a plan. Required: `labels` array. Each label needs `key`, `label`, `hue`. Optional per label: `icon`, `metadata`, `activitySports`.                                                                                                                                                                                                                                                                                       |
-| `update_label`     | Update one label by `key`. Optional fields: `label`, `hue`, `icon`, `metadata`, `activitySports`.                                                                                                                                                                                                                                                                                                                                                   |
-| `add_phase`        | Add a training phase. Required: `name`, `startDate`, `endDate`. Optional: `planId`, `description`, `sortOrder`, `metadata`. Dates must be within plan range.                                                                                                                                                                                                                                                                                        |
-| `update_phase`     | Update a phase. Required: `phaseId`. Optional: `name`, `description`, `startDate`, `endDate`, `sortOrder`, `metadata`.                                                                                                                                                                                                                                                                                                                              |
-| `remove_phase`     | Delete a phase. Required: `phaseId`. Workouts in this phase become unlinked (not deleted).                                                                                                                                                                                                                                                                                                                                                          |
+| Tool                 | What it does                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_training_guide` | Return the training guide: description format, labels, execution blocks, chart code blocks, icons, metadata shapes, and agent memory conventions. Call it before creating or modifying a plan.                                                                                                                                                                                                                                                      |
+| `list_plans`         | List all plans. Optional filter: `status` (`active` / `inactive`).                                                                                                                                                                                                                                                                                                                                                                                  |
+| `get_plan`           | Get full plan with phases, labels, stats, and the plan's agent memory notepad (`agent_memory`). Optional: `planId`.                                                                                                                                                                                                                                                                                                                                 |
+| `create_plan`        | Create a new plan. Required: `name`, `startDate`. Optional: `goal`, `endDate`, `status`, `agentMemory`, `metadata`. Defaults to `active` and deactivates the current active plan; pass `status: 'inactive'` to keep the current plan active.                                                                                                                                                                                                        |
+| `update_plan`        | Update plan fields. Optional: `planId`, `name`, `goal`, `startDate`, `endDate`, `status`, `metadata`. (Agent memory is edited with `edit_plan_memory`.)                                                                                                                                                                                                                                                                                             |
+| `edit_plan_memory`   | Edit the plan's agent memory notepad (`agent_memory`) in place. Required: `op` (`replace`/`append`). `replace`: `oldText` + `newText` (`''` deletes; pass the whole doc as `oldText` to rewrite), optional `replaceAll`. `append`: `text`. Optional: `planId`. Uses exact-match + compare-and-swap, so a `CONFLICT` means the content changed — re-read with `get_plan` and retry. Capped at 50,000 characters; shrinking edits are always allowed. |
+| `deactivate_plan`    | Set plan to inactive. Optional: `planId`.                                                                                                                                                                                                                                                                                                                                                                                                           |
+| `set_labels`         | **Synchronize the full label set** on a plan. Required: `labels` array. Each label needs `key`, `label`, `hue`. Optional per label: `icon`, `metadata`, `activitySports`. Labels with matching keys are updated in place (IDs preserved); labels omitted from the set are **deleted** and workouts using them become unlabeled. For single-label changes use `add_label` / `update_label` instead.                                                  |
+| `add_label`          | Add one label without touching existing labels or workout assignments. Required: `key`, `label`, `hue`. Optional: `planId`, `icon`, `metadata`, `activitySports`. Fails with CONFLICT if the key exists.                                                                                                                                                                                                                                            |
+| `update_label`       | Update one label by `key`. Optional fields: `label`, `hue`, `icon`, `metadata`, `activitySports`.                                                                                                                                                                                                                                                                                                                                                   |
+| `add_phase`          | Add a training phase. Required: `name`, `startDate`, `endDate`. Optional: `planId`, `description`, `sortOrder`, `metadata`. Dates must be within plan range.                                                                                                                                                                                                                                                                                        |
+| `update_phase`       | Update a phase. Required: `phaseId`. Optional: `name`, `description`, `startDate`, `endDate`, `sortOrder`, `metadata`.                                                                                                                                                                                                                                                                                                                              |
+| `remove_phase`       | Delete a phase. Required: `phaseId`. Workouts in this phase become unlinked (not deleted).                                                                                                                                                                                                                                                                                                                                                          |
 
 ### Workouts
 
@@ -212,9 +245,9 @@ The server exposes a `training-plan-guide` resource (`guide://training-plan-guid
 
 ### Athlete
 
-| Tool          | What it does                                                                                |
-| ------------- | ------------------------------------------------------------------------------------------- |
-| `get_profile` | Get athlete profile, Strava connection status, and active plan summary. No required params. |
+| Tool          | What it does                                                                                                                                                                                     |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `get_profile` | Get athlete profile, Strava connection status, and active plan summary. When there is no active plan, the result includes an `onboarding` hint describing how to set one up. No required params. |
 
 ### Icons
 
@@ -230,14 +263,14 @@ When starting a new conversation with a connected server:
 
 1. Call `get_profile` to understand the athlete's current state.
 2. Call `get_plan` (no args) to load the active plan with its phases, labels, stats, and agent memory (`agent_memory` — the plan's freeform notepad; read it before making changes).
-3. Read the `training-plan-guide` resource if you'll be creating or modifying workouts.
+3. Call `get_training_guide` if you'll be creating or modifying workouts.
 4. Use `get_workouts` with date filters to see what's coming up or what was recently completed.
 5. Use `get_week_summary` to see the current week's planned vs actual workload.
 
 ## Common Mistakes to Avoid
 
 - **Don't forget `sortOrder`** when adding workouts — it's required and controls display order within a day.
-- **Don't use `set_labels` to update a single label** — it replaces ALL labels. Use `update_label` instead.
+- **Don't use `set_labels` for single-label changes** — it synchronizes the full set, deleting any label you omit. Use `add_label` to add one and `update_label` to edit one.
 - **Don't guess icon names** — use `search_icons` to find valid Tabler icon names.
 - **Don't set `planId` unnecessarily** — omitting it defaults to the active plan, which is almost always correct.
 - **Dates are `YYYY-MM-DD`** strings, not timestamps.

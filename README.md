@@ -228,21 +228,21 @@ claude mcp add trenuj-se \
   "https://www.trenuj.se/mcp"
 ```
 
-On first connection you'll be prompted to log in and approve access. See **[MCP.md](MCP.md)** for full per-client setup (Claude Desktop, VS Code / Copilot), the OAuth-fallback token flow, and usage guidance.
+On first connection you'll be prompted to log in and approve access. See **[MCP.md](MCP.md)** for full per-client setup (Claude Desktop, Claude Code, Cursor, VS Code / Copilot), the OAuth-fallback token flow, and usage guidance.
 
 ### MCP tools
 
 The server registers 30+ tools across six categories. Full parameter docs live in [MCP.md](MCP.md).
 
-| Category                   | Tools                                                                                                                                                                    |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Plans**                  | `list_plans`, `get_plan`, `create_plan`, `update_plan`, `edit_plan_memory`, `deactivate_plan`, `set_labels`, `update_label`, `add_phase`, `update_phase`, `remove_phase` |
-| **Workouts**               | `add_workouts`, `get_workouts`, `update_workouts`, `remove_workouts`, `complete_workout`, `skip_workout`, `link_activity`, `unlink_activity`, `add_trainer_notes`        |
-| **Activities & Analytics** | `get_week_summary`, `get_plan_progress`, `compare_planned_vs_actual`                                                                                                     |
-| **SQL Queries**            | `run_sql` + `get_sql_guide` + `hydrate_activities` — read-only SQL over the lazily-hydrated activity warehouse (summaries, laps, per-second streams, best efforts)       |
-| **Notes**                  | `add_plan_note`, `update_plan_note`, `delete_plan_note`, `get_plan_notes`                                                                                                |
-| **Athlete**                | `get_profile`                                                                                                                                                            |
-| **Icons**                  | `search_icons`                                                                                                                                                           |
+| Category                   | Tools                                                                                                                                                                                                       |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Plans**                  | `get_training_guide`, `list_plans`, `get_plan`, `create_plan`, `update_plan`, `edit_plan_memory`, `deactivate_plan`, `set_labels`, `add_label`, `update_label`, `add_phase`, `update_phase`, `remove_phase` |
+| **Workouts**               | `add_workouts`, `get_workouts`, `update_workouts`, `remove_workouts`, `complete_workout`, `skip_workout`, `link_activity`, `unlink_activity`, `add_trainer_notes`                                           |
+| **Activities & Analytics** | `get_week_summary`, `get_plan_progress`, `compare_planned_vs_actual`                                                                                                                                        |
+| **SQL Queries**            | `run_sql` + `get_sql_guide` + `hydrate_activities` — read-only SQL over the lazily-hydrated activity warehouse (summaries, laps, per-second streams, best efforts)                                          |
+| **Notes**                  | `add_plan_note`, `update_plan_note`, `delete_plan_note`, `get_plan_notes`                                                                                                                                   |
+| **Athlete**                | `get_profile`                                                                                                                                                                                               |
+| **Icons**                  | `search_icons`                                                                                                                                                                                              |
 
 The server also exposes a `training-plan-guide` resource (`guide://training-plan-guide`) with conventions for workout descriptions, metadata shapes, colors, icons, and chart blocks — read it before creating or modifying plans.
 
