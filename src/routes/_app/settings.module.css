@@ -64,65 +64,6 @@
   color: var(--text-muted);
 }
 
-/* Tokens */
-.tokenList {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.tokenRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 0;
-  border-top: 1px solid var(--border-subtle);
-
-  &:first-child {
-    border-top: none;
-  }
-}
-
-.tokenName {
-  composes: typography-sm from global;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.tokenMeta {
-  composes: typography-xs from global;
-  color: var(--text-muted);
-  margin-top: 1px;
-}
-
-.emptyText {
-  composes: typography-sm from global;
-  color: var(--text-muted);
-}
-
-/* New token display */
-.newToken {
-  background: var(--bg-inset);
-  border-radius: var(--radius-sm);
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.newTokenLabel {
-  composes: typography-xs from global;
-  color: var(--text-secondary);
-  font-weight: 500;
-}
-
-.newTokenRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 /* Strava */
 .stravaButton {
   composes: typography-sm from global;
@@ -154,27 +95,7 @@
   }
 }
 
-.newTokenValue {
-  composes: typography-xs from global;
-  font-family: var(--font-mono);
-  color: var(--accent);
-  background: var(--bg-inset);
-  padding: 4px 8px;
-  border-radius: var(--radius-sm);
-  flex: 1;
-  overflow-x: auto;
-  white-space: nowrap;
-  user-select: all;
-}
-
 /* Dialog layout */
-.dialogForm {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-top: 8px;
-}
-
 .dialogActions {
   display: flex;
   justify-content: flex-end;

@@ -7,6 +7,7 @@ import { Dialog } from "../../components/primitives/Dialog/Dialog.tsx";
 import { Input } from "../../components/primitives/Input/Input.tsx";
 import { ToggleGroup } from "../../components/primitives/ToggleGroup/ToggleGroup.tsx";
 import { PageLayout } from "../../components/composites/PageLayout/PageLayout.tsx";
+import { McpSettingsSection } from "../../components/domain/McpSettingsSection/McpSettingsSection.tsx";
 import { apiFetch } from "../../lib/api.ts";
 import { useTheme } from "../../lib/theme.ts";
 import type { ThemePreference } from "../../lib/theme.ts";
@@ -48,6 +49,7 @@ function SettingsPage() {
         <AccountSection user={user} />
         <AppearanceSection />
         <StravaSection profile={profile ?? null} stravaParam={stravaParam} />
+        <McpSettingsSection profile={profile ?? null} />
       </div>
     </PageLayout>
   );
