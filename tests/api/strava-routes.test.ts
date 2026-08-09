@@ -356,7 +356,7 @@ describe("GET /api/strava/auth", () => {
     const url = new URL(body.url);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
-    expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
+    expect(decodeURIComponent(encodedCallback)).toBe("/settings/strava?strava=connected");
   });
 
   test("sanitizes /api/ callback paths", async () => {
@@ -369,7 +369,7 @@ describe("GET /api/strava/auth", () => {
     const url = new URL(body.url);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
-    expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
+    expect(decodeURIComponent(encodedCallback)).toBe("/settings/strava?strava=connected");
   });
 
   test("sanitizes /mcp callback path", async () => {
@@ -382,7 +382,7 @@ describe("GET /api/strava/auth", () => {
     const url = new URL(body.url);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
-    expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
+    expect(decodeURIComponent(encodedCallback)).toBe("/settings/strava?strava=connected");
   });
 
   test("sanitizes non-path callback", async () => {
@@ -395,7 +395,7 @@ describe("GET /api/strava/auth", () => {
     const url = new URL(body.url);
     const state = url.searchParams.get("state")!;
     const [, encodedCallback] = state.split(":");
-    expect(decodeURIComponent(encodedCallback)).toBe("/settings?strava=connected");
+    expect(decodeURIComponent(encodedCallback)).toBe("/settings/strava?strava=connected");
   });
 });
 
@@ -458,6 +458,72 @@ describe("GET /api/strava/callback", () => {
     expect(res.status).toBe(302);
     const location = res.headers.get("location")!;
     expect(location).toContain("strava=error");
+  });
+
+  test("user denial redirects to the original callback with strava=cancelled", async () => {
+    const mock = makeAuthMock();
+    setMockSupabase(mock);
+
+    const callback = "/dashboard/plan";
+    const res = await app.request(`/api/strava/callback?state=valid-state:${encodeURIComponent(callback)}&error=access_denied`, {}, MOCK_ENV);
+    expect(res.status).toBe(302);
+    const location = res.headers.get("location")!;
+    expect(location).toContain("/dashboard/plan");
+    expect(location).toContain("strava=cancelled");
+    expect(location).not.toContain("message=");
+  });
+
+  test("user denial without state falls back to /settings?strava=cancelled", async () => {
+    const mock = makeAuthMock();
+    setMockSupabase(mock);
+
+    const res = await app.request("/api/strava/callback?error=access_denied", {}, MOCK_ENV);
+    expect(res.status).toBe(302);
+    const location = res.headers.get("location")!;
+    expect(location).toContain("/settings/strava");
+    expect(location).toContain("strava=cancelled");
+  });
+
+  test("user denial clears the state cookie", async () => {
+    const mock = makeAuthMock();
+    setMockSupabase(mock);
+
+    const cookie = JSON.stringify({ state: "valid-state", userId: MOCK_USER_ID });
+    const res = await app.request("/api/strava/callback?error=access_denied", { headers: { Cookie: `strava_oauth_state=${encodeURIComponent(cookie)}` } }, MOCK_ENV);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("set-cookie")).toContain("strava_oauth_state=;");
+  });
+
+  test("non-denial OAuth error redirects with strava=error", async () => {
+    const mock = makeAuthMock();
+    setMockSupabase(mock);
+
+    const res = await app.request("/api/strava/callback?error=server_error", {}, MOCK_ENV);
+    expect(res.status).toBe(302);
+    const location = res.headers.get("location")!;
+    expect(location).toContain("strava=error");
+    expect(location).toContain("message=");
+  });
+
+  test("error path clears the state cookie and respects the callback target", async () => {
+    globalThis.fetch = vi.fn(async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 400 })) as typeof globalThis.fetch;
+
+    const mock = makeAuthMock();
+    setMockSupabase(mock);
+
+    const state = "valid-state";
+    const callback = "/dashboard/plan";
+    const cookieValue = encodeURIComponent(JSON.stringify({ state, userId: MOCK_USER_ID }));
+    const res = await app.request(
+      `/api/strava/callback?state=${state}:${encodeURIComponent(callback)}&code=mock-code`,
+      { headers: { Cookie: `strava_oauth_state=${cookieValue}` } },
+      MOCK_ENV,
+    );
+    expect(res.status).toBe(302);
+    const location = res.headers.get("location")!;
+    expect(location).toContain("/dashboard/plan");
+    expect(location).toContain("strava=error");
+    expect(res.headers.get("set-cookie")).toContain("strava_oauth_state=;");
   });
 
   test("302 redirects to success page on valid callback", async () => {

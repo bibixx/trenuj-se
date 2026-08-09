@@ -40,7 +40,7 @@ const requireUser: MiddlewareHandler<{ Bindings: AppBindings; Variables: Variabl
 };
 
 function sanitizePostAuthRedirect(raw: string | null | undefined) {
-  const fallback = "/settings?strava=connected";
+  const fallback = "/settings/strava?strava=connected";
 
   if (!raw) {
     return fallback;
@@ -68,6 +68,34 @@ function sanitizePostAuthRedirect(raw: string | null | undefined) {
   } catch {
     return fallback;
   }
+}
+
+// Builds the redirect target for a failed/cancelled OAuth callback. The original callback
+// path rides in the `state` query param (Strava echoes it back even on Deny), so it can be
+// recovered without a valid state cookie — sanitizePostAuthRedirect keeps it same-origin.
+function callbackFailureTarget(queryState: string | undefined, kind: "cancelled" | "error", message?: string) {
+  let encodedCallback: string | undefined;
+  if (queryState) {
+    [, encodedCallback] = queryState.split(":");
+  }
+
+  let callback: string | undefined;
+  if (encodedCallback) {
+    try {
+      callback = decodeURIComponent(encodedCallback);
+    } catch {
+      callback = undefined;
+    }
+  }
+
+  const target = new URL(sanitizePostAuthRedirect(callback), "http://localhost");
+  target.searchParams.set("strava", kind);
+  if (kind === "error" && message) {
+    target.searchParams.set("message", message);
+  } else {
+    target.searchParams.delete("message");
+  }
+  return `${target.pathname}${target.search}${target.hash}`;
 }
 
 const stravaRoutes = new Hono<{ Bindings: AppBindings; Variables: Variables }>();
@@ -118,11 +146,22 @@ stravaRoutes.get("/auth", requireUser, async (c) => {
 });
 
 stravaRoutes.get("/callback", async (c) => {
+  const queryState = c.req.query("state");
+
+  const oauthError = c.req.query("error");
+  if (oauthError === "access_denied") {
+    deleteCookie(c, "strava_oauth_state", { path: "/" });
+    return c.redirect(callbackFailureTarget(queryState, "cancelled"), 302);
+  }
+
   try {
     const config = getStravaOauthConfig(c.env);
-    const queryState = c.req.query("state");
     const cookieRaw = getCookie(c, "strava_oauth_state");
     const code = c.req.query("code");
+
+    if (oauthError) {
+      throw new AppError("AUTH_ERROR", `Strava authorisation failed: ${oauthError}`);
+    }
 
     if (!queryState || !cookieRaw || !code) {
       throw new AppError("AUTH_ERROR", "Missing Strava OAuth callback parameters");
@@ -179,8 +218,9 @@ stravaRoutes.get("/callback", async (c) => {
     }
     return c.redirect(`${successUrl.pathname}${successUrl.search}${successUrl.hash}`, 302);
   } catch (error) {
+    deleteCookie(c, "strava_oauth_state", { path: "/" });
     const payload = errorPayload(error);
-    return c.redirect(`/settings?strava=error&message=${encodeURIComponent(payload.message)}`, 302);
+    return c.redirect(callbackFailureTarget(queryState, "error", payload.message), 302);
   }
 });
 

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { apiFetch } from "../../../lib/api.ts";
+import { ApiError, apiFetch } from "../../../lib/api.ts";
 import { recentStravaActivitiesQueryOptions, useLinkStravaActivity, type RecentStravaActivity } from "../../../lib/queries/workouts.ts";
 import { Dialog } from "../../primitives/Dialog/Dialog.tsx";
 import { DialogList } from "../../primitives/DialogList/DialogList.tsx";
@@ -109,7 +109,7 @@ export function LinkActivityDialog({ workoutId, planId, open, onOpenChange }: Li
     }
   };
 
-  const stravaNotConnected = error instanceof Error && /not connected/i.test(error.message);
+  const stravaNotConnected = error instanceof ApiError && error.code === "NOT_FOUND";
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
