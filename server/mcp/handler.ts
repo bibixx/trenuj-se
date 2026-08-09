@@ -16,6 +16,23 @@ import { registerIconTools } from "./tools/icons";
 import { registerQueryTools } from "./tools/query";
 import type { AppBindings } from "../lib/supabase";
 
+const SERVER_INSTRUCTIONS = `trenuj.se manages structured training plans for athletes: plans contain phases and labeled workouts, Strava activities are imported and auto-matched to workouts, and all synced activity data is queryable with SQL.
+
+Recommended first steps:
+1. Call get_profile to see the athlete's state (profile, Strava connection, active plan).
+2. If there is an active plan, call get_plan (no args) to load phases, labels, stats, and agent_memory — read the memory before making changes, and keep it updated.
+3. If activePlan is null, this athlete likely needs onboarding: interview them about goals, target events, weekly availability, and constraints, then offer to build a plan (create_plan → add_phase → set_labels → add_workouts).
+
+Before creating or editing plans or workouts, call get_training_guide — it defines the conventions for workout descriptions, labels, execution blocks (Apple Watch export), chart code blocks, icons, and agent memory. For data analysis, call get_sql_guide before writing non-trivial run_sql queries.
+
+Common mistakes to avoid:
+- sortOrder is required on every workout you add; it orders workouts within a day.
+- set_labels replaces the plan's ENTIRE label set — use add_label/update_label for single changes.
+- Never guess icon names; find valid ones with search_icons.
+- Omit planId to target the active plan (almost always correct).
+- Dates are YYYY-MM-DD strings, not timestamps.
+- description is the canonical workout body — the athlete must be able to execute the workout from it alone; execution is structured data that mirrors it.`;
+
 function buildServer(ctx: McpContext) {
   const server = new McpServer(
     {
@@ -27,6 +44,7 @@ function buildServer(ctx: McpContext) {
         resources: {},
         tools: {},
       },
+      instructions: SERVER_INSTRUCTIONS,
     },
   );
 
@@ -35,7 +53,7 @@ function buildServer(ctx: McpContext) {
     "guide://training-plan-guide",
     {
       title: "Training Plan Guide",
-      description: "Conventions for workout descriptions, metadata, naming, colors, icons, and mermaid usage.",
+      description: "Conventions for workout descriptions, metadata, naming, labels, icons, and chart code blocks.",
       mimeType: "text/markdown",
     },
     async (uri) => ({

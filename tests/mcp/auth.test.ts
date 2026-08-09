@@ -80,6 +80,11 @@ describe("MCP OAuth Authentication", () => {
     const rpc = await parseMcpResponse(response);
     expect(rpc.result).toBeDefined();
     expect(rpc.error).toBeUndefined();
+
+    const instructions = (rpc.result as { instructions?: string }).instructions;
+    expect(typeof instructions).toBe("string");
+    expect(instructions).toContain("get_profile");
+    expect(instructions).toContain("get_training_guide");
   });
 
   test("valid Claude connector token → successful initialization without OAuth lookup", async () => {

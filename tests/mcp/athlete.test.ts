@@ -72,6 +72,7 @@ describe("MCP Athlete Tools", () => {
       expect(progress.totalWorkouts).toBe(3);
       expect(progress.completedWorkouts).toBe(2);
       expect(progress.completionRate).toBeCloseTo(2 / 3);
+      expect(data.onboarding).toBeUndefined();
     });
 
     test("returns profile with activePlan null when no active plan exists", async () => {
@@ -97,6 +98,9 @@ describe("MCP Athlete Tools", () => {
       expect((data.profile as Record<string, unknown>).id).toBe(MOCK_USER_ID);
       expect(data.stravaConnected).toBe(true);
       expect(data.activePlan).toBeNull();
+      expect(typeof data.onboarding).toBe("string");
+      expect(data.onboarding).toContain("get_training_guide");
+      expect(data.onboarding).toContain("create_plan");
     });
 
     test("returns stravaConnected: false when no strava_athlete_id on profile", async () => {

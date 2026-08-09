@@ -34,7 +34,7 @@ const workoutInputSchema = workoutLabelRefSchema.extend({
     .trim()
     .min(1)
     .describe(
-      "Human-readable workout instructions in markdown. Must be self-contained — a user should be able to execute the workout from this field alone. See the training-plan-guide resource for suggested formatting.",
+      "Human-readable workout instructions in markdown. Must be self-contained — a user should be able to execute the workout from this field alone. See the training guide (get_training_guide) for suggested formatting.",
     ),
   targetDurationMin: z.number().int().positive().optional().describe("Planned duration in minutes."),
   targetDistanceM: z.number().int().positive().optional().describe("Planned distance in meters."),
@@ -67,7 +67,7 @@ const updateWorkoutSchema = z
       .nullable()
       .optional()
       .describe(
-        "Human-readable workout instructions in markdown. Must be self-contained — a user should be able to execute the workout from this field alone. See the training-plan-guide resource for suggested formatting. Set to null to clear.",
+        "Human-readable workout instructions in markdown. Must be self-contained — a user should be able to execute the workout from this field alone. See the training guide (get_training_guide) for suggested formatting. Set to null to clear.",
       ),
     targetDurationMin: z.number().int().positive().nullable().optional().describe("Planned duration in minutes. Set to null to clear."),
     targetDistanceM: z.number().int().positive().nullable().optional().describe("Planned distance in meters. Set to null to clear."),
@@ -331,7 +331,7 @@ export function registerWorkoutTools(server: McpServer, ctx: McpContext) {
     {
       title: "Add Workouts",
       description:
-        "Add one or more workouts to the active plan, or to a specific plan when planId is provided. Each workout SHOULD include `execution` with structured blocks plus `appleWatch.activityType`/`location` whenever the sport is known — the response will warn when omitted. Skip only for genuinely unstructured workouts (e.g. pure strength). Returns partial results if some fail validation. ⚠️ NOT idempotent — calling twice with the same data creates duplicates. If a previous call failed or you are retrying, use get_workouts first to check what already exists.",
+        "Add one or more workouts to the active plan, or to a specific plan when planId is provided. Each workout SHOULD include `execution` with structured blocks plus `appleWatch.activityType`/`location` whenever the sport is known — the response will warn when omitted. Skip only for genuinely unstructured workouts (e.g. pure strength). Returns partial results if some fail validation. ⚠️ NOT idempotent — calling twice with the same data creates duplicates. If a previous call failed or you are retrying, use get_workouts first to check what already exists. Call get_training_guide first for description format, labels, and execution conventions.",
       inputSchema: addWorkoutsSchema,
       annotations: { idempotentHint: false },
     },

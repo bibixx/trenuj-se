@@ -2,6 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { AppError, activitySportSchema, collectMissingActivitySportWarnings, resolvePlanId, toolError, toolSuccess, type McpContext, validateLabelMetadata } from "../context";
 import { validateLabelIcon } from "../icon-validation";
+import { trainingGuideMarkdown } from "../resources/training-guide";
 
 const planStatusSchema = z.enum(["active", "inactive"]);
 const labelKeySchema = z
@@ -276,6 +277,21 @@ async function replaceLabelActivitySports(ctx: McpContext, labelId: string, acti
 }
 
 export function registerPlanTools(server: McpServer, ctx: McpContext) {
+  // Duplicates the guide://training-plan-guide resource as a tool: chat surfaces (claude.ai)
+  // expose MCP tools only, so a resource-only guide is invisible to exactly the agent that
+  // needs it. Same pattern as get_sql_guide.
+  server.registerTool(
+    "get_training_guide",
+    {
+      title: "Training Guide",
+      description:
+        "The reference for creating and editing plans and workouts: description format, labels and activitySports, execution blocks and Apple Watch export, chart code blocks, icons, metadata shapes, and agent memory. Read this before creating or modifying a plan.",
+      inputSchema: z.object({}).optional(),
+      annotations: { readOnlyHint: true },
+    },
+    async () => ({ content: [{ type: "text" as const, text: trainingGuideMarkdown }] }),
+  );
+
   server.registerTool(
     "list_plans",
     {
@@ -354,7 +370,7 @@ export function registerPlanTools(server: McpServer, ctx: McpContext) {
     {
       title: "Create Plan",
       description:
-        "Create a new training plan. By default it becomes the active plan and the current active plan is deactivated (only one plan can be active at a time). Pass status: 'inactive' to create it without touching the current active plan. ⚠️ NOT idempotent — use list_plans first to check if the plan already exists before creating.",
+        "Create a new training plan. By default it becomes the active plan and the current active plan is deactivated (only one plan can be active at a time). Pass status: 'inactive' to create it without touching the current active plan. ⚠️ NOT idempotent — use list_plans first to check if the plan already exists before creating. Call get_training_guide first for plan and workout conventions.",
       inputSchema: createPlanSchema,
       annotations: { idempotentHint: false },
     },

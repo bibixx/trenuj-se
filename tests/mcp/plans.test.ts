@@ -638,4 +638,17 @@ describe("MCP Plan Tools", () => {
     const insertCall = mock.calls.find((call) => call.table === "plans" && call.operation === "insert");
     expect(insertCall?.args[0]).toMatchObject({ agent_memory: "Plan notepad" });
   });
+
+  test("get_training_guide returns the training guide", async () => {
+    setMockSupabase(createMockSupabase({ auth: mockAuth() }));
+
+    const parsed = await parseMcpResponse(await mcpCallTool("get_training_guide", {}, {}));
+    const result = parsed.result as { content?: Array<{ type: string; text: string }>; isError?: boolean };
+
+    expect(result.isError).toBeUndefined();
+    const text = result.content?.[0]?.text ?? "";
+    expect(text).toContain("# Training Plan Guide");
+    expect(text).toContain("## Agent memory");
+    expect(text).toContain("chart");
+  });
 });

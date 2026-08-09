@@ -7,7 +7,8 @@ export function registerAthleteTools(server: McpServer, ctx: McpContext) {
     "get_profile",
     {
       title: "Get Profile",
-      description: "Get the athlete profile, Strava connection state, and active plan summary.",
+      description:
+        "Get the athlete profile, Strava connection state, and active plan summary. When there is no active plan, the result includes an onboarding hint describing how to set one up.",
       inputSchema: z.object({}).optional(),
       annotations: { readOnlyHint: true },
     },
@@ -44,6 +45,12 @@ export function registerAthleteTools(server: McpServer, ctx: McpContext) {
           profile,
           stravaConnected: Boolean(profile.strava_athlete_id),
           activePlan: activePlanSummary,
+          ...(activePlanSummary === null
+            ? {
+                onboarding:
+                  "This athlete has no active plan. Offer to build one: read the training guide (get_training_guide), interview them about goals, target events, weekly availability, and constraints, then create_plan → add_phase → set_labels → add_workouts.",
+              }
+            : {}),
         });
       } catch (error) {
         return toolError(error);
